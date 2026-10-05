@@ -15,6 +15,7 @@ public enum CmdKind
     Push,            // Target velocity += (Vx, Vy)
     SetConst,        // constant Name ("G", "Density[2]", ...) = Amount
     Remove,          // Target is taken out of the world
+    FastForward,     // every object rides its present orbit for Amount time units (closed formula: no pull between siblings, no collisions)
 }
 
 public record struct Command(CmdKind Kind, int Target = -1, double X = 0, double Y = 0, double Vx = 0, double Vy = 0,
@@ -29,7 +30,7 @@ public sealed partial class World
     public int Do(in Command c)
     {
         int r = Apply(c);
-        if (r >= 0 || c.Kind == CmdKind.SetConst && r == -2) { Journal.Add((Step, c)); return Math.Max(r, 0); }
+        if (r >= 0 || r == -2) { Journal.Add((Step, c)); return Math.Max(r, 0); }
         return -1;
     }
 
@@ -70,6 +71,10 @@ public sealed partial class World
                 if (c.Name == null || !C.Set(c.Name, c.Amount)) return -1;
                 RecalcRadii();
                 return -2; // applied, no object involved
+            case CmdKind.FastForward:
+                if (!double.IsFinite(c.Amount) || c.Amount <= 0) return -1;
+                Jump(c.Amount);
+                return -2;
             case CmdKind.Remove:
                 if (!Ok(c.Target)) return -1;
                 Kill(c.Target);
