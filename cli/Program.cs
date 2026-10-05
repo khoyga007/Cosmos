@@ -63,6 +63,8 @@ foreach (int n in new[] { 2_000, 5_000, 20_000, 50_000 })
 
 ulong a1 = Run(), b1 = Run();
 Check(a1 == b1, $"repeat: {a1:X16} / {b1:X16}");
+allOk &= RuleChecks.Run();
+allOk &= Audit.Run();
 return allOk ? 0 : 1;
 
 static ulong Run() { var w = World.SolSystem(3_000, 77); for (int i = 0; i < 1000; i++) w.Advance(H); return w.Hash(); }

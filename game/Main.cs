@@ -1,4 +1,4 @@
-// Shell: steps the core once per frame and draws it tilted (2.5D = the flat world seen from above at an angle).
+// Shell: steps the core once per frame and draws it 2D from straight above (T tilts the picture, draw only).
 // Everything is built in code; the scene file only attaches this script.
 //   run:  godot --path game -- --rocks=5000
 //   left click = select an object (camera follows it), right click = put a moon there around the selection,
@@ -18,7 +18,7 @@ public partial class Main : Node2D
     RichTextLabel _panel = null!;
     int _sel = -1, _frame, _moons;
     double _cx, _cy; // world point at the screen centre; rides the selected object
-    float _zoom = 0.75f, _tilt = 0.5f; // tilt = cos of the view angle: 1 = straight down
+    float _zoom = 0.75f, _tilt = 1f; // tilt = cos of the view angle: 1 = straight down (default, Yang 06/10: 2D top-down); T = 0.5 for looks
     bool _paused;
     double _stepMs, _fillMs;
     int _bench; double _benchT; int _benchFrames;
