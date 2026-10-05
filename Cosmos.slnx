@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/cli/">
+    <Project Path="cli/Cosmos.Cli.csproj" />
+  </Folder>
+  <Folder Name="/core/">
+    <Project Path="core/Cosmos.Core.csproj" />
+  </Folder>
+  <Folder Name="/game/">
+    <Project Path="game/Cosmos.Game.csproj" />
+  </Folder>
+</Solution>
