@@ -10,7 +10,7 @@ using System.Collections.Generic;
 namespace Cosmos.Core;
 
 /// The laws every object obeys. One set per world; plain fields so the god can turn them.
-public sealed class Consts
+public sealed partial class Consts
 {
     public double G = 1.0;
     public double AttractMass = 1e-7; // an object this heavy or heavier pulls the others (about 0.0007 Earths)
@@ -21,7 +21,7 @@ public sealed class Consts
 
 public enum Kind { Star, Planet, Moon, Rock }
 
-public sealed class World
+public sealed partial class World
 {
     public const int NElem = 6, Sub = 8; // Sub small steps per Advance: moon orbits need the finer step
     public static readonly string[] ElemName = { "gas", "ice", "rock", "metal", "carbon", "radio" };

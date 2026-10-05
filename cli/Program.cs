@@ -61,6 +61,29 @@ foreach (int n in new[] { 2_000, 5_000, 20_000, 50_000 })
     Check(lo < 40, $"constants: G 1 -> 2, Earth dips from 45.0 to {lo:F1}");
 }
 
+// commands: the god acts through World.Do; the journal alone must rebuild the same world
+{
+    double[] rock = { 0, 0, 1, 0, 0, 0 };
+    var w = World.SolSystem(500, 9);
+    bool ok = true;
+    for (int s = 0; s < 600; s++)
+    {
+        if (s == 50) ok &= w.Do(new Command(CmdKind.CreateOrbiting, Target: 3, X: w.X[3], Y: w.Y[3] + 0.2, Amount: 1e-6, Mix: rock, Name: "m")) >= 0;
+        if (s == 100) ok &= w.Do(new Command(CmdKind.Push, Target: 4, Vx: 0.05, Vy: -0.02)) >= 0;
+        if (s == 150) ok &= w.Do(new Command(CmdKind.AddMatter, Target: 4, Amount: 2e-5, Index: 1)) >= 0;
+        if (s == 200) ok &= w.Do(new Command(CmdKind.SetConst, Name: "G", Amount: 1.2)) >= 0;
+        if (s == 250) ok &= w.Do(new Command(CmdKind.SetConst, Name: "Density[2]", Amount: 2.5)) >= 0;
+        if (s == 300) ok &= w.Do(new Command(CmdKind.Create, X: 300, Y: 10, Vx: 0, Vy: 0.3, Amount: 3e-4, Mix: rock)) >= 0;
+        if (s == 350) ok &= w.Do(new Command(CmdKind.Remove, Target: 20)) >= 0;
+        if (s == 400) ok &= w.Do(new Command(CmdKind.Remove, Target: 20)) < 0 && w.Do(new Command(CmdKind.SetConst, Name: "Nope", Amount: 1)) < 0; // refused, not recorded
+        w.Advance(H);
+    }
+    var r = World.SolSystem(500, 9); int next = 0;
+    for (int s = 0; s < 600; s++) { r.Replay(w.Journal, ref next); r.Advance(H); }
+    Check(ok && w.Journal.Count == 7 && next == 7 && w.Hash() == r.Hash() && r.C.G == 1.2 && r.C.Density[2] == 2.5,
+        $"commands: {w.Journal.Count} recorded, replay hash {r.Hash():X16} vs live {w.Hash():X16}");
+}
+
 ulong a1 = Run(), b1 = Run();
 Check(a1 == b1, $"repeat: {a1:X16} / {b1:X16}");
 allOk &= RuleChecks.Run();

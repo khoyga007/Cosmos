@@ -1,6 +1,7 @@
 // Shell: steps the core once per frame and draws it 2D from straight above (T tilts the picture, draw only).
 // Everything is built in code; the scene file only attaches this script.
 //   run:  godot --path game -- --rocks=5000
+//   Every change to the world goes through World.Do(Command) (SPEC 3): never write world arrays from here.
 //   left click = select an object (camera follows it), right click = put a moon there around the selection,
 //   wheel = zoom, T = tilt, Space = pause, [ and ] = turn the universe constant G down / up
 using System;
@@ -91,7 +92,7 @@ public partial class Main : Node2D
             _benchT += delta; _benchFrames++;
             if (_benchT >= _bench)
             {
-                _sel = 3; _w.AddOrbiting(3, _w.X[3], _w.Y[3] + 0.2, _w.M[3] * 0.01, new[] { 0, 0, 1.0, 0, 0, 0 }, "test");
+                _sel = 3; _w.Do(new Command(CmdKind.CreateOrbiting, Target: 3, X: _w.X[3], Y: _w.Y[3] + 0.2, Amount: _w.M[3] * 0.01, Mix: new[] { 0, 0, 1.0, 0, 0, 0 }, Name: "test"));
                 GD.Print(PanelText()); _sel = 500; GD.Print(PanelText());
                 GD.Print($"BENCH objects={_w.Live} fps={_benchFrames / _benchT:F1} step_ms={_stepMs:F2} fill_ms={_fillMs:F2} renderer={RenderingServer.GetVideoAdapterName()}");
                 GetTree().Quit();
@@ -173,8 +174,8 @@ public partial class Main : Node2D
     {
         if (e is InputEventKey { Pressed: true } k)
         {
-            if (k.Keycode == Key.Bracketright) _w.C.G *= 1.05; // the god turns a constant: every object answers at once
-            if (k.Keycode == Key.Bracketleft) _w.C.G /= 1.05;
+            if (k.Keycode == Key.Bracketright) _w.Do(new Command(CmdKind.SetConst, Name: "G", Amount: _w.C.G * 1.05)); // the god turns a constant: every object answers at once
+            if (k.Keycode == Key.Bracketleft) _w.Do(new Command(CmdKind.SetConst, Name: "G", Amount: _w.C.G / 1.05));
             if (k.Echo) return;
             if (k.Keycode == Key.T) _tilt = _tilt < 1 ? 1f : 0.5f;
             if (k.Keycode == Key.Space) _paused = !_paused;
@@ -200,7 +201,7 @@ public partial class Main : Node2D
                 double x = _cx + (m.Position.X - c.X) / _zoom, y = _cy + (m.Position.Y - c.Y) / (_zoom * _tilt);
                 double mass = _w.M[_sel] * 0.01; // ponytail: fixed 1% of the parent, rock; mass and matter become choices when the god tools exist
                 if (Math.Sqrt(Math.Pow(x - _w.X[_sel], 2) + Math.Pow(y - _w.Y[_sel], 2)) > _w.R[_sel] * 1.5)
-                    _w.AddOrbiting(_sel, x, y, mass, new[] { 0, 0.02, 0.70, 0.27, 0.005, 0.005 }, "Vệ tinh " + ++_moons, 0xB8B8C8);
+                    _w.Do(new Command(CmdKind.CreateOrbiting, Target: _sel, X: x, Y: y, Amount: mass, Mix: new[] { 0, 0.02, 0.70, 0.27, 0.005, 0.005 }, Name: "Vệ tinh " + ++_moons, Col: 0xB8B8C8));
             }
         }
     }

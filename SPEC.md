@@ -31,6 +31,8 @@ Supersedes: web project E:\CosmosSandbox (archived), every grain/softening note 
 - Pull = exact 1/r^2, no softening. Touch = merge (heavier keeps identity). Every object feels every PULLING object. 8 small steps per `Advance`. Slots stable (dead slot reused, never shifted).
 - Distances squeezed `45*AU^0.62`, real order + mass ratios [P].
 - Text shown to the player (Vietnamese) lives in `game/`. Core events carry ids + numbers, not sentences. (Scene names in `SolSystem` are data, allowed.)
+- BOUNDARY (Yang approved 06/10, idea from his Claude Web chat): the outside changes a world ONLY through `World.Do(Command)` (`core/Commands.cs`). Commands are recorded in `World.Journal` with their step; scene + journal rebuilds the same world (cli "commands" check). Reading world arrays for drawing is free; writing them from `game/` is forbidden. A new god power = a new `CmdKind` in core (ask Claire), then its tool in `game/`. Gives replay, bug reproduction, headless tests, later rewind.
+- LATER, agreed in principle, not started: snapshot of the whole state = save point / rewind (after round 1); rule numbers + thresholds + kinds in a data file Yang can edit (when rules 2-3 exist); narrator that reads the event log. Language stays C# (web/TypeScript and Rust were weighed and dropped: stack already measured and accepted; C# core is already engine-free).
 - Agents NEVER open a window on Yang's machine (no Godot editor, no non-headless run). Only `--headless`. Anything a mouse does must also be callable from code so a headless self-test can run it.
 
 ## 4. Rules, time, log [C]
@@ -42,7 +44,8 @@ Supersedes: web project E:\CosmosSandbox (archived), every grain/softening note 
 
 ## 5. Code now (master)
 - `core/World.cs`: `Consts` (G, AttractMass 1e-7, StarMass 4, RadiusScale 1.5, Density[6]) · `Kind` · `World`: SoA `X Y Vx Vy M R Comp Alive Name Col Par Grp`, `Groups`, `Add`, `AddOrbiting`, `Attracts`, `KindOf`, `Hill`, `RecalcRadii`, `SolSystem(rocks, seed)`, `Advance(h)`, `Hash()`, `Step`, `Merges`.
-- `cli/Program.cs`: timing + checks merge / moon / sol / constants / repeat, then `RuleChecks.Run()` (cli/RuleChecks.cs) and `Audit.Run()` (cli/Audit.cs). `dotnet run -c Release --project cli` ≈ 1.5 min → use a long timeout.
+- `core/Commands.cs`: `CmdKind` (Create, CreateOrbiting, AddMatter, Push, SetConst, Remove), `Command`, `World.Do`, `World.Journal`, `World.Replay`, `Consts.All()` / `Consts.Set(name, value)` (every constant by name, e.g. "G", "Density[2]"). `World` and `Consts` are `partial`.
+- `cli/Program.cs`: timing + checks merge / moon / sol / constants / commands / repeat, then `RuleChecks.Run()` (cli/RuleChecks.cs) and `Audit.Run()` (cli/Audit.cs). `dotnet run -c Release --project cli` ≈ 1.5 min → use a long timeout.
 - `game/Main.cs`: whole window in code. `run.bat [rocks]` = Yang's launcher. Headless: `<godot>_console.exe --headless --path game -- --rocks=N --bench=SECONDS`.
 - Measured (Release, Yang's machine): 5000 rocks 2.4 ms/step · 20000 9.4 · 50000 20.5.
 - Not written: rock-rock collision, fragmentation, swept collision for fast small bodies, layers, rules, log, years, god tools beyond G keys + moon placing.
@@ -66,7 +69,7 @@ Files: `game/` only (split `Main.cs` into more files if it helps). No edits in `
 3. Push tool: drag from the selected object = add velocity along the drag; show the arrow while dragging.
 4. Time control: keys for 1× 2× 4× … 64× = that many `Advance` per frame, shown in the HUD with real ms; drop back automatically if a frame goes over 50 ms.
 5. Constants panel: every `Consts` field shown, editable (G keys stay).
-Every tool = a plain method the mouse handler calls. Add `--selftest`: headless, calls each method with fixed inputs, prints one line per tool with before/after numbers, exits 1 on any mismatch. Done when `--selftest` and `--bench=3` both run clean headless; paste output. Look (colours, layout) is judged by Yang's eyes later: keep it plain, do not polish.
+Every tool builds a `Command` and sends it through `World.Do` — no direct writes to world arrays, no direct `Add`/`AddOrbiting`/`C.x =` (the two existing spots in `Main.cs` already use `Do`). Tools 1, 2, 3, 5 map to Create/CreateOrbiting, AddMatter, Push, SetConst; the constants panel lists `Consts.All()`. Time control is window state, not a command. Missing command kind → ask Claire on the thread. Each tool = a plain method the mouse handler calls. Add `--selftest`: headless, calls each method with fixed inputs, then replays `World.Journal` on a fresh world and compares `Hash()`, prints one line per tool with before/after numbers, exits 1 on any mismatch. Done when `--selftest` and `--bench=3` both run clean headless; paste output. Look (colours, layout) is judged by Yang's eyes later: keep it plain, do not polish.
 
 ### P3 — Selica — audit of the core + measurements · worktree `E:\Cosmos-selica` branch `selica/audit`
 Files: `cli/Audit.cs` only. Read `core/World.cs` (f0817b1 + later), change nothing in it.
