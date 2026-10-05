@@ -11,10 +11,10 @@ Stack (Claire's call 06/10, Yang delegated): Godot 4.7.2 .NET at `E:\Godot\Godot
 
 ## SPIKE status 06/10
 - Core, Release, single thread, 9 bodies: 10k 1.27 ms/step · 30k 3.84 · 100k 12.5 · 300k 32.0. Repeat check OK. (Old web cap: 7k grains.)
-- Godot headless run: no script errors. NOT measured: real fps in a window (needs Yang to run `run.bat`).
+- Godot headless run: no script errors.
+- Window on Yang's machine 06/10 (his screenshot): 100000 grains, 38 fps, step 19.52 ms, DEBUG build, OpenGL 3.3 compatibility renderer, while a screen-share app was running. Yang: "ok, mượt" → STACK ACCEPTED. Frame is bound by the sim step (Debug 19.5 ms vs Release 12.5 ms in cli), not by drawing.
 - Trap: `dotnet new sln` on SDK 10 writes `.slnx`; Godot needs `game/Cosmos.Game.sln` → `--format sln`.
 
 ## NEXT (needs Yang)
-1. Yang runs `run.bat`, reports fps at 100000 (and 30000 if low). Decides whether the stack stays.
-2. Then first playable slice: one abstract civilisation on one planet that sees a miracle and reacts. Civ state content = Yang's.
+1. First playable slice: one abstract civilisation on one planet that sees a miracle and reacts. Civ state content = Yang's.
 Rule: smallest playable slice before infrastructure. Do not port the web engine wholesale.
