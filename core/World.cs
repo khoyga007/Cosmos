@@ -52,6 +52,8 @@ public sealed partial class World
         M = new double[capacity]; R = new double[capacity]; Comp = new double[capacity * NElem];
         Alive = new bool[capacity]; Name = new string?[capacity]; Col = new uint[capacity]; Par = new int[capacity]; Grp = new int[capacity];
         _att = new int[capacity];
+        Temp = new double[capacity]; _temperatureBands = new int[capacity]; _starSlots = new int[capacity]; _starLight = new double[capacity];
+        InitRules();
         _rng = seed == 0 ? 0x9E3779B97F4A7C15UL : seed;
     }
 
@@ -109,6 +111,7 @@ public sealed partial class World
         X[i] = x; Y[i] = y; Vx[i] = vx; Vy[i] = vy; M[i] = m; Alive[i] = true; Name[i] = name; Col[i] = col; Par[i] = par; Grp[i] = grp;
         for (int e = 0; e < NElem; e++) Comp[i * NElem + e] = m * mix[e];
         SetRadius(i); Live++;
+        ResetTemperature(i);
         return i;
     }
 
@@ -175,6 +178,7 @@ public sealed partial class World
             w.AddOrbiting(sun, Math.Cos(a) * d, Math.Sin(a) * d, m, mix, null, 0, inner ? 1 : 2, 0.99 + 0.02 * w.Next());
             w.Par[w.N - 1] = -1; // rocks get no orbit line
         }
+        w.RunRules();
         return w;
     }
 
@@ -182,6 +186,8 @@ public sealed partial class World
 
     public void Advance(double h)
     {
+        if (!double.IsFinite(h) || h < 0 || !double.IsFinite(C.YearTime) || C.YearTime <= 0)
+            throw new ArgumentOutOfRangeException(nameof(h), "Advance requires finite non-negative time and positive YearTime.");
         double hs = h / Sub, g = C.G;
         for (int sub = 0; sub < Sub; sub++)
         {
@@ -214,6 +220,8 @@ public sealed partial class World
             }
         }
         Step++;
+        Year += h / C.YearTime;
+        RunRules();
     }
     // ponytail: two objects that both do NOT pull never collide with each other (rock through rock);
     //           add a grid broad-phase when belts should grind. A fast object can also skip across a body
@@ -229,6 +237,7 @@ public sealed partial class World
             if (!Alive[i]) continue;
             mix((ulong)i); mix(BitConverter.DoubleToUInt64Bits(X[i])); mix(BitConverter.DoubleToUInt64Bits(Y[i])); mix(BitConverter.DoubleToUInt64Bits(M[i]));
         }
+        HashRules(mix);
         return h;
     }
 }
