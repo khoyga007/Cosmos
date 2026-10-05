@@ -1,6 +1,7 @@
 // Spike shell: steps the core once per frame and draws it tilted (2.5D = the flat world seen from above at an angle).
 // Everything is built in code; the scene file only attaches this script.
-//   run:  godot --path game -- --grains=100000        keys: T tilt on/off, Space pause, wheel zoom, click a body = its matter table
+//   run:  godot --path game -- --grains=100000        keys: T tilt on/off, Space pause, wheel zoom, left click a body = matter table + camera follows it,
+//         right click = put a moon there, in orbit around the selected body
 using System;
 using Godot;
 using Cosmos.Core;
@@ -14,7 +15,8 @@ public partial class Main : Node2D
     float[] _buf = null!;
     Label _hud = null!;
     RichTextLabel _panel = null!;
-    int _sel = -1, _np = -1, _frame;
+    int _sel = -1, _np = -1, _frame, _moons;
+    double _cx, _cy; // world point at the screen centre; rides the selected body
     const int Stride = 12; // per grain: 8 floats transform + 4 colour
     // one colour and one Vietnamese label per element group, order = World.ElemName
     static readonly Color[] ElemCol = { new(0.72f, 0.78f, 1f), new(0.3f, 0.9f, 1f), new(0.9f, 0.5f, 0.25f), new(1f, 0.85f, 0.4f), new(0.75f, 0.4f, 0.95f), new(0.4f, 1f, 0.3f) };
@@ -52,9 +54,11 @@ public partial class Main : Node2D
         if (!_paused) _w.Advance(0.5);
         long t1 = System.Diagnostics.Stopwatch.GetTimestamp();
 
+        if (_sel >= 0) { _cx = _w.Bx[_sel]; _cy = _w.By[_sel]; }
         Vector2 c = GetViewportRect().Size / 2;
         float[] px = _w.Px, py = _w.Py;
-        for (int i = 0, n = _w.Np; i < n; i++) { _buf[i * Stride + 3] = c.X + px[i] * _zoom; _buf[i * Stride + 7] = c.Y + py[i] * _zoom * _tilt; }
+        float ox = c.X - (float)_cx * _zoom, oy = c.Y - (float)_cy * _zoom * _tilt, zt = _zoom * _tilt;
+        for (int i = 0, n = _w.Np; i < n; i++) { _buf[i * Stride + 3] = ox + px[i] * _zoom; _buf[i * Stride + 7] = oy + py[i] * zt; }
         if (_w.Np != _np) // a grain was absorbed, slots moved: recolour
         {
             _np = _w.Np; _mm.VisibleInstanceCount = _np;
@@ -74,7 +78,7 @@ public partial class Main : Node2D
             _benchT += delta; _benchFrames++;
             if (_benchT >= _bench)
             {
-                _sel = 3; GD.Print(PanelText());
+                _sel = 3; _w.AddMoon(3, _w.Bx[3], _w.By[3] + 0.2, _w.Bm[3] * 0.01, new[] { 0, 0, 1.0, 0, 0, 0 }, "test", 0); GD.Print(PanelText(), " bodies=", _w.Nb);
                 GD.Print($"BENCH grains={_w.Np} fps={_benchFrames / _benchT:F1} step_ms={_stepMs:F2} fill_ms={_fillMs:F2} renderer={RenderingServer.GetVideoAdapterName()}");
                 GetTree().Quit();
             }
@@ -84,10 +88,11 @@ public partial class Main : Node2D
     Vector2 BodyPos(int i)
     {
         Vector2 c = GetViewportRect().Size / 2;
-        return new Vector2(c.X + (float)_w.Bx[i] * _zoom, c.Y + (float)_w.By[i] * _zoom * _tilt);
+        return new Vector2(c.X + (float)((_w.Bx[i] - _cx) * _zoom), c.Y + (float)((_w.By[i] - _cy) * _zoom * _tilt));
     }
 
-    float BodyPx(int i) => i == 0 ? (float)_w.Br[0] * _zoom + 3 : MathF.Max(3.5f, (float)_w.Br[i] * _zoom * 1.6f);
+    // true size once it is big enough to see, a fixed dot before that
+    float BodyPx(int i) => MathF.Max(i == 0 ? 9f : _w.Bpar[i] > 0 ? 2.5f : 4f, (float)_w.Br[i] * _zoom);
 
     string PanelText()
     {
@@ -95,7 +100,7 @@ public partial class Main : Node2D
         if (_sel < 0)
         {
             for (int e = 0; e < World.NElem; e++) sb.Append($"[color=#{ElemCol[e].ToHtml(false)}]■[/color] {ElemVi[e]}\n");
-            return sb.Append("Bấm vào thiên thể để xem thành phần").ToString();
+            return sb.Append("Bấm trái vào thiên thể: xem thành phần, camera bám theo\nBấm phải: đặt vệ tinh quanh thiên thể đang chọn").ToString();
         }
         double m = _w.Bm[_sel];
         sb.Append($"[b]{_w.Bname[_sel]}[/b]   khối lượng {m / World.EarthMass:N3} Trái Đất\n");
@@ -111,12 +116,20 @@ public partial class Main : Node2D
     {
         Vector2 c = GetViewportRect().Size / 2;
         Font font = ThemeDB.FallbackFont;
-        // orbit lines: circles in the world plane, squashed by the tilt like everything else
-        DrawSetTransform(c, 0, new Vector2(1, _tilt));
+        // orbit lines: circle around the parent body, in the world plane, squashed by the tilt like everything else
         for (int i = 1; i < _w.Nb; i++)
         {
-            double dx = _w.Bx[i] - _w.Bx[0], dy = _w.By[i] - _w.By[0];
-            DrawArc(new Vector2((float)_w.Bx[0], (float)_w.By[0]) * _zoom, (float)Math.Sqrt(dx * dx + dy * dy) * _zoom, 0, MathF.Tau, 96, new Color(1, 1, 1, 0.10f), 1);
+            int par = _w.Bpar[i];
+            double dx = _w.Bx[i] - _w.Bx[par], dy = _w.By[i] - _w.By[par];
+            float rad = (float)(Math.Sqrt(dx * dx + dy * dy) * _zoom);
+            if (rad < 6) continue;
+            DrawSetTransform(BodyPos(par), 0, new Vector2(1, _tilt));
+            DrawArc(Vector2.Zero, rad, 0, MathF.Tau, 128, new Color(1, 1, 1, 0.10f), 1);
+        }
+        if (_sel > 0) // zone where the selected body, not the star, rules: a moon put inside about half of it stays
+        {
+            DrawSetTransform(BodyPos(_sel), 0, new Vector2(1, _tilt));
+            DrawArc(Vector2.Zero, (float)(_w.Hill(_sel) * _zoom), 0, MathF.Tau, 96, new Color(0.5f, 1f, 0.6f, 0.35f), 1);
         }
         DrawSetTransform(Vector2.Zero);
         for (int i = 0; i < _w.Nb; i++)
@@ -130,6 +143,7 @@ public partial class Main : Node2D
             if (_w.Bname[i] == "Sao Thổ") { DrawSetTransform(p, 0, new Vector2(1, _tilt)); DrawArc(Vector2.Zero, r * 2.1f, 0, MathF.Tau, 48, new Color(0.9f, 0.82f, 0.6f, 0.7f), MathF.Max(1.5f, r * 0.45f)); DrawSetTransform(Vector2.Zero); } // ponytail: drawn ring, not matter
             DrawCircle(p, r, col);
             if (i == _sel) DrawArc(p, r + 5, 0, MathF.Tau, 32, Colors.White, 1.5f);
+            if (_w.Bpar[i] <= 0 || (_w.Bx[i] - _w.Bx[_w.Bpar[i]]) * _zoom is > 40 or < -40 || (_w.By[i] - _w.By[_w.Bpar[i]]) * _zoom is > 40 or < -40) // moon names only when zoomed in
             if (i > 0) DrawString(font, p + new Vector2(r + 6, 4), _w.Bname[i], HorizontalAlignment.Left, -1, 13, new Color(1, 1, 1, 0.75f));
         }
     }
@@ -143,8 +157,8 @@ public partial class Main : Node2D
         }
         if (e is InputEventMouseButton { Pressed: true } m)
         {
-            if (m.ButtonIndex == MouseButton.WheelUp) _zoom *= 1.1f;
-            if (m.ButtonIndex == MouseButton.WheelDown) _zoom /= 1.1f;
+            if (m.ButtonIndex == MouseButton.WheelUp) _zoom *= 1.25f;
+            if (m.ButtonIndex == MouseButton.WheelDown) _zoom /= 1.25f;
             if (m.ButtonIndex == MouseButton.Left) // nearest body under the cursor, empty space clears
             {
                 _sel = -1; float best = float.MaxValue;
@@ -154,6 +168,14 @@ public partial class Main : Node2D
                     if (d < BodyPx(i) + 12 && d < best) { best = d; _sel = i; }
                 }
                 _panel.Text = PanelText();
+            }
+            if (m.ButtonIndex == MouseButton.Right && _sel >= 0 && _w.Nb < 64) // god puts a moon here, circling the selected body
+            {
+                Vector2 c = GetViewportRect().Size / 2;
+                double x = _cx + (m.Position.X - c.X) / _zoom, y = _cy + (m.Position.Y - c.Y) / (_zoom * _tilt);
+                double mass = _w.Bm[_sel] * 0.01; // ponytail: fixed 1% of the parent, rock; mass and matter become choices when the god tools exist
+                if (Math.Sqrt(Math.Pow(x - _w.Bx[_sel], 2) + Math.Pow(y - _w.By[_sel], 2)) > _w.Br[_sel] * 1.5)
+                    _w.AddMoon(_sel, x, y, mass, new[] { 0, 0.02, 0.70, 0.27, 0.005, 0.005 }, "Vệ tinh " + ++_moons, 0xB8B8C8);
             }
         }
     }

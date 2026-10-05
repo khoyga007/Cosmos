@@ -18,6 +18,7 @@ foreach (int n in new[] { 10_000, 30_000, 100_000, 300_000 })
 {
     var w = World.Solar(100_000, 8, 1234);
     double Total() { double t = w.Np * World.GrainMass; for (int i = 0; i < w.Nb; i++) t += w.Bm[i]; return t; }
+    for (int i = 0; i < 1000; i++) { w.Px[i] = (float)w.Bx[3]; w.Py[i] = (float)w.By[3]; } // drop 1000 grains onto body 3
     double before = Total(); int n0 = w.Np;
     for (int i = 0; i < 4000; i++) w.Advance(H);
     bool ok = Math.Abs(Total() - before) < 1e-9;
@@ -36,13 +37,18 @@ foreach (int n in new[] { 10_000, 30_000, 100_000, 300_000 })
     var w = World.SolSystem(20_000, 1234);
     var d0 = new double[w.Nb];
     for (int i = 0; i < w.Nb; i++) d0[i] = Math.Sqrt(w.Bx[i] * w.Bx[i] + w.By[i] * w.By[i]);
-    int n0 = w.Np; double worst = 0;
+    int n0 = w.Np; double worst = 0, mLo = 1e9, mHi = 0, turn = 0, prev = 0;
     for (int s = 0; s < 20000; s++)
     {
         w.Advance(H);
-        for (int i = 1; i < w.Nb; i++) worst = Math.Max(worst, Math.Abs(Math.Sqrt(Math.Pow(w.Bx[i] - w.Bx[0], 2) + Math.Pow(w.By[i] - w.By[0], 2)) / d0[i] - 1));
+        double mx = w.Bx[9] - w.Bx[3], my = w.By[9] - w.By[3], md = Math.Sqrt(mx * mx + my * my), ang = Math.Atan2(my, mx);
+        mLo = Math.Min(mLo, md); mHi = Math.Max(mHi, md);
+        if (s > 0) turn += Math.IEEERemainder(ang - prev, Math.Tau);
+        prev = ang;
+        for (int i = 1; i <= 8; i++) worst = Math.Max(worst, Math.Abs(Math.Sqrt(Math.Pow(w.Bx[i] - w.Bx[0], 2) + Math.Pow(w.By[i] - w.By[0], 2)) / d0[i] - 1));
     }
     for (int i = 1; i < w.Nb; i++) Console.WriteLine($"  {w.Bname[i],-16} d {d0[i],6:F1}  mass {w.Bm[i] / World.EarthMass,8:F3} earths");
+    Console.WriteLine($"moon: {turn / Math.Tau:F1} turns around Earth, distance {mLo:F3}..{mHi:F3} (start 0.120, Earth radius {w.Br[3]:F3}, Earth zone {w.Hill(3):F3})");
     Console.WriteLine($"sol: worst orbit radius drift {100 * worst:F2}% over 20000 steps, {n0 - w.Np} grains absorbed");
 }
 ulong a = Run(), b = Run();

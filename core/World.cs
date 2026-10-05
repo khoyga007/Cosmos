@@ -8,7 +8,8 @@ namespace Cosmos.Core;
 
 public sealed class World
 {
-    public const double G = 1.0, EpsBody = 9.0, EpsGrain = 16.0;
+    public const double G = 1.0;
+    public const int BodySub = 8; // bodies take 8 small steps per grain step: they are few, and moons need the finer step
     public const int NElem = 6;
     public static readonly string[] ElemName = { "gas", "ice", "rock", "metal", "carbon", "radio" };
     public const double GrainMass = 1e-7, FrostLine = 180, EarthMass = 1.5e-4; // star 50 = one Sun, so Earth = 50 * 3e-6
@@ -25,6 +26,7 @@ public sealed class World
     public readonly float[] Px, Py, Pvx, Pvy;
     public readonly string[] Bname = new string[64];
     public readonly uint[] Bcol = new uint[64]; // 0xRRGGBB for the draw layer, 0 = none
+    public readonly int[] Bpar = new int[64]; // body it was put in orbit around, -1 = none (draw layer: orbit line)
     public readonly byte[] Pe; // element group of each grain
 
     public long Step;
@@ -42,12 +44,33 @@ public sealed class World
         return ((_rng * 0x2545F4914F6CDD1DUL) >> 11) * (1.0 / 9007199254740992.0);
     }
 
+    // Every body pulls with its true 1/r^2 outside its own radius; the pull is only softened inside it (eps = radius).
+    // So the radius must sit well inside the body's own zone of control (Hill sphere), else nothing can orbit it.
     // ponytail: anything heavier than 1 is a star with a fixed size; real radius from density when bodies get types
-    static double RadiusOf(double m) => m > 1 ? 8 : 2 + 10 * Math.Cbrt(m);
+    static double RadiusOf(double m) => m > 1 ? 3 : Math.Cbrt(m);
+
+    /// Speed of a circular orbit at distance r around mass m, under the softened pull.
+    public static double CircSpeed(double m, double r, double eps2) => r * Math.Sqrt(G * m / Math.Pow(r * r + eps2, 1.5));
+
+    /// Radius inside which body k, not the star (body 0), rules the motion of small things.
+    public double Hill(int k)
+    {
+        double dx = Bx[k] - Bx[0], dy = By[k] - By[0];
+        return k == 0 ? double.MaxValue : Math.Sqrt(dx * dx + dy * dy) * Math.Cbrt(Bm[k] / (3 * Bm[0]));
+    }
+
+    /// New body at (x, y) on a circular orbit around `parent`, same turning sense as the planets.
+    public int AddMoon(int parent, double x, double y, double m, double[] mix, string name, uint col)
+    {
+        double dx = x - Bx[parent], dy = y - By[parent], r = Math.Sqrt(dx * dx + dy * dy), rm = RadiusOf(m);
+        double v = CircSpeed(Bm[parent] + m, r, Br[parent] * Br[parent] + rm * rm);
+        int i = AddBody(x, y, Bvx[parent] - dy / r * v, Bvy[parent] + dx / r * v, m, mix, name, col);
+        Bpar[i] = parent; return i;
+    }
 
     public int AddBody(double x, double y, double vx, double vy, double m, double[] mix, string name = "", uint col = 0)
     {
-        Bname[Nb] = name; Bcol[Nb] = col;
+        Bname[Nb] = name; Bcol[Nb] = col; Bpar[Nb] = Nb == 0 ? -1 : 0;
         int i = Nb++; Bx[i] = x; By[i] = y; Bvx[i] = vx; Bvy[i] = vy; Bm[i] = m; Br[i] = RadiusOf(m);
         for (int e = 0; e < NElem; e++) Bcomp[i * NElem + e] = m * mix[e];
         return i;
@@ -96,7 +119,7 @@ public sealed class World
     // Distances are squeezed (d = 45 * AU^0.62) so all eight planets fit one screen; order and mass ratios are real.
     public static double SolDist(double au) => 45 * Math.Pow(au, 0.62);
 
-    /// Our own system: Sun, eight planets, asteroid belt, Kuiper belt. No moons (softening is wider than a moon orbit).
+    /// Our own system: Sun, eight planets, the Moon, asteroid belt, Kuiper belt.
     public static World SolSystem(int grains, ulong seed)
     {
         var w = new World(grains, seed);
@@ -104,7 +127,7 @@ public sealed class World
         w.AddBody(0, 0, 0, 0, M, MixStar, "Mặt Trời", 0xFFDB8C);
         void planet(string name, double au, double earths, uint col, params double[] mix)
         {
-            double d = SolDist(au), a = w.Next() * Math.Tau, v = d * Math.Sqrt(G * M / Math.Pow(d * d + EpsBody, 1.5)); // circular under the softened pull
+            double d = SolDist(au), a = w.Next() * Math.Tau, v = CircSpeed(M, d, w.Br[0] * w.Br[0]);
             w.AddBody(Math.Cos(a) * d, Math.Sin(a) * d, -Math.Sin(a) * v, Math.Cos(a) * v, earths * EarthMass, mix, name, col);
         }
         //                                          gas   ice   rock  metal carbon radio
@@ -116,6 +139,7 @@ public sealed class World
         planet("Sao Thổ", 9.537, 95.2, 0xE6D29A, 0.85, 0.08, 0.045, 0.02, 0.005, 0);
         planet("Sao Thiên Vương", 19.19, 14.5, 0x9FE3E8, 0.15, 0.65, 0.15, 0.04, 0.01, 0);
         planet("Sao Hải Vương", 30.07, 17.1, 0x4466E0, 0.12, 0.66, 0.16, 0.05, 0.01, 0);
+        w.AddMoon(3, w.Bx[3] + 0.12, w.By[3], 0.0123 * EarthMass, new[] { 0, 0.01, 0.72, 0.26, 0.005, 0.005 }, "Mặt Trăng", 0xC8C8C8);
         double[] belt = { 0, 0.05, 0.60, 0.20, 0.14, 0.01 }, kuiper = { 0.03, 0.72, 0.15, 0.02, 0.08, 0 };
         for (int i = 0; i < grains; i++)
         {
@@ -129,19 +153,23 @@ public sealed class World
 
     public void Advance(double h)
     {
-        // bodies: pairwise, kick then drift
-        for (int i = 0; i < Nb; i++)
+        // bodies: pairwise, kick then drift, in BodySub small steps
+        double hs = h / BodySub;
+        for (int sub = 0; sub < BodySub; sub++)
         {
-            double ax = 0, ay = 0;
-            for (int j = 0; j < Nb; j++)
+            for (int i = 0; i < Nb; i++)
             {
-                if (j == i) continue;
-                double dx = Bx[j] - Bx[i], dy = By[j] - By[i], q = dx * dx + dy * dy + EpsBody, inv = G * Bm[j] / (q * Math.Sqrt(q));
-                ax += dx * inv; ay += dy * inv;
+                double ax = 0, ay = 0;
+                for (int j = 0; j < Nb; j++)
+                {
+                    if (j == i) continue;
+                    double dx = Bx[j] - Bx[i], dy = By[j] - By[i], q = dx * dx + dy * dy + Br[i] * Br[i] + Br[j] * Br[j], inv = G * Bm[j] / (q * Math.Sqrt(q));
+                    ax += dx * inv; ay += dy * inv;
+                }
+                Bvx[i] += ax * hs; Bvy[i] += ay * hs;
             }
-            Bvx[i] += ax * h; Bvy[i] += ay * h;
+            for (int i = 0; i < Nb; i++) { Bx[i] += Bvx[i] * hs; By[i] += Bvy[i] * hs; }
         }
-        for (int i = 0; i < Nb; i++) { Bx[i] += Bvx[i] * h; By[i] += Bvy[i] * h; }
 
         // grains: each feels every body. Sequential on purpose: same result every run.
         float hf = (float)h;
@@ -153,7 +181,7 @@ public sealed class World
             int hit = -1;
             for (int k = 0; k < Nb; k++)
             {
-                float dx = (float)Bx[k] - x, dy = (float)By[k] - y, d2 = dx * dx + dy * dy, q = d2 + (float)EpsGrain;
+                float dx = (float)Bx[k] - x, dy = (float)By[k] - y, d2 = dx * dx + dy * dy, q = d2 + r2[k];
                 if (d2 < r2[k]) { hit = k; break; }
                 float inv = (float)(G * Bm[k]) / (q * MathF.Sqrt(q));
                 ax += dx * inv; ay += dy * inv;

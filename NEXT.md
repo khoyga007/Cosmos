@@ -32,6 +32,16 @@ Stack (Claire's call 06/10, Yang delegated): Godot 4.7.2 .NET at `E:\Godot\Godot
 - Draw: orbit lines, names, Saturn ring = drawn ellipse only (not matter). No moons: softening (3-4 units) is wider than a moon orbit — needs per-body softening or a sub-step before moons/rings can be real.
 - Headless: build clean, panel prints. `_Draw` path (orbit lines, labels, ring) NOT exercised headless → unseen until Yang runs it.
 
+## OWN GRAVITY 06/10 (Yang: scale need not be true, but every body has its own gravity, physics exact, moons placeable)
+- Cause moons were impossible: global softening 3-4 units + body radius 2-5 units, while Earth's zone of control (Hill sphere, squeezed distances + real mass ratios) is 0.45 units.
+- Fix in `World`: no global softening. Each pair softened by its own radii only (`Br[i]^2+Br[j]^2`; grain-body `Br[k]^2`), so pull is true 1/r^2 outside a body. `RadiusOf` = cbrt(m) (Earth 0.053, Jupiter 0.36), star 3. Supersedes "No moons" in SOL block above.
+- Bodies step `BodySub` = 8 times per grain step (bodies are few; moon orbits need it). Grains still one step.
+- `CircSpeed`, `Hill(k)`, `AddMoon(parent, x, y, m, mix, name, col)`, `Bpar` (parent, draw only). Sol has the Moon (body 9, 0.12 from Earth).
+- cli: Moon 409.9 turns in 20000 steps, distance 0.115..0.125; planets worst drift 1.41%; repeat OK. 100k step 11.8 ms Release.
+- Window: left click = select + camera follows; right click = moon at cursor around selected body (1% of parent mass, rock — placeholder); green circle = Hill zone of selected body; wheel zoom x1.25; body drawn true size once bigger than its dot. Headless: build clean, AddMoon path runs. Draw + mouse paths unseen.
+- Known: accretion now near zero (true-size bodies are tiny targets). Body-body collision/merge not written: bodies pass through each other softened. Grain orbits around planets (rings) possible now but grain step 0.5 is coarse for tight ones — unmeasured.
+- Trap (3rd time): `\n` typed in a Bash tool command reaches python as a newline. C# strings with escapes → Edit tool, not a python patch.
+
 ## NEXT (needs Yang)
 0. Yang runs `run.bat`, looks at Sol, reports.
 1. Civ slice (after matter): one abstract civilisation on one planet that sees a miracle and reacts. Civ state content = Yang's.
