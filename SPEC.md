@@ -25,6 +25,17 @@ Supersedes: web project E:\CosmosSandbox (archived), every grain/softening note 
 - [Y] Travel between planets/systems = abstract flow of numbers. No ship objects.
 - [C] Role of each group in rules [P]: gas → atmosphere / gas planet; ice → liquid water when temperature fits (needed for life); rock → solid surface; metal → density, industry/tech; carbon → stuff of life; radio → inner heat, late-civ energy. Civ consumes from the table of the planet it lives on.
 
+### 2b. Layers — content [C][P] (Yang 06/10: "em tự nghĩ" = handed to Claire; every number a `Consts` field, his to change)
+Only planets + moons carry layers (`IsWorld`: pulls others, not a star). Code `core/Layers.cs`, checks `cli -- layers`.
+- WATER (rule `water`, 1 yr): no ice (< 0.1% of mass) → None; Temp < 273 K → Ice; > 373 K or mass < 0.3 Earths → Vapour; else Liquid. Counts years of liquid water in a row.
+- LIFE (rule `life`, 1000 yr): starts by itself after 200 000 yr of liquid water in a row, if carbon ≥ 0.1% and rock+metal ≥ 50% (a surface). Level 0..1, logistic growth 2e-5/yr while conditions fit (0.001 → 0.5 in ~350 000 yr); when they fail it falls by e every 20 000 yr and ends below 1e-4. Stages at 0.01 / 0.1 / 0.5 (microbes / complex / rich biosphere).
+- CIVILISATION (rule `civ`, 100 yr): rises after life ≥ 0.5 held 100 000 yr. Population 0..1, logistic 1e-3/yr toward the life level (the biosphere feeds the people); life < 0.1 → falls by e every 500 yr, ends below 1e-5. Tech += 1e-4/yr × population × min(1, metal share / 0.3); stages 1 farming / 2 industry / 3 space.
+- IMPACT: a merge cuts life and population by exp(−share / 1e-3), share = mass that hit / planet mass. Logged from 1e-4 up.
+- GOD POWER `SeedLife` (from Yang's Claude Web chat, he allowed it 06/10): put life at a level on a planet/moon; whether it lasts is up to the rules.
+- Sol untouched for 1e6 yr: life on Earth at 200 000, civilisation at 645 000, space age at 685 000; nowhere else. Push Earth outward → water freezes, civ ends ~50 000 yr later, life ~185 000 yr later.
+- Events: `water.<old>.<new>` (0 none 1 ice 2 liquid 3 vapour) · `life.start` `life.stage.<a>.<b>` `life.end` · `civ.start` `civ.stage.<a>.<b>` `civ.end` · `impact`.
+- NOT built, next slices [C]: civ uses up the planet's metal; civ over several planets (shared object, §2); "lộ diện" = the god shows itself, the civ reacts (belief, fear) — Yang's 05/10 requirement that civs know the god exists, to design after he has seen this slice; "tua lại" = rewind = snapshot (§3 LATER).
+
 ## 3. Engine decisions (Claire's, delegated)
 - Godot 4.7.2 .NET (`E:\Godot\Godot_v4.7.2-stable_mono_win64\`) = shell. Sim core = plain C# library `core/`, NO Godot types, runs headless in `cli/`.
 - Sim 2D, one plane per world. Fixed step, seeded stream, sequential → a run repeats exactly (cli "repeat" check must stay green).
@@ -42,15 +53,18 @@ Supersedes: web project E:\CosmosSandbox (archived), every grain/softening note 
 - First chain, one link per slice: (1) star light + distance → planet temperature; (2) temperature + ice → liquid water; (3) water long enough → life; (4) life long enough → civilisation. Life/civ parameters and thresholds = Yang's content, NOT to be invented by the team; ask on the thread.
 - FAST-FORWARD, spike on master (`core/Rails.cs`, `CmdKind.FastForward`, Amount = years; checks `cli -- rails`): one jump, every object rides its present orbit by closed two-body formula; cost independent of length (1e6 years: 0.05 ms bodies, 4.5 ms with 5000 rocks, 28 ms with 50000). Primary = lightest pulling object whose Hill zone holds it, else heaviest. Body + satellites ride as one lump (centre of mass orbits the primary). No rails mode: state after a jump is ordinary, next `Advance` pulls for real.
   - Lost in a jump, on purpose: pull between siblings, collisions, crossings. Measured vs stepping: 3.7 years 1.3% distance / 0.024 rad; 37 years 1.1% / 0.20 rad (phase is meaningless over long jumps, shape holds). Not bound = straight line, counted in `World.OffRails`.
-  - OPEN: (1) rules inside a jump — a jump of T years must run rules with rhythm << T. Proposal [C]: jump in K chunks (K <= ~1000), run the rule table after each chunk, each rule gets the years passed since its last run; state rules (temperature) just sample, clock rules (life age) add the years. Eccentric orbit sampled at random phase can flicker a band edge -> orbit-mean light for such rules. (2) DONE: jump advances `World.Year`, rule table runs once at the landing year. (3) orbit whose near point is inside its primary should merge at jump time; crossing orbits unchecked. (4) Newton solver only: e > ~0.97 needs a bracketed one. (5) galaxy tier not considered.
+  - Rules inside a jump DONE: a jump is cut into ≤ `JumpSamples` (200) chunks, never shorter than the fastest enabled rule; rule table runs after each; a rule reads `World.RuleYears` (years since ITS last run) — clock rules must use it, never the rhythm. In a jump the star an object orbits counts by its orbit-average light (`RailStar`), else a stretched orbit reads hot/cold by chance. Cost 1e6 yr: ~0.45 s at 5000 rocks, ~4.3 s at 50000 (rocks are moved every chunk — to trim).
+  - Primary must also HOLD the object (bound), else a fly-by caught inside a Hill zone rode off on a straight line. Kepler solver bracketed (plain Newton threw co-orbital planets to infinity).
+  - OPEN: (3) orbit whose near point is inside its primary should merge at jump time; close encounters in a jump are crude (two co-orbital planets end as a pair, not a horseshoe); (5) galaxy tier not considered; (6) stepping on a stretched orbit still logs real freeze/thaw every turn (seasons) — may flood the 1024-event log.
 
 ## 5. Code now (master)
 - `core/World.cs`: `Consts` (G, AttractMass 1e-7, StarMass 4, RadiusScale 1.5, Density[6]) · `Kind` · `World`: SoA `X Y Vx Vy M R Comp Alive Name Col Par Grp`, `Groups`, `Add`, `AddOrbiting`, `Attracts`, `KindOf`, `Hill`, `RecalcRadii`, `SolSystem(rocks, seed)`, `Advance(h)`, `Hash()`, `Step`, `Merges`.
-- `core/Commands.cs`: `CmdKind` (Create, CreateOrbiting, AddMatter, Push, SetConst, Remove, SetRule, FastForward), `Command`, `World.Do`, `World.Journal`, `World.Replay`, `Consts.All()` / `Consts.Set(name, value)` (every constant by name, e.g. "G", "Density[2]"). `World` and `Consts` are `partial`.
+- `core/Commands.cs`: `CmdKind` (Create, CreateOrbiting, AddMatter, Push, SetConst, Remove, SetRule, SeedLife, FastForward), `Command`, `World.Do`, `World.Journal`, `World.Replay`, `Consts.All()` / `Consts.Set(name, value)` (every constant by name, e.g. "G", "Density[2]"). `World` and `Consts` are `partial`.
 - `core/Rules.cs` (Celine, P1 merged f613d7a): `World.Year`, `Consts.YearTime` 268.233883, `World.Rules` (Id/Reads/Writes/RhythmYears/Enabled/NextYear/Apply), `Events` (bounded 1024, `RuleEvent{Year, ObjectSlot, RuleId, Change, A, B, C}`), `Temp[]`, `BandOf`, rule `temperature` (event `band.<old>.<new>`, 0 frozen / 1 temperate / 2 scorched; Kind.Planet only). All numbers [P]. Switch a rule from outside ONLY by `CmdKind.SetRule`; `Rule.Enabled` / `LogEvent` are public for tests, the window must not write them.
+- `core/Layers.cs` (Claire): arrays `Water` `WaterYears` `Life` `RichYears` `Pop` `Tech`, `IsWorld`, `LifeStage`, `TechStage`, rules `water` `life` `civ`, `Impact` (called from `Merge`). `World.RuleYears`, `Rule.LastYear` added to Rules.cs.
 - `core/Rails.cs`: `Jump(t)` (private, reached through `CmdKind.FastForward`), `Kepler`, `OffRails`.
-- `cli/Program.cs`: timing + checks merge / moon / sol / constants / commands / repeat, then `RailChecks.Run()` (cli/RailChecks.cs; alone: `cli -- rails`), `RuleChecks.Run()` (cli/RuleChecks.cs) and `Audit.Run()` (cli/Audit.cs). `dotnet run -c Release --project cli` ≈ 1.5 min → use a long timeout.
-- `game/Main.cs`: whole window in code. `run.bat [rocks]` = Yang's launcher. Headless: `<godot>_console.exe --headless --path game -- --rocks=N --bench=SECONDS`.
+- `cli/Program.cs`: timing + checks merge / moon / sol / constants / commands / repeat, then `RailChecks.Run()` (cli/RailChecks.cs; alone: `cli -- rails`), `LayerChecks.Run()` (alone: `cli -- layers`), `RuleChecks.Run()` (cli/RuleChecks.cs) and `Audit.Run()` (cli/Audit.cs). `dotnet run -c Release --project cli` ≈ 1.5 min → use a long timeout.
+- `game/` (Ariel P2 merged): `Main.cs` window + input, `GodTools.cs` (Create / AddMatter / Push / SetConst as plain methods → `World.Do`), `GodUi.cs` panels; `--selftest`, `--bench=N` headless. `run.bat [rocks]` = Yang's launcher. Headless: `<godot>_console.exe --headless --path game -- --rocks=N --bench=SECONDS`.
 - Measured (Release, Yang's machine): 5000 rocks 2.4 ms/step · 20000 9.4 · 50000 20.5.
 - Not written: rock-rock collision, fragmentation, swept collision for fast small bodies, layers, rules, log, years, god tools beyond G keys + moon placing.
 
@@ -84,3 +98,14 @@ Done when the report is on the thread with numbers and the list of failing check
 
 ### Claire
 Fast-forward on rails (design + spike), review + merge P1–P3, Yang's content questions, next round.
+
+## 7. Round 2 (06/10) — same rules as §6; rebase on master first
+### Ariel — the window shows the story · `game/` only
+1. HUD: year. Selected planet/moon panel: temperature + band, water state, life level + stage, population, tech + stage (Vietnamese names in `game/`).
+2. Event log panel: newest `World.Events` as Vietnamese sentences built in `game/` from the codes (§2b), with year + object name.
+3. Jump: buttons 1 / 100 / 1e4 / 1e6 years → `CmdKind.FastForward`. Seed life on the selected object (level slider) → `SeedLife`. Rule switches → `SetRule`. A mark on bodies that carry life / a civilisation.
+4. `--selftest` covers FastForward, SeedLife, SetRule + replay. Fix: TimeControl selftest line must call `SetTimeWarp` and the throttle path, not a bare loop. Read arrays freely, write nothing.
+### Celine — cross-vendor review + jump cost · report on thread
+1. Review `core/Layers.cs` + `core/Rails.cs` + the `RuleYears` change in her Rules.cs: defects as `file:line — what breaks — smallest input`. Look hard at: dt-independence of the three rules, merge of two living planets (who keeps the layer), slot reuse, NaN paths, hash coverage.
+2. Trim the jump: rocks are moved every chunk though no rule needs them between (only `Temp` of rocks) → propose + build on branch `celine/jumpcost`; gate = all checks green, same hashes for worlds without rocks, 50000-rock 1e6-yr jump ≥ 5× faster.
+### Selica — P3 audit unchanged, plus Rails/Layers in scope (`cli/Audit.cs` only).

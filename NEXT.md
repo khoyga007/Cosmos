@@ -10,10 +10,12 @@ READ `SPEC.md` FIRST (game, model, engine decisions, round-1 work packages). Thi
 - Claire next: review + merge reports; fast-forward on rails (SPEC §4 OPEN); collect Yang's content for rules 2-4 (life/civ parameters, thresholds).
 
 ## 06/10 session 2 — START HERE
-- master: + fast-forward on rails (`core/Rails.cs`, `CmdKind.FastForward` Amount = years) + Celine P1 MERGED (f613d7a: year clock, rule table, event log, rule `temperature`) + `CmdKind.SetRule`. Full `cli` green, re-run by Claire (Celine's numbers reproduced; rule cost 2.24 on / 2.37 off ms). Rails numbers + what a jump gives up: SPEC §4.
-- Round 1: P1 Celine DONE + merged. P2 Ariel: nothing committed on ariel/godtools (still 26197fb). P3 Selica: nothing on selica/audit. Both need Yang's prompt. Told on thread `cosmos`: rebase on master, new CmdKinds SetRule + FastForward (Ariel: time panel may offer a jump), new Consts appear in `Consts.All()`.
-- Claire next: (1) rules inside a jump (SPEC §4 OPEN 1) — needs rule 2-4 shape, i.e. Yang's content; (2) snapshot/save point; (3) review P2/P3 when they land.
-- Ask Yang (still open): (a) run `E:/Cosmos/run.bat` — object-model window never seen, `_Draw` + mouse untested; (b) content for rules 2-4 (water / life / civilisation: parameters, thresholds, how many years); (c) temperature placeholders ok? 288 K at Earth, light ~ mass^3.5, bands 240 K / 350 K; (d) "seed sự sống", "lộ diện", "tua lại" from his Claude Web chat — his ideas or not?; (e) old web folders E:\CosmosSandbox, -ui, -r18 (~550 MB): delete or keep.
+- master = see `git log`: rails fast-forward · Celine P1 merged (f613d7a) · Ariel P2 merged (god tools; selftest + bench re-run by Claire, pass) · LAYERS water/life/civ + SeedLife + impact (content Claire's, Yang: "em tự nghĩ"; SPEC §2b) · jumps run rules in chunks. Full `cli` green (34 OK), `--selftest` pass.
+- Round 2 handed out (SPEC §7, thread `cosmos`): Ariel = window shows year/layers/event log + jump/seed/rule buttons; Celine = review Layers+Rails + trim jump cost; Selica = P3 audit (never started). All need Yang's prompt.
+- Yang's answers 06/10: rules 2-4 content = Claire decides; run.bat = later; temperature placeholders = not looked at; Web-chat ideas (seed life / lộ diện / tua lại) not his, allowed if Claire finds them good → SeedLife built, the other two = next slices; old web folders = keep for now.
+- Until Ariel's round 2 lands the window shows NOTHING of water/life/civ (core only, proven by cli). Do not tell Yang it is visible.
+- Claire next: review round 2; then "lộ diện" slice (civ reacts to the god) — design AFTER Yang has seen life/civ in the window; snapshot/rewind; civ uses metal.
+- Still open with Yang: run `E:/Cosmos/run.bat` (window never seen by anyone: `_Draw`, mouse, Ariel's panels).
 
 ## Lessons (process)
 - Yang explaining an idea over several messages = listen only; build on his explicit go. (06/10: core rewritten mid-explanation, Yang objected; commit f0817b1 kept because it matched.)
@@ -22,5 +24,8 @@ READ `SPEC.md` FIRST (game, model, engine decisions, round-1 work packages). Thi
 ## Traps
 - `dotnet new sln` on SDK 10 writes `.slnx`; Godot needs `game/Cosmos.Game.sln` (`--format sln`).
 - `\n` typed inside a Bash tool command reaches python/sed as a real newline → C# strings with escapes go through Write/Edit.
-- cli full run ≈ 1.5-3 min: default 2 min tool timeout is too tight. `cli -- rails` = rail checks alone (~20 s).
+- cli full run ≈ 1.5-3 min: default 2 min tool timeout is too tight. `cli -- rails` / `cli -- layers` = those checks alone (~20 s).
 - `in Command c` cannot be captured by a lambda (CS1628): copy the field to a local first.
+- A check that reads a rule's output right after `SetConst` must run past that rule's rhythm (water = 1 yr ≈ 536 steps).
+- Reflection on private fields (`_prim`, `_hill`) from a throwaway cli file = fast way to see what a jump decided; delete the file after.
+- Long markdown with quotes/backticks inside a bash heredoc fails to parse → Write a .py to the scratchpad, run it.
