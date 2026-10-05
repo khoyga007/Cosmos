@@ -16,6 +16,7 @@ public enum CmdKind
     SetConst,        // constant Name ("G", "Density[2]", ...) = Amount
     Remove,          // Target is taken out of the world
     SetRule,         // rule Name ("temperature", ...) switched on (Amount != 0) or off (0)
+    SeedLife,        // Target (a planet or moon) gets life at level Amount (0..1); 0 wipes it. Whether it lasts is up to the rules
     FastForward,     // every object rides its present orbit for Amount years (closed formula: no pull between siblings, no collisions)
 }
 
@@ -79,6 +80,10 @@ public sealed partial class World
                 rule.Enabled = c.Amount != 0;
                 return -2;
             }
+            case CmdKind.SeedLife:
+                if (!Ok(c.Target) || !IsWorld(c.Target) || !(c.Amount >= 0 && c.Amount <= 1)) return -1;
+                Life[c.Target] = c.Amount;
+                return c.Target;
             case CmdKind.FastForward:
                 if (!double.IsFinite(c.Amount) || c.Amount <= 0) return -1;
                 Jump(c.Amount * C.YearTime);

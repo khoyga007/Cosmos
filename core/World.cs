@@ -53,6 +53,7 @@ public sealed partial class World
         Alive = new bool[capacity]; Name = new string?[capacity]; Col = new uint[capacity]; Par = new int[capacity]; Grp = new int[capacity];
         _att = new int[capacity];
         Temp = new double[capacity]; _temperatureBands = new int[capacity]; _starSlots = new int[capacity]; _starLight = new double[capacity];
+        InitLayers(capacity);
         InitRules();
         _rng = seed == 0 ? 0x9E3779B97F4A7C15UL : seed;
     }
@@ -111,7 +112,7 @@ public sealed partial class World
         X[i] = x; Y[i] = y; Vx[i] = vx; Vy[i] = vy; M[i] = m; Alive[i] = true; Name[i] = name; Col[i] = col; Par[i] = par; Grp[i] = grp;
         for (int e = 0; e < NElem; e++) Comp[i * NElem + e] = m * mix[e];
         SetRadius(i); Live++;
-        ResetTemperature(i);
+        ResetTemperature(i); ResetLayers(i);
         return i;
     }
 
@@ -131,6 +132,7 @@ public sealed partial class World
         X[k] = (X[k] * M[k] + X[d] * M[d]) / m; Y[k] = (Y[k] * M[k] + Y[d] * M[d]) / m;
         Vx[k] = (Vx[k] * M[k] + Vx[d] * M[d]) / m; Vy[k] = (Vy[k] * M[k] + Vy[d] * M[d]) / m;
         for (int e = 0; e < NElem; e++) Comp[k * NElem + e] += Comp[d * NElem + e];
+        Impact(k, M[d] / M[k]);
         M[k] = m; SetRadius(k);
         Alive[d] = false; M[d] = 0; _free.Push(d); Live--; Merges++;
         for (int i = 0; i < N; i++) if (Par[i] == d) Par[i] = k;
@@ -237,7 +239,7 @@ public sealed partial class World
             if (!Alive[i]) continue;
             mix((ulong)i); mix(BitConverter.DoubleToUInt64Bits(X[i])); mix(BitConverter.DoubleToUInt64Bits(Y[i])); mix(BitConverter.DoubleToUInt64Bits(M[i]));
         }
-        HashRules(mix);
+        HashRules(mix); HashLayers(mix);
         return h;
     }
 }

@@ -5,6 +5,7 @@ using Cosmos.Core;
 
 const double H = 0.5;
 if (args.Length > 0 && args[0] == "rails") return RailChecks.Run() ? 0 : 1;
+if (args.Length > 0 && args[0] == "layers") return LayerChecks.Run() ? 0 : 1;
 bool allOk = true;
 void Check(bool ok, string line) { allOk &= ok; Console.WriteLine($"{(ok ? "OK    " : "FAILED")} {line}"); }
 
@@ -89,6 +90,7 @@ ulong a1 = Run(), b1 = Run();
 Check(a1 == b1, $"repeat: {a1:X16} / {b1:X16}");
 allOk &= RailChecks.Run();
 allOk &= RuleChecks.Run();
+allOk &= LayerChecks.Run();
 allOk &= Audit.Run();
 return allOk ? 0 : 1;
 

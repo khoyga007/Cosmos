@@ -26,6 +26,7 @@ public sealed class Rule
     public bool Enabled = true;
     public Action<World> Apply { get; }
     public double NextYear { get; internal set; }
+    public double LastYear { get; internal set; } // year of its last run; World.RuleYears = years since then
     double _rhythmYears;
     public double RhythmYears
     {
@@ -50,6 +51,9 @@ public readonly record struct RuleEvent(double Year, int ObjectSlot, string Rule
 public sealed partial class World
 {
     public double Year { get; private set; }
+    /// Inside a rule: years passed since that rule last ran. Clock rules (age, growth) must use this, never the rhythm:
+    /// after a jump or a pause one run stands for all the years skipped.
+    public double RuleYears { get; private set; }
     public readonly double[] Temp;
     readonly int[] _temperatureBands, _starSlots;
     readonly double[] _starLight;
@@ -59,8 +63,12 @@ public sealed partial class World
     public IReadOnlyList<RuleEvent> Events => _events;
 
     // PLACEHOLDER [P] rhythm: 0.01 years. No life/water/civilisation rules yet.
-    void InitRules() => Rules.Add(new Rule("temperature", "M,X,Y,StarMass,LuminosityExponent,TemperatureScale,FrozenEdge,ScorchedEdge", "Temp,temperature.band", 0.01,
-        w => w.UpdateTemperature()));
+    void InitRules()
+    {
+        Rules.Add(new Rule("temperature", "M,X,Y,StarMass,LuminosityExponent,TemperatureScale,FrozenEdge,ScorchedEdge", "Temp,temperature.band", 0.01,
+            w => w.UpdateTemperature()));
+        InitLayerRules();
+    }
 
     void ResetTemperature(int i) { Temp[i] = double.NaN; _temperatureBands[i] = -1; }
 
@@ -80,9 +88,11 @@ public sealed partial class World
         {
             if (!Alive[i]) continue;
             double flux = 0;
+            int host = RailStar(i, out double meanInvD2); // in a jump: the star it orbits counts by its orbit average
             for (int s = 0; s < stars; s++)
             {
                 int j = _starSlots[s];
+                if (j == host) { flux += _starLight[s] * meanInvD2; continue; }
                 if (i == j) continue; // incoming light, not a model of a star's internal temperature
                 double dx = X[i] - X[j], dy = Y[i] - Y[j], d2 = dx * dx + dy * dy;
                 if (d2 > 0) flux += _starLight[s] / d2;
@@ -106,7 +116,9 @@ public sealed partial class World
         foreach (var rule in Rules)
         {
             if (!rule.Enabled || Year < rule.NextYear) continue;
+            RuleYears = Year - rule.LastYear;
             rule.Apply(this);
+            rule.LastYear = Year;
             // No historical physics states exist: skipped ticks coalesce at the current year.
             rule.NextYear = (Math.Floor(Year / rule.RhythmYears) + 1) * rule.RhythmYears;
         }
@@ -118,7 +130,7 @@ public sealed partial class World
         void code(string s) { mix((ulong)s.Length); foreach (char c in s) mix(c); }
         number(Year);
         for (int i = 0; i < N; i++) if (Alive[i]) { number(Temp[i]); mix((ulong)_temperatureBands[i]); }
-        foreach (var rule in Rules) { code(rule.Id); number(rule.RhythmYears); number(rule.NextYear); mix(rule.Enabled ? 1UL : 0UL); }
+        foreach (var rule in Rules) { code(rule.Id); number(rule.RhythmYears); number(rule.NextYear); number(rule.LastYear); mix(rule.Enabled ? 1UL : 0UL); }
         mix((ulong)_events.Count);
         foreach (var e in _events)
         {
