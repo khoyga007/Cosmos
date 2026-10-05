@@ -118,7 +118,82 @@ static class RuleChecks
         }
         Array.Sort(on); Array.Sort(off);
         Check(on[2] <= off[2] * 1.10, $"5000-rock cost enabled {on[2]:F3} / disabled {off[2]:F3} ms/step, overhead {100 * (on[2] / off[2] - 1):F2}% (ceiling +10%, Claire revised criterion)");
+        allOk &= JumpChecks();
         return allOk;
+    }
+
+    // Round 2: force the original chunk path with a disabled observer that cannot affect the world.
+    static Rule ReferencePath(World w)
+    {
+        var observer = new Rule("jump.reference", "", "", 1, _ => { }) { Enabled = false };
+        w.Rules.Add(observer); return observer;
+    }
+
+    static bool JumpChecks()
+    {
+        bool ok = true;
+        void Check(bool pass, string line) { ok &= pass; Console.WriteLine($"{(pass ? "OK    " : "FAILED")} jumpcost: {line}"); }
+        int same = 0;
+        foreach (ulong seed in new ulong[] { 1234, 5 }) foreach (double years in new double[] { 1, 100, 1e4, 1e6 })
+        {
+            var a = World.SolSystem(0, seed); var b = World.SolSystem(0, seed); var reference = ReferencePath(b);
+            for (int i = 0; i < 200; i++) { a.Advance(.5); b.Advance(.5); }
+            a.Do(new Command(CmdKind.FastForward, Amount: years)); b.Do(new Command(CmdKind.FastForward, Amount: years));
+            b.Rules.Remove(reference);
+            if (a.Hash() == b.Hash()) same++;
+        }
+        Check(same == 8, $"no-rock exact hashes {same}/8 match original chunk path");
+
+        var orbit = new World(8, 1);
+        double[] gas = { 1, 0, 0, 0, 0, 0 }, rock = { 0, 0, 1, 0, 0, 0 };
+        int star = orbit.Add(0, 0, .001, -.002, 50, gas);
+        int planet = orbit.AddOrbiting(star, 45, 0, World.EarthMass, rock);
+        int satellite = orbit.AddOrbiting(planet, orbit.X[planet] + .15, orbit.Y[planet], 1e-9, rock);
+        int escaped = orbit.Add(100, 0, 0, 5, 1e-9, rock);
+        const double elapsed = 10000;
+        orbit.Do(new Command(CmdKind.FastForward, Amount: elapsed / orbit.C.YearTime));
+        double sx = orbit.X[satellite] - orbit.X[planet], sy = orbit.Y[satellite] - orbit.Y[planet];
+        Check(Math.Abs(Math.Sqrt(sx * sx + sy * sy) - .15) < 1e-6 && orbit.OffRails == 1
+            && Math.Abs(orbit.Y[escaped] - 5 * elapsed) < 1e-6 && Math.Abs(orbit.X[escaped] - 100) < 1e-6
+            && double.IsFinite(orbit.Temp[satellite]) && double.IsFinite(orbit.Temp[escaped]),
+            $"deferred satellite follows moving planet r={Math.Sqrt(sx * sx + sy * sy):F6}; escaping rock stays inertial at ({orbit.X[escaped]:F3},{orbit.Y[escaped]:F3}), off={orbit.OffRails}");
+
+        var free = new World(4, 1); free.Add(2, 3, 1, -2, 1e-9, rock);
+        free.Do(new Command(CmdKind.FastForward, Amount: 100));
+        Check(Math.Abs(free.X[0] - 2 - 100 * free.C.YearTime) < 1e-8 && Math.Abs(free.Y[0] - 3 + 200 * free.C.YearTime) < 1e-8,
+            "no pulling bodies: deferred rocks move by the full inertial interval");
+
+        var watched = new World(4, 1); watched.Add(0, 0, 1, 0, 1e-9, rock);
+        watched.Do(new Command(CmdKind.SetConst, Name: "JumpSamples", Amount: 2));
+        var positions = new System.Collections.Generic.List<double>();
+        watched.Rules.Add(new Rule("observer", "X", "check", 1, w => positions.Add(w.X[0])));
+        watched.Do(new Command(CmdKind.FastForward, Amount: 100));
+        Check(positions.Count == 2 && Math.Abs(positions[0] - 50 * watched.C.YearTime) < 1e-8
+            && Math.Abs(positions[1] - 100 * watched.C.YearTime) < 1e-8, "custom rule sees rock positions every chunk through fallback");
+
+        var stopped = World.SolSystem(100, 5); var before = (double[])stopped.Temp.Clone();
+        stopped.Do(new Command(CmdKind.SetRule, Name: "temperature", Amount: 0));
+        stopped.Do(new Command(CmdKind.FastForward, Amount: 1e6));
+        Check(before.SequenceEqual(stopped.Temp), "temperature disabled: no deferred temperature writes");
+
+        var replay = World.SolSystem(100, 5); int next = 0;
+        replay.Replay(stopped.Journal, ref next);
+        Check(stopped.Hash() == replay.Hash(), $"deferred journal replay {stopped.Hash():X16} / {replay.Hash():X16}");
+
+        // Warm both paths with a small world, then measure the same seed/age with all four rules enabled.
+        var warm = World.SolSystem(100, 1234); warm.Do(new Command(CmdKind.FastForward, Amount: 1e6));
+        var slow = World.SolSystem(50_000, 1234); ReferencePath(slow);
+        var fast = World.SolSystem(50_000, 1234);
+        var sw = Stopwatch.StartNew(); slow.Do(new Command(CmdKind.FastForward, Amount: 1e6));
+        double originalMs = sw.Elapsed.TotalMilliseconds;
+        sw.Restart(); fast.Do(new Command(CmdKind.FastForward, Amount: 1e6)); double trimmedMs = sw.Elapsed.TotalMilliseconds;
+        bool finite = true;
+        for (int i = 0; i < fast.N; i++) if (fast.Alive[i]) finite &= double.IsFinite(fast.X[i]) && double.IsFinite(fast.Y[i])
+            && double.IsFinite(fast.Vx[i]) && double.IsFinite(fast.Vy[i]) && double.IsFinite(fast.Temp[i]);
+        Check(finite && originalMs >= 5 * trimmedMs && Math.Abs(fast.Life[3] - slow.Life[3]) < 1e-12
+            && Math.Abs(fast.Pop[3] - slow.Pop[3]) < 1e-12 && Math.Abs(fast.Tech[3] - slow.Tech[3]) < 1e-12,
+            $"50000 rocks / 1e6 years: original {originalMs:F3} ms, trimmed {trimmedMs:F3} ms, {originalMs / trimmedMs:F2}x (gate 5x); finite state and Earth layers agree");
+        return ok;
     }
 
     static double Measure(World w)
