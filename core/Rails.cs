@@ -33,10 +33,11 @@ public sealed partial class World
         int[] prim = _prim, ord = _ord!;
         double[] hill = _hill!, sm = _sm!, bx = _bx!, by = _by!, bvx = _bvx!, bvy = _bvy!, cx = _cx!, cy = _cy!, cvx = _cvx!, cvy = _cvy!;
         OffRails = 0;
+        Year += t / C.YearTime;
 
         int na = 0;
         for (int i = 0; i < N; i++) if (Alive[i] && Attracts(i)) ord[na++] = i;
-        if (na == 0) { for (int i = 0; i < N; i++) if (Alive[i]) { X[i] += Vx[i] * t; Y[i] += Vy[i] * t; } return; }
+        if (na == 0) { for (int i = 0; i < N; i++) if (Alive[i]) { X[i] += Vx[i] * t; Y[i] += Vy[i] * t; } RunRules(); return; }
         Array.Sort(ord, 0, na, _heavyFirst); // a primary is always heavier than what it holds: it comes first
 
         // who rides around whom. `upTo` = how many of the pulling objects (heaviest first) may be the primary.
@@ -92,6 +93,7 @@ public sealed partial class World
         }
         for (int k = 0; k < na; k++) place(ord[k]);
         for (int i = 0; i < N; i++) if (Alive[i] && !Attracts(i)) place(i);
+        RunRules(); // one run at the landing year; rules inside a jump = SPEC 4 OPEN
     }
 
     // Two-body motion of (x, y, vx, vy) around a centre of strength mu = G * mass, over time t. Closed orbits only:

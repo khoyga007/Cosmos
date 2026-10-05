@@ -15,7 +15,8 @@ public enum CmdKind
     Push,            // Target velocity += (Vx, Vy)
     SetConst,        // constant Name ("G", "Density[2]", ...) = Amount
     Remove,          // Target is taken out of the world
-    FastForward,     // every object rides its present orbit for Amount time units (closed formula: no pull between siblings, no collisions)
+    SetRule,         // rule Name ("temperature", ...) switched on (Amount != 0) or off (0)
+    FastForward,     // every object rides its present orbit for Amount years (closed formula: no pull between siblings, no collisions)
 }
 
 public record struct Command(CmdKind Kind, int Target = -1, double X = 0, double Y = 0, double Vx = 0, double Vy = 0,
@@ -71,9 +72,16 @@ public sealed partial class World
                 if (c.Name == null || !C.Set(c.Name, c.Amount)) return -1;
                 RecalcRadii();
                 return -2; // applied, no object involved
+            case CmdKind.SetRule:
+            {
+                string? id = c.Name; Rule? rule = Rules.Find(x => x.Id == id);
+                if (rule == null) return -1;
+                rule.Enabled = c.Amount != 0;
+                return -2;
+            }
             case CmdKind.FastForward:
                 if (!double.IsFinite(c.Amount) || c.Amount <= 0) return -1;
-                Jump(c.Amount);
+                Jump(c.Amount * C.YearTime);
                 return -2;
             case CmdKind.Remove:
                 if (!Ok(c.Target)) return -1;
