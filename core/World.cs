@@ -1,40 +1,57 @@
-// Spike core: one flat world = heavy bodies (N-body among themselves) + light grains (feel the bodies only).
-// Matter: every grain is one of six element groups; every body keeps a mass table per group.
-// A grain that touches a body is absorbed: its mass goes into that body's table. Elements ARE the resources (Yang 06/10).
-// Pure .NET, no Godot types. Fixed step, seeded stream, so a run repeats exactly on one machine.
+// Core: a world is a set of OBJECTS and one set of CONSTANTS (Yang 06/10: everything is an object with its own
+// physics and parameters; no anonymous grains; the universe still has constants, and the god may change them).
+//   object  = position, velocity, mass, matter table (six element groups), name, colour, parent, group.
+//   derived = radius (matter + densities), "pulls others" (mass over a threshold), kind. Never set by hand.
+// Pull is exact 1/r^2: no softening. Two objects that touch merge. Fixed step, seeded stream: a run repeats exactly.
+// Pure .NET, no Godot types.
 using System;
+using System.Collections.Generic;
 
 namespace Cosmos.Core;
 
+/// The laws every object obeys. One set per world; plain fields so the god can turn them.
+public sealed class Consts
+{
+    public double G = 1.0;
+    public double AttractMass = 1e-7; // an object this heavy or heavier pulls the others (about 0.0007 Earths)
+    public double StarMass = 4.0;     // this heavy or heavier = a star (0.08 Suns)
+    public double RadiusScale = 1.5;
+    public readonly double[] Density = { 0.3, 0.9, 3, 8, 2, 10 }; // per element group, order = World.ElemName
+}
+
+public enum Kind { Star, Planet, Moon, Rock }
+
 public sealed class World
 {
-    public const double G = 1.0;
-    public const int BodySub = 8; // bodies take 8 small steps per grain step: they are few, and moons need the finer step
-    public const int NElem = 6;
+    public const int NElem = 6, Sub = 8; // Sub small steps per Advance: moon orbits need the finer step
     public static readonly string[] ElemName = { "gas", "ice", "rock", "metal", "carbon", "radio" };
-    public const double GrainMass = 1e-7, FrostLine = 180, EarthMass = 1.5e-4; // star 50 = one Sun, so Earth = 50 * 3e-6
-    // share of each group, inside / outside the frost line; used for grains and for the starting planets
-    static readonly double[] MixInner = { 0.02, 0.03, 0.55, 0.25, 0.12, 0.03 }, MixOuter = { 0.25, 0.45, 0.10, 0.04, 0.15, 0.01 }, MixStar = { 1, 0, 0, 0, 0, 0 };
+    public const double EarthMass = 1.5e-4; // a star of 50 = one Sun, so Earth = 50 * 3e-6
 
-    // bodies: structure of arrays
-    public int Nb;
-    public double[] Bx = new double[64], By = new double[64], Bvx = new double[64], Bvy = new double[64], Bm = new double[64], Br = new double[64];
-    public readonly double[] Bcomp = new double[64 * NElem]; // mass per element group, row per body
+    public readonly Consts C = new();
 
-    // grains: float arrays, the draw layer reads Px/Py directly
-    public int Np;
-    public readonly float[] Px, Py, Pvx, Pvy;
-    public readonly string[] Bname = new string[64];
-    public readonly uint[] Bcol = new uint[64]; // 0xRRGGBB for the draw layer, 0 = none
-    public readonly int[] Bpar = new int[64]; // body it was put in orbit around, -1 = none (draw layer: orbit line)
-    public readonly byte[] Pe; // element group of each grain
+    // objects: structure of arrays. Slots are stable: a dead slot is reused by a later Add, never shifted.
+    public int N;    // slots in use, dead ones included
+    public int Live; // objects alive
+    public readonly double[] X, Y, Vx, Vy, M, R, Comp; // Comp = mass per element group, row per object
+    public readonly bool[] Alive;
+    public readonly string?[] Name;
+    public readonly uint[] Col;  // 0xRRGGBB for the draw layer, 0 = none
+    public readonly int[] Par;   // object it was put in orbit around, -1 = none
+    public readonly int[] Grp;   // index into Groups, 0 = none
+    public readonly List<string> Groups = new() { "" }; // a group (a belt) = a name; its numbers come from its members
+    public long Step, Merges;
 
-    public long Step;
+    readonly Stack<int> _free = new();
+    readonly int[] _att; int _na;                 // objects that pull, rebuilt every small step
+    readonly List<(int, int)> _hits = new();      // pairs that touched in this small step
     ulong _rng;
 
-    public World(int maxGrains, ulong seed)
+    public World(int capacity, ulong seed)
     {
-        Px = new float[maxGrains]; Py = new float[maxGrains]; Pvx = new float[maxGrains]; Pvy = new float[maxGrains]; Pe = new byte[maxGrains];
+        X = new double[capacity]; Y = new double[capacity]; Vx = new double[capacity]; Vy = new double[capacity];
+        M = new double[capacity]; R = new double[capacity]; Comp = new double[capacity * NElem];
+        Alive = new bool[capacity]; Name = new string?[capacity]; Col = new uint[capacity]; Par = new int[capacity]; Grp = new int[capacity];
+        _att = new int[capacity];
         _rng = seed == 0 ? 0x9E3779B97F4A7C15UL : seed;
     }
 
@@ -44,162 +61,174 @@ public sealed class World
         return ((_rng * 0x2545F4914F6CDD1DUL) >> 11) * (1.0 / 9007199254740992.0);
     }
 
-    // Every body pulls with its true 1/r^2 outside its own radius; the pull is only softened inside it (eps = radius).
-    // So the radius must sit well inside the body's own zone of control (Hill sphere), else nothing can orbit it.
-    // ponytail: anything heavier than 1 is a star with a fixed size; real radius from density when bodies get types
-    static double RadiusOf(double m) => m > 1 ? 3 : Math.Cbrt(m);
+    // ---- derived values
 
-    /// Speed of a circular orbit at distance r around mass m, under the softened pull.
-    public static double CircSpeed(double m, double r, double eps2) => r * Math.Sqrt(G * m / Math.Pow(r * r + eps2, 1.5));
+    public bool Attracts(int i) => M[i] >= C.AttractMass;
 
-    /// Radius inside which body k, not the star (body 0), rules the motion of small things.
-    public double Hill(int k)
+    public Kind KindOf(int i)
     {
-        double dx = Bx[k] - Bx[0], dy = By[k] - By[0];
-        return k == 0 ? double.MaxValue : Math.Sqrt(dx * dx + dy * dy) * Math.Cbrt(Bm[k] / (3 * Bm[0]));
+        if (M[i] >= C.StarMass) return Kind.Star;
+        if (!Attracts(i)) return Kind.Rock;
+        int p = Par[i];
+        return p >= 0 && Alive[p] && M[p] < C.StarMass ? Kind.Moon : Kind.Planet;
     }
 
-    /// New body at (x, y) on a circular orbit around `parent`, same turning sense as the planets.
-    public int AddMoon(int parent, double x, double y, double m, double[] mix, string name, uint col)
+    void SetRadius(int i)
     {
-        double dx = x - Bx[parent], dy = y - By[parent], r = Math.Sqrt(dx * dx + dy * dy), rm = RadiusOf(m);
-        double v = CircSpeed(Bm[parent] + m, r, Br[parent] * Br[parent] + rm * rm);
-        int i = AddBody(x, y, Bvx[parent] - dy / r * v, Bvy[parent] + dx / r * v, m, mix, name, col);
-        Bpar[i] = parent; return i;
+        double vol = 0;
+        for (int e = 0; e < NElem; e++) vol += Comp[i * NElem + e] / C.Density[e];
+        R[i] = C.RadiusScale * Math.Cbrt(vol);
     }
 
-    public int AddBody(double x, double y, double vx, double vy, double m, double[] mix, string name = "", uint col = 0)
+    /// Call after the god changes a density or RadiusScale.
+    public void RecalcRadii() { for (int i = 0; i < N; i++) if (Alive[i]) SetRadius(i); }
+
+    public int Heaviest()
     {
-        Bname[Nb] = name; Bcol[Nb] = col; Bpar[Nb] = Nb == 0 ? -1 : 0;
-        int i = Nb++; Bx[i] = x; By[i] = y; Bvx[i] = vx; Bvy[i] = vy; Bm[i] = m; Br[i] = RadiusOf(m);
-        for (int e = 0; e < NElem; e++) Bcomp[i * NElem + e] = m * mix[e];
+        int k = -1;
+        for (int i = 0; i < N; i++) if (Alive[i] && (k < 0 || M[i] > M[k])) k = i;
+        return k;
+    }
+
+    /// Radius inside which object i, not its primary (parent, else the heaviest object), rules small things.
+    public double Hill(int i)
+    {
+        int p = Par[i] >= 0 && Alive[Par[i]] ? Par[i] : Heaviest();
+        if (p == i || p < 0) return double.MaxValue;
+        double dx = X[i] - X[p], dy = Y[i] - Y[p];
+        return Math.Sqrt(dx * dx + dy * dy) * Math.Cbrt(M[i] / (3 * M[p]));
+    }
+
+    // ---- making objects
+
+    /// Returns the slot, or -1 when the world is full.
+    public int Add(double x, double y, double vx, double vy, double m, double[] mix, string? name = null, uint col = 0, int par = -1, int grp = 0)
+    {
+        int i;
+        if (_free.Count > 0) i = _free.Pop(); else if (N < X.Length) i = N++; else return -1;
+        X[i] = x; Y[i] = y; Vx[i] = vx; Vy[i] = vy; M[i] = m; Alive[i] = true; Name[i] = name; Col[i] = col; Par[i] = par; Grp[i] = grp;
+        for (int e = 0; e < NElem; e++) Comp[i * NElem + e] = m * mix[e];
+        SetRadius(i); Live++;
         return i;
     }
 
-    public void AddGrain(double x, double y, double vx, double vy, byte e)
+    /// New object at (x, y) on a circular orbit around `parent`, same turning sense as the planets.
+    public int AddOrbiting(int parent, double x, double y, double m, double[] mix, string? name = null, uint col = 0, int grp = 0, double speedFactor = 1)
     {
-        int i = Np++; Px[i] = (float)x; Py[i] = (float)y; Pvx[i] = (float)vx; Pvy[i] = (float)vy; Pe[i] = e;
+        double dx = x - X[parent], dy = y - Y[parent], r = Math.Sqrt(dx * dx + dy * dy);
+        double v = Math.Sqrt(C.G * (M[parent] + m) / r) * speedFactor;
+        return Add(x, y, Vx[parent] - dy / r * v, Vy[parent] + dx / r * v, m, mix, name, col, parent, grp);
     }
 
-    byte Pick(double[] mix)
+    // the heavier one keeps its identity; mass, momentum and matter are summed
+    void Merge(int a, int b)
     {
-        double u = Next();
-        for (byte e = 0; e < NElem - 1; e++) { u -= mix[e]; if (u < 0) return e; }
-        return NElem - 1;
+        int k = M[a] >= M[b] ? a : b, d = k == a ? b : a;
+        double m = M[k] + M[d];
+        X[k] = (X[k] * M[k] + X[d] * M[d]) / m; Y[k] = (Y[k] * M[k] + Y[d] * M[d]) / m;
+        Vx[k] = (Vx[k] * M[k] + Vx[d] * M[d]) / m; Vy[k] = (Vy[k] * M[k] + Vy[d] * M[d]) / m;
+        for (int e = 0; e < NElem; e++) Comp[k * NElem + e] += Comp[d * NElem + e];
+        M[k] = m; SetRadius(k);
+        Alive[d] = false; M[d] = 0; _free.Push(d); Live--; Merges++;
+        for (int i = 0; i < N; i++) if (Par[i] == d) Par[i] = k;
     }
 
-    // body k swallows grain i: mass and momentum go to the body, the last grain takes slot i
-    void Absorb(int k, int i)
-    {
-        double m = Bm[k] + GrainMass;
-        Bvx[k] += GrainMass * (Pvx[i] - Bvx[k]) / m; Bvy[k] += GrainMass * (Pvy[i] - Bvy[k]) / m;
-        Bm[k] = m; Bcomp[k * NElem + Pe[i]] += GrainMass; Br[k] = RadiusOf(m);
-        int l = --Np; Px[i] = Px[l]; Py[i] = Py[l]; Pvx[i] = Pvx[l]; Pvy[i] = Pvy[l]; Pe[i] = Pe[l];
-    }
-
-    /// One star, `planets` planets on circular orbits, `grains` grains in a wide disc.
-    public static World Solar(int grains, int planets, ulong seed)
-    {
-        var w = new World(grains, seed);
-        const double M = 50;
-        w.AddBody(0, 0, 0, 0, M, MixStar);
-        for (int k = 0; k < planets; k++)
-        {
-            double d = 50 + 45.0 * k, a = w.Next() * Math.Tau, v = Math.Sqrt(G * M / d);
-            w.AddBody(Math.Cos(a) * d, Math.Sin(a) * d, -Math.Sin(a) * v, Math.Cos(a) * v, 1.5e-4 * (1 + 30 * w.Next()), d < FrostLine ? MixInner : MixOuter);
-        }
-        for (int i = 0; i < grains; i++)
-        {
-            double d = 30 + 420 * Math.Sqrt(w.Next()), a = w.Next() * Math.Tau, v = Math.Sqrt(G * M / d);
-            w.AddGrain(Math.Cos(a) * d, Math.Sin(a) * d, -Math.Sin(a) * v, Math.Cos(a) * v, w.Pick(d < FrostLine ? MixInner : MixOuter));
-        }
-        return w;
-    }
+    // ---- scenes
 
     // Distances are squeezed (d = 45 * AU^0.62) so all eight planets fit one screen; order and mass ratios are real.
     public static double SolDist(double au) => 45 * Math.Pow(au, 0.62);
 
-    /// Our own system: Sun, eight planets, the Moon, asteroid belt, Kuiper belt.
-    public static World SolSystem(int grains, ulong seed)
+    /// Our own system: Sun, eight planets, the Moon, and `rocks` small objects in two belts (40% asteroid, 60% Kuiper).
+    public static World SolSystem(int rocks, ulong seed)
     {
-        var w = new World(grains, seed);
-        const double M = 50;
-        w.AddBody(0, 0, 0, 0, M, MixStar, "Mặt Trời", 0xFFDB8C);
-        void planet(string name, double au, double earths, uint col, params double[] mix)
+        var w = new World(rocks + 256, seed);
+        int sun = w.Add(0, 0, 0, 0, 50, new double[] { 1, 0, 0, 0, 0, 0 }, "Mặt Trời", 0xFFDB8C);
+        int planet(string name, double au, double earths, uint col, params double[] mix)
         {
-            double d = SolDist(au), a = w.Next() * Math.Tau, v = CircSpeed(M, d, w.Br[0] * w.Br[0]);
-            w.AddBody(Math.Cos(a) * d, Math.Sin(a) * d, -Math.Sin(a) * v, Math.Cos(a) * v, earths * EarthMass, mix, name, col);
+            double d = SolDist(au), a = w.Next() * Math.Tau;
+            return w.AddOrbiting(sun, Math.Cos(a) * d, Math.Sin(a) * d, earths * EarthMass, mix, name, col);
         }
         //                                          gas   ice   rock  metal carbon radio
         planet("Sao Thủy", 0.387, 0.0553, 0x9C9C9C, 0, 0, 0.30, 0.69, 0, 0.01);
         planet("Sao Kim", 0.723, 0.815, 0xE8CF9A, 0, 0, 0.66, 0.32, 0.01, 0.01);
-        planet("Trái Đất", 1.0, 1.0, 0x4F8FE8, 0, 0.01, 0.66, 0.32, 0.005, 0.005);
+        int earth = planet("Trái Đất", 1.0, 1.0, 0x4F8FE8, 0, 0.01, 0.66, 0.32, 0.005, 0.005);
         planet("Sao Hỏa", 1.524, 0.107, 0xD0603A, 0, 0.01, 0.73, 0.25, 0.005, 0.005);
         planet("Sao Mộc", 5.203, 317.8, 0xD9B48A, 0.90, 0.05, 0.03, 0.015, 0.005, 0);
         planet("Sao Thổ", 9.537, 95.2, 0xE6D29A, 0.85, 0.08, 0.045, 0.02, 0.005, 0);
         planet("Sao Thiên Vương", 19.19, 14.5, 0x9FE3E8, 0.15, 0.65, 0.15, 0.04, 0.01, 0);
         planet("Sao Hải Vương", 30.07, 17.1, 0x4466E0, 0.12, 0.66, 0.16, 0.05, 0.01, 0);
-        w.AddMoon(3, w.Bx[3] + 0.12, w.By[3], 0.0123 * EarthMass, new[] { 0, 0.01, 0.72, 0.26, 0.005, 0.005 }, "Mặt Trăng", 0xC8C8C8);
+        w.AddOrbiting(earth, w.X[earth] + 0.12, w.Y[earth], 0.0123 * EarthMass, new[] { 0, 0.01, 0.72, 0.26, 0.005, 0.005 }, "Mặt Trăng", 0xC8C8C8);
+
+        w.Groups.Add("Vành đai tiểu hành tinh"); w.Groups.Add("Vành đai Kuiper");
         double[] belt = { 0, 0.05, 0.60, 0.20, 0.14, 0.01 }, kuiper = { 0.03, 0.72, 0.15, 0.02, 0.08, 0 };
-        for (int i = 0; i < grains; i++)
+        var mix = new double[NElem];
+        for (int i = 0; i < rocks; i++)
         {
-            bool inner = i < grains * 35 / 100; // 35% asteroid belt 2.1-3.3 AU, the rest Kuiper belt 32-50 AU
-            double au = inner ? 2.1 + 1.2 * w.Next() : 32 + 18 * w.Next();
-            double d = SolDist(au), a = w.Next() * Math.Tau, v = Math.Sqrt(G * M / d) * (0.99 + 0.02 * w.Next());
-            w.AddGrain(Math.Cos(a) * d, Math.Sin(a) * d, -Math.Sin(a) * v, Math.Cos(a) * v, w.Pick(inner ? belt : kuiper));
+            bool inner = i < rocks * 40 / 100; // asteroid belt 2.1-3.3 AU, Kuiper belt 32-50 AU
+            double[] table = inner ? belt : kuiper;
+            double au = inner ? 2.1 + 1.2 * w.Next() : 32 + 18 * w.Next(), d = SolDist(au), a = w.Next() * Math.Tau;
+            // each rock is mostly one group (drawn from the belt's table), the rest follows the table
+            double u = w.Next(); int main = NElem - 1;
+            for (int e = 0; e < NElem - 1; e++) { u -= table[e]; if (u < 0) { main = e; break; } }
+            for (int e = 0; e < NElem; e++) mix[e] = 0.3 * table[e] + (e == main ? 0.7 : 0);
+            double q = w.Next(), m = 1e-10 * (1 + 200 * q * q * q); // up to 2e-8: all below AttractMass
+            w.AddOrbiting(sun, Math.Cos(a) * d, Math.Sin(a) * d, m, mix, null, 0, inner ? 1 : 2, 0.99 + 0.02 * w.Next());
+            w.Par[w.N - 1] = -1; // rocks get no orbit line
         }
         return w;
     }
 
+    // ---- stepping
+
     public void Advance(double h)
     {
-        // bodies: pairwise, kick then drift, in BodySub small steps
-        double hs = h / BodySub;
-        for (int sub = 0; sub < BodySub; sub++)
+        double hs = h / Sub, g = C.G;
+        for (int sub = 0; sub < Sub; sub++)
         {
-            for (int i = 0; i < Nb; i++)
+            _na = 0;
+            for (int i = 0; i < N; i++) if (Alive[i] && M[i] >= C.AttractMass) _att[_na++] = i;
+
+            // kick: every object feels every object that pulls. Positions do not move here, so order does not matter.
+            for (int i = 0; i < N; i++)
             {
-                double ax = 0, ay = 0;
-                for (int j = 0; j < Nb; j++)
+                if (!Alive[i]) continue;
+                double x = X[i], y = Y[i], ri = R[i], ax = 0, ay = 0;
+                bool heavy = M[i] >= C.AttractMass;
+                for (int k = 0; k < _na; k++)
                 {
+                    int j = _att[k];
                     if (j == i) continue;
-                    double dx = Bx[j] - Bx[i], dy = By[j] - By[i], q = dx * dx + dy * dy + Br[i] * Br[i] + Br[j] * Br[j], inv = G * Bm[j] / (q * Math.Sqrt(q));
+                    double dx = X[j] - x, dy = Y[j] - y, d2 = dx * dx + dy * dy, rr = ri + R[j];
+                    if (d2 < rr * rr) { if (!heavy || i < j) _hits.Add((i, j)); continue; } // touching: merge after the drift, once per pair
+                    double inv = g * M[j] / (d2 * Math.Sqrt(d2));
                     ax += dx * inv; ay += dy * inv;
                 }
-                Bvx[i] += ax * hs; Bvy[i] += ay * hs;
+                Vx[i] += ax * hs; Vy[i] += ay * hs;
             }
-            for (int i = 0; i < Nb; i++) { Bx[i] += Bvx[i] * hs; By[i] += Bvy[i] * hs; }
-        }
+            for (int i = 0; i < N; i++) if (Alive[i]) { X[i] += Vx[i] * hs; Y[i] += Vy[i] * hs; }
 
-        // grains: each feels every body. Sequential on purpose: same result every run.
-        float hf = (float)h;
-        Span<float> r2 = stackalloc float[Nb];
-        for (int k = 0; k < Nb; k++) r2[k] = (float)(Br[k] * Br[k]);
-        for (int i = 0; i < Np; i++)
-        {
-            float x = Px[i], y = Py[i], ax = 0, ay = 0;
-            int hit = -1;
-            for (int k = 0; k < Nb; k++)
+            if (_hits.Count > 0)
             {
-                float dx = (float)Bx[k] - x, dy = (float)By[k] - y, d2 = dx * dx + dy * dy, q = d2 + r2[k];
-                if (d2 < r2[k]) { hit = k; break; }
-                float inv = (float)(G * Bm[k]) / (q * MathF.Sqrt(q));
-                ax += dx * inv; ay += dy * inv;
+                foreach (var (a, b) in _hits) if (Alive[a] && Alive[b]) Merge(a, b);
+                _hits.Clear();
             }
-            if (hit >= 0) { Absorb(hit, i); r2[hit] = (float)(Br[hit] * Br[hit]); i--; continue; }
-            float vx = Pvx[i] + ax * hf, vy = Pvy[i] + ay * hf;
-            Pvx[i] = vx; Pvy[i] = vy; Px[i] = x + vx * hf; Py[i] = y + vy * hf;
         }
         Step++;
     }
+    // ponytail: two objects that both do NOT pull never collide with each other (rock through rock);
+    //           add a grid broad-phase when belts should grind. A fast object can also skip across a body
+    //           smaller than one small step of travel; add a swept test if that shows.
 
     /// FNV-1a over the raw state: equal hash = equal run.
     public ulong Hash()
     {
         ulong h = 14695981039346656037UL;
         void mix(ulong v) { for (int b = 0; b < 8; b++) { h ^= (v >> (b * 8)) & 0xFF; h *= 1099511628211UL; } }
-        for (int i = 0; i < Nb; i++) { mix(BitConverter.DoubleToUInt64Bits(Bx[i])); mix(BitConverter.DoubleToUInt64Bits(By[i])); mix(BitConverter.DoubleToUInt64Bits(Bm[i])); }
-        for (int i = 0; i < Np; i++) { mix(BitConverter.SingleToUInt32Bits(Px[i])); mix(BitConverter.SingleToUInt32Bits(Py[i])); mix(Pe[i]); }
+        for (int i = 0; i < N; i++)
+        {
+            if (!Alive[i]) continue;
+            mix((ulong)i); mix(BitConverter.DoubleToUInt64Bits(X[i])); mix(BitConverter.DoubleToUInt64Bits(Y[i])); mix(BitConverter.DoubleToUInt64Bits(M[i]));
+        }
         return h;
     }
 }

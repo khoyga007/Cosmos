@@ -1,58 +1,68 @@
-// Headless runner: step cost per grain count + the repeat check (two runs, same seed, same hash).
+// Headless runner: step cost per object count, then the checks (merge, moon, orbits, constants, repeat).
 using System;
 using System.Diagnostics;
 using Cosmos.Core;
 
 const double H = 0.5;
-foreach (int n in new[] { 10_000, 30_000, 100_000, 300_000 })
+bool allOk = true;
+void Check(bool ok, string line) { allOk &= ok; Console.WriteLine($"{(ok ? "OK    " : "FAILED")} {line}"); }
+
+foreach (int n in new[] { 2_000, 5_000, 20_000, 50_000 })
 {
-    var w = World.Solar(n, 8, 1234);
+    var w = World.SolSystem(n, 1234);
     for (int i = 0; i < 20; i++) w.Advance(H); // warm up the JIT
     var sw = Stopwatch.StartNew();
     const int steps = 100;
     for (int i = 0; i < steps; i++) w.Advance(H);
     double ms = sw.Elapsed.TotalMilliseconds / steps;
-    Console.WriteLine($"{n,7} grains, 9 bodies: {ms:F3} ms/step  ({1000 / ms:F0} steps/s)");
+    Console.WriteLine($"{n,7} rocks + 10 bodies: {ms:F3} ms/step  ({1000 / ms:F0} steps/s)");
 }
-// matter check: nothing appears or vanishes, and each body's table adds up to its mass
+
+// merge: two bodies fall onto each other; mass, momentum and matter must be kept
 {
-    var w = World.Solar(100_000, 8, 1234);
-    double Total() { double t = w.Np * World.GrainMass; for (int i = 0; i < w.Nb; i++) t += w.Bm[i]; return t; }
-    for (int i = 0; i < 1000; i++) { w.Px[i] = (float)w.Bx[3]; w.Py[i] = (float)w.By[3]; } // drop 1000 grains onto body 3
-    double before = Total(); int n0 = w.Np;
-    for (int i = 0; i < 4000; i++) w.Advance(H);
-    bool ok = Math.Abs(Total() - before) < 1e-9;
-    for (int i = 0; i < w.Nb; i++)
-    {
-        double sum = 0; string row = "";
-        for (int e = 0; e < World.NElem; e++) { double c = w.Bcomp[i * World.NElem + e]; sum += c; row += $" {World.ElemName[e]} {100 * c / w.Bm[i]:F1}%"; }
-        ok &= Math.Abs(sum - w.Bm[i]) < 1e-9 * w.Bm[i] + 1e-12;
-        Console.WriteLine($"  body {i}: mass {w.Bm[i] / World.GrainMass,10:F0} grains |{row}");
-    }
-    Console.WriteLine($"matter check {(ok ? "OK" : "FAILED")}: {n0 - w.Np} grains absorbed in 4000 steps");
-    if (!ok) return 1;
+    var w = new World(8, 1);
+    int a = w.Add(-1, 0, 0.02, 0, 3e-4, new double[] { 0, 0, 1, 0, 0, 0 }, "A");
+    int b = w.Add(1, 0, -0.02, 0, 1e-4, new double[] { 0, 1, 0, 0, 0, 0 }, "B");
+    double px = w.M[a] * w.Vx[a] + w.M[b] * w.Vx[b], py = w.M[a] * w.Vy[a] + w.M[b] * w.Vy[b];
+    for (int i = 0; i < 2000 && w.Live == 2; i++) w.Advance(H);
+    bool ok = w.Live == 1 && w.Alive[a] && !w.Alive[b]
+        && Math.Abs(w.M[a] - 4e-4) < 1e-15 && Math.Abs(w.M[a] * w.Vx[a] - px) < 1e-12 && Math.Abs(w.M[a] * w.Vy[a] - py) < 1e-12
+        && Math.Abs(w.Comp[a * World.NElem + 2] - 3e-4) < 1e-15 && Math.Abs(w.Comp[a * World.NElem + 1] - 1e-4) < 1e-15;
+    Check(ok, $"merge: {w.Live} object left after {w.Step} steps, mass {w.M[a]:E3}, rock {w.Comp[a * World.NElem + 2]:E1} ice {w.Comp[a * World.NElem + 1]:E1}");
 }
-// Sol: planets must stay on their orbits (radius drift after 20000 steps)
+
+// Sol: planets stay on their orbits, the Moon stays with Earth
 {
-    var w = World.SolSystem(20_000, 1234);
-    var d0 = new double[w.Nb];
-    for (int i = 0; i < w.Nb; i++) d0[i] = Math.Sqrt(w.Bx[i] * w.Bx[i] + w.By[i] * w.By[i]);
-    int n0 = w.Np; double worst = 0, mLo = 1e9, mHi = 0, turn = 0, prev = 0;
+    var w = World.SolSystem(5_000, 1234);
+    const int earth = 3, moon = 9;
+    var d0 = new double[10];
+    for (int i = 1; i <= 8; i++) d0[i] = Math.Sqrt(w.X[i] * w.X[i] + w.Y[i] * w.Y[i]);
+    int n0 = w.Live; double worst = 0, mLo = 1e9, mHi = 0, turn = 0, prev = 0;
     for (int s = 0; s < 20000; s++)
     {
         w.Advance(H);
-        double mx = w.Bx[9] - w.Bx[3], my = w.By[9] - w.By[3], md = Math.Sqrt(mx * mx + my * my), ang = Math.Atan2(my, mx);
+        double mx = w.X[moon] - w.X[earth], my = w.Y[moon] - w.Y[earth], md = Math.Sqrt(mx * mx + my * my), ang = Math.Atan2(my, mx);
         mLo = Math.Min(mLo, md); mHi = Math.Max(mHi, md);
         if (s > 0) turn += Math.IEEERemainder(ang - prev, Math.Tau);
         prev = ang;
-        for (int i = 1; i <= 8; i++) worst = Math.Max(worst, Math.Abs(Math.Sqrt(Math.Pow(w.Bx[i] - w.Bx[0], 2) + Math.Pow(w.By[i] - w.By[0], 2)) / d0[i] - 1));
+        for (int i = 1; i <= 8; i++) worst = Math.Max(worst, Math.Abs(Math.Sqrt(Math.Pow(w.X[i] - w.X[0], 2) + Math.Pow(w.Y[i] - w.Y[0], 2)) / d0[i] - 1));
     }
-    for (int i = 1; i < w.Nb; i++) Console.WriteLine($"  {w.Bname[i],-16} d {d0[i],6:F1}  mass {w.Bm[i] / World.EarthMass,8:F3} earths");
-    Console.WriteLine($"moon: {turn / Math.Tau:F1} turns around Earth, distance {mLo:F3}..{mHi:F3} (start 0.120, Earth radius {w.Br[3]:F3}, Earth zone {w.Hill(3):F3})");
-    Console.WriteLine($"sol: worst orbit radius drift {100 * worst:F2}% over 20000 steps, {n0 - w.Np} grains absorbed");
+    for (int i = 1; i <= 9; i++) Console.WriteLine($"  {w.Name[i],-16} {w.KindOf(i),-6} mass {w.M[i] / World.EarthMass,8:F3} earths  radius {w.R[i]:F3}  zone {w.Hill(i):F3}");
+    Check(w.Alive[moon] && mHi < 0.2, $"moon: {turn / Math.Tau:F1} turns around Earth, distance {mLo:F3}..{mHi:F3} (start 0.120)");
+    Check(worst < 0.05, $"sol: worst planet radius drift {100 * worst:F2}% over 20000 steps; {n0 - w.Live} of 5000 rocks merged into bodies");
 }
-ulong a = Run(), b = Run();
-Console.WriteLine(a == b ? $"repeat check OK  {a:X16}" : $"repeat check FAILED  {a:X16} != {b:X16}");
-return a == b ? 0 : 1;
 
-static ulong Run() { var w = World.Solar(20_000, 8, 77); for (int i = 0; i < 500; i++) w.Advance(H); return w.Hash(); }
+// constants: the god doubles G, Earth's orbit must tighten
+{
+    var w = World.SolSystem(0, 1234);
+    w.C.G = 2;
+    double lo = 1e9;
+    for (int s = 0; s < 2000; s++) { w.Advance(H); lo = Math.Min(lo, Math.Sqrt(Math.Pow(w.X[3] - w.X[0], 2) + Math.Pow(w.Y[3] - w.Y[0], 2))); }
+    Check(lo < 40, $"constants: G 1 -> 2, Earth dips from 45.0 to {lo:F1}");
+}
+
+ulong a1 = Run(), b1 = Run();
+Check(a1 == b1, $"repeat: {a1:X16} / {b1:X16}");
+return allOk ? 0 : 1;
+
+static ulong Run() { var w = World.SolSystem(3_000, 77); for (int i = 0; i < 1000; i++) w.Advance(H); return w.Hash(); }
