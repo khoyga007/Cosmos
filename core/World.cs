@@ -11,7 +11,7 @@ public sealed class World
     public const double G = 1.0, EpsBody = 9.0, EpsGrain = 16.0;
     public const int NElem = 6;
     public static readonly string[] ElemName = { "gas", "ice", "rock", "metal", "carbon", "radio" };
-    public const double GrainMass = 1e-6, FrostLine = 180;
+    public const double GrainMass = 1e-7, FrostLine = 180, EarthMass = 1.5e-4; // star 50 = one Sun, so Earth = 50 * 3e-6
     // share of each group, inside / outside the frost line; used for grains and for the starting planets
     static readonly double[] MixInner = { 0.02, 0.03, 0.55, 0.25, 0.12, 0.03 }, MixOuter = { 0.25, 0.45, 0.10, 0.04, 0.15, 0.01 }, MixStar = { 1, 0, 0, 0, 0, 0 };
 
@@ -23,6 +23,8 @@ public sealed class World
     // grains: float arrays, the draw layer reads Px/Py directly
     public int Np;
     public readonly float[] Px, Py, Pvx, Pvy;
+    public readonly string[] Bname = new string[64];
+    public readonly uint[] Bcol = new uint[64]; // 0xRRGGBB for the draw layer, 0 = none
     public readonly byte[] Pe; // element group of each grain
 
     public long Step;
@@ -43,8 +45,9 @@ public sealed class World
     // ponytail: anything heavier than 1 is a star with a fixed size; real radius from density when bodies get types
     static double RadiusOf(double m) => m > 1 ? 8 : 2 + 10 * Math.Cbrt(m);
 
-    public int AddBody(double x, double y, double vx, double vy, double m, double[] mix)
+    public int AddBody(double x, double y, double vx, double vy, double m, double[] mix, string name = "", uint col = 0)
     {
+        Bname[Nb] = name; Bcol[Nb] = col;
         int i = Nb++; Bx[i] = x; By[i] = y; Bvx[i] = vx; Bvy[i] = vy; Bm[i] = m; Br[i] = RadiusOf(m);
         for (int e = 0; e < NElem; e++) Bcomp[i * NElem + e] = m * mix[e];
         return i;
@@ -86,6 +89,40 @@ public sealed class World
         {
             double d = 30 + 420 * Math.Sqrt(w.Next()), a = w.Next() * Math.Tau, v = Math.Sqrt(G * M / d);
             w.AddGrain(Math.Cos(a) * d, Math.Sin(a) * d, -Math.Sin(a) * v, Math.Cos(a) * v, w.Pick(d < FrostLine ? MixInner : MixOuter));
+        }
+        return w;
+    }
+
+    // Distances are squeezed (d = 45 * AU^0.62) so all eight planets fit one screen; order and mass ratios are real.
+    public static double SolDist(double au) => 45 * Math.Pow(au, 0.62);
+
+    /// Our own system: Sun, eight planets, asteroid belt, Kuiper belt. No moons (softening is wider than a moon orbit).
+    public static World SolSystem(int grains, ulong seed)
+    {
+        var w = new World(grains, seed);
+        const double M = 50;
+        w.AddBody(0, 0, 0, 0, M, MixStar, "Mặt Trời", 0xFFDB8C);
+        void planet(string name, double au, double earths, uint col, params double[] mix)
+        {
+            double d = SolDist(au), a = w.Next() * Math.Tau, v = d * Math.Sqrt(G * M / Math.Pow(d * d + EpsBody, 1.5)); // circular under the softened pull
+            w.AddBody(Math.Cos(a) * d, Math.Sin(a) * d, -Math.Sin(a) * v, Math.Cos(a) * v, earths * EarthMass, mix, name, col);
+        }
+        //                                          gas   ice   rock  metal carbon radio
+        planet("Sao Thủy", 0.387, 0.0553, 0x9C9C9C, 0, 0, 0.30, 0.69, 0, 0.01);
+        planet("Sao Kim", 0.723, 0.815, 0xE8CF9A, 0, 0, 0.66, 0.32, 0.01, 0.01);
+        planet("Trái Đất", 1.0, 1.0, 0x4F8FE8, 0, 0.01, 0.66, 0.32, 0.005, 0.005);
+        planet("Sao Hỏa", 1.524, 0.107, 0xD0603A, 0, 0.01, 0.73, 0.25, 0.005, 0.005);
+        planet("Sao Mộc", 5.203, 317.8, 0xD9B48A, 0.90, 0.05, 0.03, 0.015, 0.005, 0);
+        planet("Sao Thổ", 9.537, 95.2, 0xE6D29A, 0.85, 0.08, 0.045, 0.02, 0.005, 0);
+        planet("Sao Thiên Vương", 19.19, 14.5, 0x9FE3E8, 0.15, 0.65, 0.15, 0.04, 0.01, 0);
+        planet("Sao Hải Vương", 30.07, 17.1, 0x4466E0, 0.12, 0.66, 0.16, 0.05, 0.01, 0);
+        double[] belt = { 0, 0.05, 0.60, 0.20, 0.14, 0.01 }, kuiper = { 0.03, 0.72, 0.15, 0.02, 0.08, 0 };
+        for (int i = 0; i < grains; i++)
+        {
+            bool inner = i < grains * 35 / 100; // 35% asteroid belt 2.1-3.3 AU, the rest Kuiper belt 32-50 AU
+            double au = inner ? 2.1 + 1.2 * w.Next() : 32 + 18 * w.Next();
+            double d = SolDist(au), a = w.Next() * Math.Tau, v = Math.Sqrt(G * M / d) * (0.99 + 0.02 * w.Next());
+            w.AddGrain(Math.Cos(a) * d, Math.Sin(a) * d, -Math.Sin(a) * v, Math.Cos(a) * v, w.Pick(inner ? belt : kuiper));
         }
         return w;
     }

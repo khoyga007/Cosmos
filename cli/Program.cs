@@ -31,6 +31,20 @@ foreach (int n in new[] { 10_000, 30_000, 100_000, 300_000 })
     Console.WriteLine($"matter check {(ok ? "OK" : "FAILED")}: {n0 - w.Np} grains absorbed in 4000 steps");
     if (!ok) return 1;
 }
+// Sol: planets must stay on their orbits (radius drift after 20000 steps)
+{
+    var w = World.SolSystem(20_000, 1234);
+    var d0 = new double[w.Nb];
+    for (int i = 0; i < w.Nb; i++) d0[i] = Math.Sqrt(w.Bx[i] * w.Bx[i] + w.By[i] * w.By[i]);
+    int n0 = w.Np; double worst = 0;
+    for (int s = 0; s < 20000; s++)
+    {
+        w.Advance(H);
+        for (int i = 1; i < w.Nb; i++) worst = Math.Max(worst, Math.Abs(Math.Sqrt(Math.Pow(w.Bx[i] - w.Bx[0], 2) + Math.Pow(w.By[i] - w.By[0], 2)) / d0[i] - 1));
+    }
+    for (int i = 1; i < w.Nb; i++) Console.WriteLine($"  {w.Bname[i],-16} d {d0[i],6:F1}  mass {w.Bm[i] / World.EarthMass,8:F3} earths");
+    Console.WriteLine($"sol: worst orbit radius drift {100 * worst:F2}% over 20000 steps, {n0 - w.Np} grains absorbed");
+}
 ulong a = Run(), b = Run();
 Console.WriteLine(a == b ? $"repeat check OK  {a:X16}" : $"repeat check FAILED  {a:X16} != {b:X16}");
 return a == b ? 0 : 1;

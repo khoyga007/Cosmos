@@ -32,7 +32,7 @@ public partial class Main : Node2D
             if (a.StartsWith("--grains=")) grains = int.Parse(a[9..]);
             if (a.StartsWith("--bench=")) _bench = int.Parse(a[8..]); // seconds, then print and quit
         }
-        _w = World.Solar(grains, 8, 1234);
+        _w = World.SolSystem(grains, 1234);
 
         _mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform2D, UseColors = true, Mesh = new QuadMesh { Size = new Vector2(2, 2) }, InstanceCount = grains };
         _buf = new float[grains * Stride];
@@ -87,7 +87,7 @@ public partial class Main : Node2D
         return new Vector2(c.X + (float)_w.Bx[i] * _zoom, c.Y + (float)_w.By[i] * _zoom * _tilt);
     }
 
-    float BodyPx(int i) => i == 0 ? (float)_w.Br[0] * _zoom + 3 : MathF.Max(3.5f, (float)_w.Br[i] * _zoom);
+    float BodyPx(int i) => i == 0 ? (float)_w.Br[0] * _zoom + 3 : MathF.Max(3.5f, (float)_w.Br[i] * _zoom * 1.6f);
 
     string PanelText()
     {
@@ -98,25 +98,39 @@ public partial class Main : Node2D
             return sb.Append("Bấm vào thiên thể để xem thành phần").ToString();
         }
         double m = _w.Bm[_sel];
-        sb.Append($"[b]{(_sel == 0 ? "Ngôi sao" : "Hành tinh " + _sel)}[/b]   khối lượng {m / World.GrainMass:N0} hạt\n");
+        sb.Append($"[b]{_w.Bname[_sel]}[/b]   khối lượng {m / World.EarthMass:N3} Trái Đất\n");
         for (int e = 0; e < World.NElem; e++)
         {
             double k = _w.Bcomp[_sel * World.NElem + e];
-            sb.Append($"[color=#{ElemCol[e].ToHtml(false)}]■[/color] {ElemVi[e]}   {100 * k / m:F1}%   ({k / World.GrainMass:N0})\n");
+            sb.Append($"[color=#{ElemCol[e].ToHtml(false)}]■[/color] {ElemVi[e]}   {100 * k / m:F1}%\n");
         }
         return sb.ToString();
     }
 
     public override void _Draw()
     {
+        Vector2 c = GetViewportRect().Size / 2;
+        Font font = ThemeDB.FallbackFont;
+        // orbit lines: circles in the world plane, squashed by the tilt like everything else
+        DrawSetTransform(c, 0, new Vector2(1, _tilt));
+        for (int i = 1; i < _w.Nb; i++)
+        {
+            double dx = _w.Bx[i] - _w.Bx[0], dy = _w.By[i] - _w.By[0];
+            DrawArc(new Vector2((float)_w.Bx[0], (float)_w.By[0]) * _zoom, (float)Math.Sqrt(dx * dx + dy * dy) * _zoom, 0, MathF.Tau, 96, new Color(1, 1, 1, 0.10f), 1);
+        }
+        DrawSetTransform(Vector2.Zero);
         for (int i = 0; i < _w.Nb; i++)
         {
             Vector2 p = BodyPos(i);
+            float r = BodyPx(i);
             Color col = new(0, 0, 0);
-            for (int e = 0; e < World.NElem; e++) col += ElemCol[e] * (float)(_w.Bcomp[i * World.NElem + e] / _w.Bm[i]); // body colour = its matter mix
+            if (_w.Bcol[i] != 0) col = new Color((_w.Bcol[i] << 8) | 0xFF);
+            else for (int e = 0; e < World.NElem; e++) col += ElemCol[e] * (float)(_w.Bcomp[i * World.NElem + e] / _w.Bm[i]); // no own colour: its matter mix
             col.A = 1;
-            DrawCircle(p, BodyPx(i), i == 0 ? new Color(1f, 0.86f, 0.55f) : col);
-            if (i == _sel) DrawArc(p, BodyPx(i) + 5, 0, MathF.Tau, 32, Colors.White, 1.5f);
+            if (_w.Bname[i] == "Sao Thổ") { DrawSetTransform(p, 0, new Vector2(1, _tilt)); DrawArc(Vector2.Zero, r * 2.1f, 0, MathF.Tau, 48, new Color(0.9f, 0.82f, 0.6f, 0.7f), MathF.Max(1.5f, r * 0.45f)); DrawSetTransform(Vector2.Zero); } // ponytail: drawn ring, not matter
+            DrawCircle(p, r, col);
+            if (i == _sel) DrawArc(p, r + 5, 0, MathF.Tau, 32, Colors.White, 1.5f);
+            if (i > 0) DrawString(font, p + new Vector2(r + 6, 4), _w.Bname[i], HorizontalAlignment.Left, -1, 13, new Color(1, 1, 1, 0.75f));
         }
     }
 

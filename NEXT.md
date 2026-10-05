@@ -25,7 +25,14 @@ Stack (Claire's call 06/10, Yang delegated): Godot 4.7.2 .NET at `E:\Godot\Godot
 - Trap hit again: python heredoc turned `
 ` inside C# strings into real newlines → CS1039.
 
+## SOL scene 06/10 (Yang: "làm hệ mặt trời để anh xem")
+- `World.SolSystem(grains, seed)` = Sun + 8 planets (VN names in `Bname`, own colour `Bcol`) + asteroid belt 35% of grains (2.1-3.3 AU) + Kuiper belt 65% (32-50 AU). Window opens this scene; `World.Solar` (random system) kept for cli numbers.
+- Distances squeezed `SolDist(au) = 45*AU^0.62` (Mercury 25 … Neptune 371) so all fit one screen — Claire's call; order + mass ratios real (`EarthMass` 1.5e-4). `GrainMass` now 1e-7. Planet mixes = rough real ones, placeholders.
+- Planet start speed uses the softened pull, else Mercury wobbles (4.75% → 1.42% worst radius drift over 20000 steps, cli "sol:" line).
+- Draw: orbit lines, names, Saturn ring = drawn ellipse only (not matter). No moons: softening (3-4 units) is wider than a moon orbit — needs per-body softening or a sub-step before moons/rings can be real.
+- Headless: build clean, panel prints. `_Draw` path (orbit lines, labels, ring) NOT exercised headless → unseen until Yang runs it.
+
 ## NEXT (needs Yang)
-0. Yang runs `run.bat`, clicks a planet, reports what he sees.
+0. Yang runs `run.bat`, looks at Sol, reports.
 1. Civ slice (after matter): one abstract civilisation on one planet that sees a miracle and reacts. Civ state content = Yang's.
 Rule: smallest playable slice before infrastructure. Do not port the web engine wholesale.
