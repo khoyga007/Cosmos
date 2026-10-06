@@ -2,7 +2,13 @@
 
 READ `SPEC.md` FIRST (game, model, engine decisions, round-1 work packages). This file = what is running now.
 
-## Star-system defect pass 2026-10-06 night (Claire, master d8fbe31) — RESUME HERE
+## Team pass 2026-10-06 late (master 58e1c79) — RESUME HERE
+- Merged by diff review only (Claire ran nothing, quota): S2 selica/audit-gaps (132defe, cli only, `cli -- conserve` 37 checks) + S1 celine/nova-stamps (a928acb). Celine's numbers on rebased tree: cli 315 OK exit 0, audit 4D/3R, selftest C430139B76C6A372, uitest B6EC767CF72CE186. Report + sources: S1-NOVA-STAMPS.md.
+- S1: RunRules settles old luminous era before each star boundary; life.end/civ.end dated analytically, cut 1/200 equal; WD born 200 kK, Mestel cooling, NS 2 MK @ 330 yr (macro fit); jump cut at cooling edges -> real warm interval scorched->temperate->frozen. 4 Const defaults changed (StarWhiteLight, StarWhiteCoolYears, StarNeutronLight, StarNeutronCoolYears), all hashes re-captured.
+- Rule (Yang 06/10): physics forks = real-world physics, no asking him.
+- OPEN: A1 ariel/object-list returned (uitest had _GuiInput + EmitSignal fallbacks = proves nothing; move list to own tab "Thiên thể"; rebase, hashes moved). P1 selica/fps-probe: window 40 fps paused with 5250 objects, Debug build, measure only. S1 follow-ups sent to Celine: NextCoolingBoundary scans all N per world/edge (cost with 5250 rocks unmeasured), RunRules hard-codes rule ids "temperature/water/life/civ" (table debt). After those: counter for sublimated ice/gas mass (Kinds.cs:257-274, :203), spec not written.
+
+## Star-system defect pass 2026-10-06 night (Claire, master d8fbe31)
 - Yang: "quay lại fix mấy lỗi ở tầng hệ sao". Done on master, cli 254 OK exit 0, audit 5D/3R, selftest 011B7BC90A48FFC7, uitest D5B228338AAFCA83.
 - HASHES CHANGED for everyone: Consts +3 fields (CosmicBackground, CivDomeTemp, CivDomeTempRange), all hashed by reflection. Branches must rebase; Legacy tables in ElementChecks/StarEventChecks re-captured. Proof: with the 3 fields skipped in Hash() only sol0-life/sol0-edit/sol2000-jump moved.
 - Fixed: events in a jump dated at their own year (life.start, life.stage per mark, civ.start, civ.stage per stage via bisection on lived-years curve, civ.ship.first via `_launchYear`); tech ceiling = last threshold + 1; DomeRoom (heat factor, needs own ice or fed civ `FindFed`); ShipGoal skips dead-end worlds; civ.end A=-1 = swallowed (window wording); floor 2.7 K = `max(star, floor)` for non-star bodies only (T^4 sum tried, moved Earth 5.5e-7 K and broke 6 exact checks -> dropped); comet.spent only named/pulling; ghost label names remnant preset.
