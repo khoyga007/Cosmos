@@ -361,7 +361,7 @@ public partial class GodUi : CanvasLayer
         var row = new HBoxContainer();
         row.AddChild(Btn("Bám theo (F)", _main.FollowSelected));
         row.AddChild(Btn("Về quỹ đạo tròn", _main.CircularizeSelected));
-        row.AddChild(Btn("Tạo vành đai", _main.RingSelected));
+        row.AddChild(Btn("Tạo vành đai (vật chất: tab Tạo)", _main.RingSelected));
         row.AddChild(Btn("Xoá (Del)", _main.RemoveSelected));
         _objBody.AddChild(row);
         _objBody.AddChild(Note("Đẩy: giữ chuột trái trên vật đang chọn rồi kéo ra."));

@@ -231,8 +231,8 @@ public partial class Main : Node2D
     public void RingSelected()
     {
         if (!Live(_sel)) return;
-        int made = GodTools.MakeRing(_w, _sel, 200, (ulong)_w.Step * 31 + (ulong)_sel);
-        Toast(made > 0 ? $"Đã tạo vành đai {made} mảnh băng quanh {NameOf(_sel)}" : made == 0 ? "Thế giới đã đầy, không tạo thêm được" : "Vật này không giữ được vành đai");
+        int made = GodTools.MakeRing(_w, _sel, 200, (ulong)_w.Step * 31 + (ulong)_sel, _ui.GetCreateMix());
+        Toast(made > 0 ? $"Đã tạo vành đai {made} mảnh quanh {NameOf(_sel)}, vật chất theo thanh trượt ở tab Tạo" : made == 0 ? "Thế giới đã đầy, không tạo thêm được" : "Vật này không giữ được vành đai");
         _ui.RefreshSelection();
     }
 

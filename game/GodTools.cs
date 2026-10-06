@@ -238,16 +238,19 @@ public static class GodTools
     }
 
     /// <summary>
-    /// A ring of `count` small icy objects on circular orbits around the target, between 1.4 and 2.4 of its radii
+    /// A ring of `count` small objects (matter `mix`, icy when none is given) on circular orbits around the target, between 1.4 and 2.4 of its radii
     /// (kept inside its zone). Each one is an ordinary Create command. Returns how many were made, -1 = cannot.
     /// </summary>
-    public static int MakeRing(World w, int target, int count, ulong seed)
+    public static int MakeRing(World w, int target, int count, ulong seed, double[]? ringMix = null)
     {
         if (target < 0 || target >= w.N || !w.Alive[target] || !w.Attracts(target)) return -1;
         double inner = w.R[target] * 1.4, outer = Math.Min(w.R[target] * 2.4, w.Hill(target) * 0.4);
         if (!(outer > inner)) return -1;
         var rng = new Random(unchecked((int)seed));
-        double[] mix = { 0, 0.9, 0.1, 0, 0, 0 };
+        double[] mix = (double[])(ringMix ?? new[] { 0, 0.9, 0.1, 0, 0, 0 }).Clone();
+        double sum = 0; foreach (double part in mix) sum += part;
+        if (!(sum > 0)) return -1;
+        for (int e = 0; e < mix.Length; e++) mix[e] /= sum; // shares must add up to 1
         double m = Math.Min(1e-10, w.C.AttractMass / 10);
         int made = 0;
         for (int k = 0; k < count; k++)
