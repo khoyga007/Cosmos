@@ -70,6 +70,7 @@ public sealed partial class World
         Rules.Add(new Rule("temperature", "M,X,Y,StarMass,LuminosityExponent,TemperatureScale,FrozenEdge,ScorchedEdge", "Temp,temperature.band", 0.01,
             w => w.UpdateTemperature()));
         InitLayerRules();
+        InitKindRules();
         _builtinRules = Rules.ToArray();
     }
 

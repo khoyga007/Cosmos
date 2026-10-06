@@ -9,6 +9,7 @@ if (args.Length > 0 && args[0] == "layers") return LayerChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "stars") return StarChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "contact") return ContactChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "contact-bench") { ContactChecks.Bench(); return 0; }
+if (args.Length > 0 && args[0] == "kinds") return KindChecks.Run() ? 0 : 1;
 bool allOk = true;
 void Check(bool ok, string line) { allOk &= ok; Console.WriteLine($"{(ok ? "OK    " : "FAILED")} {line}"); }
 
@@ -96,6 +97,7 @@ allOk &= RuleChecks.Run();
 allOk &= LayerChecks.Run();
 allOk &= StarChecks.Run();
 allOk &= ContactChecks.Run();
+allOk &= KindChecks.Run();
 allOk &= Audit.Run();
 return allOk ? 0 : 1;
 
