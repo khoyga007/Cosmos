@@ -52,5 +52,10 @@ READ `SPEC.md` FIRST (game, model, engine decisions, round-1 work packages). Thi
 - Stats per civ: interaction with its world, world population, energy-harnessing level, tech level, development era (prehistoric, stone, bronze, iron, ... Renaissance, industrial, pre-space age, ...; list open).
 - Awareness = how much a civ senses the god. Drives different reactions. Depends on ethic + tech base: faith/spiritual civs high, pure physical-tech civs low.
 - Reference: Stellaris. Take ALL 4 ethic axes (Materialist-Spiritualist, Militarist-Pacifist, Xenophile-Xenophobe, Authoritarian-Egalitarian) + Gestalt.
-- Undecided by Yang: fanatic levels / point budget, ethic fixed vs drifting, civics, how ethic is picked at birth, what each reaction is, first contact content, "lộ diện".
+- Levels: normal + fanatic, 3-point budget, as Stellaris. YES.
+- Ethic at birth: random + shaped by circumstances (both).
+- Ethic drifts over time; each ethic type has its own stubbornness (resistance to drift).
+- Gestalt awareness: treats the god as part of determinism (a given of the universe; not worship, not denial).
+- Reactions per awareness level: LATER (Yang).
+- Undecided by Yang: civics, which circumstances push which ethic, stubbornness values, what each reaction is, first contact content, "lộ diện".
 - Core today: Pop = 0..1 fill, one Tech number, 4 stages, all civs identical except name; only interaction = industry eats metal.
