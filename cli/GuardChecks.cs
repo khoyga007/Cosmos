@@ -52,6 +52,7 @@ static class GuardChecks
             bool rStarWhiteInterceptZero = w.Do(new Command(CmdKind.SetConst, Name: "StarWhiteIntercept", Amount: 0)) == -1;
             bool rJumpSamplesZero = w.Do(new Command(CmdKind.SetConst, Name: "JumpSamples", Amount: 0)) == -1;
             bool rJumpSamplesNeg = w.Do(new Command(CmdKind.SetConst, Name: "JumpSamples", Amount: -10)) == -1;
+            bool rJumpSamplesHuge = w.Do(new Command(CmdKind.SetConst, Name: "JumpSamples", Amount: 1e7)) == -1;
 
             // Valid SetConst succeeds with -2 and records in journal
             bool rValid = w.Do(new Command(CmdKind.SetConst, Name: "G", Amount: 1.5)) == -2;
@@ -68,9 +69,9 @@ static class GuardChecks
 
             Check(rDenZero && rDenNeg && rDenNan && rYtZero && rYtNeg && rGNeg && rRadNeg && rRadZero
                 && rThrustNeg && rShipMassGteAttract && rAttractLteShip && rShipMassNeg
-                && rStarSolarMassZero && rStarWhiteInterceptZero && rJumpSamplesZero && rJumpSamplesNeg
+                && rStarSolarMassZero && rStarWhiteInterceptZero && rJumpSamplesZero && rJumpSamplesNeg && rJumpSamplesHuge
                 && rValid && preserved && journalClean && finiteRadiiAndMass,
-                "SetConst validation: Density<=0, YearTime<=0, NaN, negative, ShipMass>=AttractMass, Star*<=0, JumpSamples<1 rejected; journal records only valid, R/M finite");
+                "SetConst validation: Density<=0, YearTime<=0, NaN, negative, ShipMass>=AttractMass, Star*<=0, JumpSamples<1 or >10000 rejected; journal records only valid, R/M finite");
         }
 
         // 2. #5 #6 #7: Add and AddOrbiting parameter guards
@@ -204,6 +205,13 @@ static class GuardChecks
             }
             double costMs = sw.Elapsed.TotalMilliseconds / 100;
             Check(costMs < 1.0, $"KindOf cost across 5010 objects: {costMs:F3} ms/scan (rocks fast-path < 1ms)");
+
+            // StarMass evaluated before AttractMass in KindOf
+            {
+                var k = World.SolSystem(0, 1234);
+                k.Do(new Command(CmdKind.SetConst, Name: "AttractMass", Amount: 100));
+                Check(k.KindOf(0) == Kind.Star, "Sun (mass 50) remains Kind.Star when AttractMass is 100 > 50");
+            }
 
             // Claire requirement 1: Sol + 2000 rocks + moved bodies: PrimaryOf(i) == primary that Rails selects for ALL objects
             {

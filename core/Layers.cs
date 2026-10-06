@@ -4,8 +4,18 @@
 // Every number below is a PLACEHOLDER [P] chosen by Claire (Yang 06/10: "em tu nghi"); all are Consts, so the god
 // can turn them at run time. Clock rules use World.RuleYears, so one run after a jump stands for all years skipped.
 using System;
+using System.Collections.Generic;
 
 namespace Cosmos.Core;
+
+public sealed record Stage(
+    string Id,
+    string NameVi,
+    double TechThreshold,
+    bool UsesMetal = false,
+    bool CanLaunchShips = false,
+    bool CanDome = false
+);
 
 public sealed partial class Consts
 {
@@ -43,16 +53,26 @@ public sealed partial class World
     public double[] Life = null!;       // 0 = none .. 1 = the planet is full of it
     public double[] RichYears = null!;  // years in a row with Life >= CivLifeMin
     public double[] Pop = null!;        // 0 = no civilisation .. 1 = the planet is full
-    public double[] Tech = null!;       // 0 upward; stage = whole part, capped at MaxTechStage
+    public double[] Tech = null!;       // 0 upward; stage determined by Stages table
     public double[] Touched = null!;    // year life or population was last changed from outside the rules (seed, impact)
 
-    public const int MaxTechStage = 3;  // 1 farming, 2 industry, 3 space [P]
-    static readonly double[] LifeStageAt = { 0.01, 0.1, 0.5 }; // 1 microbes, 2 complex, 3 rich biosphere [P]
+    public static readonly Stage[] DefaultStages = new[]
+    {
+        new Stage("primitive", "Chưa phát triển", 0, UsesMetal: false, CanLaunchShips: false, CanDome: false),
+        new Stage("farming", "Thời kỳ Nông nghiệp", 1, UsesMetal: false, CanLaunchShips: false, CanDome: false),
+        new Stage("industry", "Thời kỳ Công nghiệp", 2, UsesMetal: true, CanLaunchShips: false, CanDome: false),
+        new Stage("space", "Kỷ nguyên Không gian", 3, UsesMetal: true, CanLaunchShips: true, CanDome: true)
+    };
+
+    public readonly List<Stage> Stages = new();
+    public static int MaxTechStage => DefaultStages.Length - 1; // Stages
+    static readonly double[] LifeStages = { 0.01, 0.1, 0.5 }; // Stages
 
     void InitLayers(int capacity)
     {
         Water = new int[capacity]; WaterYears = new double[capacity]; Life = new double[capacity];
         RichYears = new double[capacity]; Pop = new double[capacity]; Tech = new double[capacity]; Touched = new double[capacity];
+        Stages.Clear(); Stages.AddRange(DefaultStages);
         InitCiv(capacity);
     }
 
@@ -69,8 +89,15 @@ public sealed partial class World
     /// A planet or a moon: pulls others, is not a star. Only these carry layers.
     public bool IsWorld(int i) => M[i] >= C.AttractMass && M[i] < C.StarMass && !IsShip(i) && StarPhaseOf(i) == StarPhase.None;
 
-    public int LifeStage(int i) { int s = 0; while (s < LifeStageAt.Length && Life[i] >= LifeStageAt[s]) s++; return s; }
-    public int TechStage(int i) => Pop[i] > 0 ? (int)Math.Min(Tech[i], MaxTechStage) : 0;
+    public int LifeStage(int i) { int s = 0; while (s < LifeStages.Length && Life[i] >= LifeStages[s]) s++; return s; }
+    public int TechStage(int i)
+    {
+        if (Pop[i] <= 0 || Stages.Count == 0) return 0;
+        double t = Tech[i];
+        for (int k = Stages.Count - 1; k >= 0; k--)
+            if (t >= Stages[k].TechThreshold) return k;
+        return 0;
+    }
 
     public double Share(int i, int elem) => Comp[i * ElementCount + elem] / M[i];
 
@@ -168,7 +195,7 @@ public sealed partial class World
             Pop[i] = p;
             double metal = C.CivMetalRef > 0 ? Math.Min(1, Share(i, ElementRole.Metal) / C.CivMetalRef) : 1; // 0 = metal not needed
             Tech[i] += C.CivTechRate * lived * metal;
-            if (stage >= 2) UseMetal(i, lived);
+            if (stage < Stages.Count && Stages[stage].UsesMetal) UseMetal(i, lived);
             int after = TechStage(i);
             if (after != stage) CivEvent(i, Civ[i], $"civ.stage.{stage}.{after}", Tech[i], p, Share(i, ElementRole.Metal));
         }
