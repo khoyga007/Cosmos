@@ -78,3 +78,5 @@ Wiring: core event (place, year, size) -> window plays the effect; event/element
 - Not in core yet, so not drawable: Roche breakup, ejecta clouds as real matter, everything from the civ design (wars, borders, ethics).
 - OPEN for Yang: events inside a time jump — log only / stop the jump at big events / replay after. Lasting traces (nebula) want ejecta as real objects.
 - Shaders + particles = keepable; surfaces/nebulae need real textures.
+- Seen by Yang in play 2026-10-06, fix inside phase 4 (not now): (1) domes: any solid world, no temperature/resource/supply condition, live forever (Mercury 386 K colony at 5%); (2) long jump collapses civ.start + space age + first ship into one year (rules sampled at sparse chunks); (3) Tech grows unbounded (2081.6) over 4 stages.
+- Scene debt: SolSystem has net momentum (Sun at rest, planets all prograde) -> system drifts ~0.018 units/yr; window now rides along in jumps (f0a2f8c). Zero the momentum in the stock scene after round 7.
