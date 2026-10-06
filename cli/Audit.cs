@@ -921,16 +921,19 @@ static class Audit
         Expect(w.Pop[fresh] == 0 && w.Civ[fresh] < 0,
             $"ship-goal-slot-reuse (Commands.cs:48 Ok = 0 <= i < N && Alive, Civ.cs:124 LandShips calls Land(ShipTo[i])): the ship's goal was slot {goal}, Remove then Create reused it (fresh slot {fresh}, reused {fresh == goal}) for a different body {away:F1} units away, and one jump lands the colony on that stranger (Pop {w.Pop[fresh]:E2}, Civ {w.Civ[fresh]}, Chronicle {w.Chronicle.Count}) — the target is an index, so a recycled slot silently redirects a ship and its people to an object they were never sent to");
 
-        // (2) two peoples, one goal: Land() answers the second arrival with nothing at all
+        // (2) two peoples, one goal: the second arrival is refused, and since 1e5709f the refusal is recorded.
+        //     What the story still cannot say is that a colony failed: the line names a ship turned away.
         var t = new World(8, 1);
         int land = t.Add(0, 0, 0, 0, 3e-4, RockMix, "đất");
         MakeShip(t, 0, land, 2, 4, 0, -1, 0);
-        MakeShip(t, 1, land, 2, 5, 0, -1.2, 0);
+        int second = MakeShip(t, 1, land, 2, 5, 0, -1.2, 0);
         t.Do(new Command(CmdKind.FastForward, Amount: 1));
         int colonies = t.Chronicle.Count(e => e.Event.Change == "civ.colony");
-        int second = t.Chronicle.Count(e => e.Event.Change == "civ.colony" && e.Civ == 1);
-        Expect(colonies == 2 && second == 1,
-            $"ship-two-civs-one-goal (Civ.cs:104-109 Land falls out of `Pop > 0 && Civ != civ` with no else, Civ.cs:125 kills the ship either way): two ships of civ 0 and civ 1 sent to the same empty world, one jump — the world belongs to civ {t.Civ[land]} (Pop {t.Pop[land]:E2}) and the Chronicle holds {colonies} colony line(s), {second} of them for the second people: its ship, its tech and its people are gone with no event, so the story cannot say a colony failed");
+        int taken = t.Chronicle.Count(e => e.Event.Change == "civ.colony" && e.Civ == 1);
+        int turned = t.Chronicle.Count(e => e.Event.Change == "civ.ship.turned");
+        int vanished = t.Chronicle.Count(e => e.Event.Change == "civ.ship.lost");
+        Expect(colonies == 1 && taken == 0 && turned == 1 && vanished == 0 && !t.Alive[second],
+            $"ship-two-civs-one-goal (Civ.cs:135-145 Land: an empty world is claimed, a world of the same people is supplied, a world of another people answers `civ.ship.turned` and nobody steps out; Civ.cs:148-152 ShipArrives kills the ship on arrival either way): two ships of civ 0 and civ 1 sent to the same empty world, one jump — the world belongs to civ {t.Civ[land]} (Pop {t.Pop[land]:E2}) and the Chronicle holds {colonies} colony line(s) ({taken} of them for the second people), {turned} turned-away line(s) and {vanished} lost line(s); the second ship is alive {t.Alive[second]}. The loss is no longer silent — but the record says a ship was turned away, never that a colony failed, and the people, their tech and their ship are still gone");
 
         // (3) ShipMass is a dial with no range, and the mass-derived predicates never ask IsShip
         var m = new World(8, 1);
@@ -990,7 +993,7 @@ static class Audit
         Expect(a.Hash() == b.Hash(),
             $"ship-replay (World.cs:239-246 mixes X/Y/Vx/Vy/M/Par per slot, Civ.cs:229-230 adds Civ/ShipCiv/ShipTo/ShipFrom/ShipTech/ShipBorn when ShipCiv >= 0, Commands.cs:43-46 Replay keys on Step): a journal of {a.Journal.Count} rows holding Move, Force and Push on a ship replays to hash {b.Hash():X16} against the live {a.Hash():X16}, {next} rows consumed — a ship's own cells are inside the hash");
 
-        // (8) a ship that dies leaves no line behind
+        // (8) a ship that dies: every rule-driven loss writes a line since 1e5709f, and the hand still does not
         var lw = new World(8, 1);
         int keeper = lw.Add(0, 0, 0, 0, 3e-4, RockMix, "đích");
         int doomed = lw.Add(40, 0, 0, 0, 3e-4, RockMix, "đích cũ");
@@ -999,7 +1002,18 @@ static class Audit
         lw.ShipBorn[staleShip] = -40; // 40 years in flight, C.ShipLifeYears is 30
         lw.Do(new Command(CmdKind.Remove, Target: doomed));
         Run(lw, 1100);
-        Risk($"ship-lost-silent (Civ.cs:153 kills a ship whose ShipTo is dead or older than ShipLifeYears ({lw.C.ShipLifeYears:F0} yr), Civ.cs:69-74 CivEvent is the only writer to the Chronicle and no kill path calls it): after {lw.Year:F2} years the ship sent to a removed world is alive {lw.Alive[lostShip]} and the ship that outlived its own life is alive {lw.Alive[staleShip]}, with {lw.Chronicle.Count} Chronicle line(s) for two lost ships — an expired ship, a stranded ship and a ship the hand removes all leave the story without a word");
+        int lostLines = lw.Chronicle.Count(e => e.Event.Change == "civ.ship.lost");
+        Expect(!lw.Alive[lostShip] && !lw.Alive[staleShip] && lostLines == 2,
+            $"ship-lost-logged (Civ.cs:160 LandShips, Civ.cs:191-194 UpdateShips and Civ.cs:246-249 SteerShips all write `civ.ship.lost` before Civ.cs:151/161/194/249 Kill, and Civ.cs:137 writes it when Land finds nothing solid): after {lw.Year:F2} years both ships are gone — the one sent to a removed world {lw.Alive[lostShip]}, the one outliving its {lw.C.ShipLifeYears:F0} years {lw.Alive[staleShip]} — and the Chronicle holds {lostLines} lost line(s) for them");
+        // One path is still silent, and it is not in the rules: an explicit command. Commands.cs:144 (Remove) and
+        // Commands.cs:69 (AddMatter that takes a body to zero) call the same Kill with no CivEvent, and the
+        // command journal is the only record. The old RISK here said no kill path calls CivEvent at all; on this
+        // tree that is false, so it is narrowed to the path that is still wordless.
+        var hw = new World(8, 1);
+        int hgoal = hw.Add(0, 0, 0, 0, 3e-4, RockMix, "đích");
+        int hand = MakeShip(hw, 0, hgoal, 2, 3, 0, -0.1, 0);
+        hw.Do(new Command(CmdKind.Remove, Target: hand));
+        Risk($"ship-lost-silent (a hand Remove or a zeroing AddMatter — Commands.cs:144 and Commands.cs:69 call Kill, Civ.cs:69-74 CivEvent is the only writer to the Chronicle and no command path calls it): one command takes the ship out of the world (alive {hw.Alive[hand]}) with {hw.Chronicle.Count} Chronicle line(s) about it and {hw.Journal.Count} journal row(s) — a god command deletes a ship, or any body, and the story never hears of it, while every rule-driven loss now writes its line");
 
         // (9) the launch path indexes a civ list that nothing guarantees
         var ci = new World(8, 1);
@@ -1143,16 +1157,26 @@ static class Audit
         //     word `Stages`, tested against the whole line — so on B `MaxTechStage => DefaultStages.Length - 1;
         //     // Stages` (Layers.cs:68, a trailing comment) was exempt, and renaming LifeStageAt to LifeStages
         //     removed the other hit. It reported 0 with no table in sight. Claire spotted that 2026-10-06.
-        //     Now: no line may pin the count or the thresholds to a literal AND the stage set must be rows.
+        //     Now: no line may pin the stage count to a literal, no line may compare a biosphere fraction to a
+        //     literal either, AND both axes must be read from a table rather than spelled out where they are used.
+        //     The life axis is the one this row used to miss: Layers.cs:69 `LifeStages = { 0.01, 0.1, 0.5 }` is
+        //     exactly the "threshold written where it is used" the message forbade, under a name the old regex
+        //     (LifeStageAt) no longer matched after B renamed it. It is kept as its own fixed scale on purpose —
+        //     LifeStages ranks a biosphere (Layers.cs:92 LifeStage, Layers.cs:162), Stage.TechThreshold ranks a
+        //     civilisation (Layers.cs:93-100 TechStage), and folding them into one table would tie "how alive is
+        //     it" to "how far has it got". So the rule is: each axis is read from its own table, neither compares
+        //     a threshold to a literal number where it is used.
         var s = Hits(core, @"MaxTechStage\s*(=>|=)\s*[0-9]|LifeStageAt\s*=\s*\{", @"Stages\s*[\[\.]|DefaultStages");
+        var l = Hits(core, @"Life\s*(\[[^\[\]]*\])?\s*(>=|<=|>|<)\s*(0\.[0-9]+|[1-9][0-9]*(\.[0-9]+)?)", @"LifeStages|CivLifeMin");
         int rows = CodeHits(core, @"new Stage\s*\(");
         int reads = CodeHits(core, @"Stages\s*\[|Stages\s*\.\s*(Count|Add|AddRange|Clear)");
-        bool stageTable = rows > 0 && reads > 0;
+        int lifeReads = CodeHits(core, @"LifeStages\s*\[|LifeStages\s*\.\s*(Length|Count)");
+        bool stageTable = rows > 0 && reads > 0 && lifeReads > 0;
         string staged = stageTable
             ? $"the stage set is a table that is read as one — {rows} row(s) of `new Stage(` and {reads} read site(s) of `Stages[`/`.Count`/`.Add*`"
             : $"the stage set is NOT a table read as one — {rows} row(s) of `new Stage(` and {reads} read site(s) of `Stages[`/`.Count`/`.Add*` (both must be > 0); before B the shape was Layers.cs:49 `const int MaxTechStage = 3` plus Layers.cs:50 `LifeStageAt = {{ 0.01, 0.1, 0.5 }}`, so inserting a stage between 1 and 2 renumbered Layers.cs:73 TechStage() and the two number tests that followed — Civ.cs:89 (the dome) and Civ.cs:166 (the launch gate) — and moved the event ids built at Layers.cs:131/173";
-        Expect(s.Count == 0 && stageTable,
-            $"table-stage (the contract: the stages live in a table, so inserting one is one more row): {s.Count} core line(s) pin the stage count or the life thresholds to a literal — {List(s)}; {staged}");
+        Expect(s.Count == 0 && l.Count == 0 && stageTable,
+            $"table-stage (the contract: the stages live in a table, so inserting one is one more row, and a threshold is read from a table rather than written where it is used): {s.Count} core line(s) pin the stage count to a literal — {List(s)}; {l.Count} core line(s) compare a biosphere fraction to a literal instead of reading the life scale — {List(l)}; {staged}; the life axis is read at {lifeReads} site(s) (Layers.cs:69 `LifeStages = {{ 0.01, 0.1, 0.5 }}` — a fixed scale this row used to call a violation by name, kept separate from Stage.TechThreshold on purpose)");
         SayComments("stage");
 
         // (3) one more star event costs one row: id, trigger and effect must not all sit inside EvolveStar.
