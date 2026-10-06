@@ -57,7 +57,7 @@ public partial class Main : Node2D
     int _rocks;
     const int Stride = 12;
 
-    static readonly Color[] ElemCol = { new(0.72f, 0.78f, 1f), new(0.3f, 0.9f, 1f), new(0.9f, 0.5f, 0.25f), new(1f, 0.85f, 0.4f), new(0.75f, 0.4f, 0.95f), new(0.4f, 1f, 0.3f) };
+    static readonly Color[] ElemCol = Array.ConvertAll(ElementCatalog.Colours, c => new Color(((c >> 16) & 255) / 255f, ((c >> 8) & 255) / 255f, (c & 255) / 255f));
     static readonly Color AimCol = new(1f, 0.9f, 0.2f, 0.95f);
 
     public override void _Ready()
@@ -678,7 +678,7 @@ public partial class Main : Node2D
             if (drag.Length() >= LaunchStart) DrawArrow(at, _mouse);
             Color ghost = new(0, 0, 0);
             double sum = 0; for (int e = 0; e < World.NElem; e++) sum += mix[e];
-            for (int e = 0; e < World.NElem; e++) ghost += ElemCol[e] * (float)(sum > 0 ? mix[e] / sum : e == 2 ? 1 : 0);
+            for (int e = 0; e < World.NElem; e++) ghost += ElemCol[e] * (float)(sum > 0 ? mix[e] / sum : e == _w.Elem(ElementRole.Rock) ? 1 : 0);
             ghost.A = 0.75f;
             float gr = MathF.Max(KindPx(kind), (float)radius * _zoom);
             DrawCircle(at, gr, ghost);
@@ -1037,12 +1037,12 @@ public partial class Main : Node2D
         GD.Print($"TOOL CreateAtRest: slot={slotRest} live {liveBeforeRest} -> {w.Live}, vx={w.Vx[slotRest]:F2}, vy={w.Vy[slotRest]:F2}, kind={w.KindOf(slotRest)}");
 
         // 2. Tool AddMatter: edit composition
-        double matterBefore = w.Comp[slotMoon * World.NElem + 1];
+        double matterBefore = w.Comp[slotMoon * w.ElementCount + w.Elem("ice")];
         double massBefore = w.M[slotMoon];
         double deltaIce = 0.01 * World.EarthMass;
         int editRes = GodTools.AddMatter(w, slotMoon, 1, deltaIce);
         if (editRes < 0) { GD.PrintErr("FAIL: AddMatter failed"); GetTree().Quit(1); return; }
-        double matterAfter = w.Comp[slotMoon * World.NElem + 1];
+        double matterAfter = w.Comp[slotMoon * w.ElementCount + w.Elem("ice")];
         double massAfter = w.M[slotMoon];
         GD.Print($"TOOL AddMatter: slot={slotMoon} ice {matterBefore:G4} -> {matterAfter:G4}, mass {massBefore:G4} -> {massAfter:G4}, r={w.R[slotMoon]:G3}");
 

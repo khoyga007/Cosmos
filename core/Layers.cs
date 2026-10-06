@@ -72,14 +72,14 @@ public sealed partial class World
     public int LifeStage(int i) { int s = 0; while (s < LifeStageAt.Length && Life[i] >= LifeStageAt[s]) s++; return s; }
     public int TechStage(int i) => Pop[i] > 0 ? (int)Math.Min(Tech[i], MaxTechStage) : 0;
 
-    public double Share(int i, int elem) => Comp[i * NElem + elem] / M[i];
+    public double Share(int i, int elem) => Comp[i * ElementCount + elem] / M[i];
 
     void UpdateWater()
     {
         for (int i = 0; i < N; i++)
         {
             if (!Alive[i] || !IsWorld(i) || double.IsNaN(Temp[i])) continue;
-            double ice = Share(i, 1), t = Temp[i];
+            double ice = Share(i, ElementRole.Ice), t = Temp[i];
             WaterState now = ice < C.WaterIceMin ? WaterState.None
                 : t < C.WaterFreeze ? WaterState.Ice
                 : t > C.WaterBoil || M[i] < C.WaterHoldMass ? WaterState.Vapour : WaterState.Liquid;
@@ -99,13 +99,13 @@ public sealed partial class World
         {
             if (!Alive[i] || !IsWorld(i)) continue;
             double dt = Math.Min(RuleYears, Year - Touched[i]);
-            bool fits = Water[i] == (int)WaterState.Liquid && Share(i, 2) + Share(i, 3) >= C.LifeSolidMin && Share(i, 4) >= C.LifeCarbonMin;
+            bool fits = Water[i] == (int)WaterState.Liquid && Share(i, ElementRole.Rock) + Share(i, ElementRole.Metal) >= C.LifeSolidMin && Share(i, ElementRole.Carbon) >= C.LifeCarbonMin;
             double l = Life[i];
             if (l <= 0)
             {
                 if (!fits || WaterYears[i] < C.LifeSparkYears) continue;
                 Life[i] = l = C.LifeSeed;
-                LogEvent(i, "life", "life.start", WaterYears[i], Temp[i], Share(i, 4));
+                LogEvent(i, "life", "life.start", WaterYears[i], Temp[i], Share(i, ElementRole.Carbon));
                 dt = Math.Min(dt, WaterYears[i] - C.LifeSparkYears); // it has been alive since the wait was over
             }
             int stage = LifeStage(i);
@@ -143,7 +143,7 @@ public sealed partial class World
             {
                 if (Life[i] < C.CivLifeMin || RichYears[i] < C.CivRiseYears) continue;
                 Pop[i] = p = C.CivSeed; Tech[i] = 0; Civ[i] = NewCiv(i);
-                CivEvent(i, Civ[i], "civ.start", RichYears[i], room, Share(i, 3));
+                CivEvent(i, Civ[i], "civ.start", RichYears[i], room, Share(i, ElementRole.Metal));
                 dt = Math.Min(dt, RichYears[i] - C.CivRiseYears); // it has been there since the wait was over
             }
             int stage = TechStage(i);
@@ -166,11 +166,11 @@ public sealed partial class World
                 continue;
             }
             Pop[i] = p;
-            double metal = C.CivMetalRef > 0 ? Math.Min(1, Share(i, 3) / C.CivMetalRef) : 1; // 0 = metal not needed
+            double metal = C.CivMetalRef > 0 ? Math.Min(1, Share(i, ElementRole.Metal) / C.CivMetalRef) : 1; // 0 = metal not needed
             Tech[i] += C.CivTechRate * lived * metal;
             if (stage >= 2) UseMetal(i, lived);
             int after = TechStage(i);
-            if (after != stage) CivEvent(i, Civ[i], $"civ.stage.{stage}.{after}", Tech[i], p, Share(i, 3));
+            if (after != stage) CivEvent(i, Civ[i], $"civ.stage.{stage}.{after}", Tech[i], p, Share(i, ElementRole.Metal));
         }
     }
     // Names, metal, ships and colonies: core/Civ.cs.

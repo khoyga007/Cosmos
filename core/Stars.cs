@@ -67,7 +67,7 @@ public sealed partial class World
     public double StellarEjectaMass { get; private set; }
     public double StellarEjectaPx { get; private set; }
     public double StellarEjectaPy { get; private set; }
-    public readonly double[] StellarEjectaMatter = new double[NElem];
+    public readonly double[] StellarEjectaMatter;
 
     double GiantEnd => 1 + Math.Max(0, C.StarGiantFraction);
     double SolarRadius => C.StarSolarRadius * C.RadiusScale / 1.5;
@@ -274,9 +274,9 @@ public sealed partial class World
             : birth <= C.StarNeutronLimit ? C.StarNeutronMass : Math.Max(C.StarBlackMin, birth * C.StarBlackFraction);
         double keepMass = Math.Clamp(final * C.StarSolarMass, 0, M[i]), lost = M[i] - keepMass, fraction = keepMass / M[i];
         StellarEjectaMass += lost; StellarEjectaPx += lost * Vx[i]; StellarEjectaPy += lost * Vy[i];
-        for (int e = 0; e < NElem; e++)
+        for (int e = 0; e < ElementCount; e++)
         {
-            int o = i * NElem + e; double kept = Comp[o] * fraction;
+            int o = i * ElementCount + e; double kept = Comp[o] * fraction;
             StellarEjectaMatter[e] += Comp[o] - kept; Comp[o] = kept;
         }
         M[i] = keepMass; // isotropic impulsive loss: velocity unchanged, future gravity changes the orbit

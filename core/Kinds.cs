@@ -71,9 +71,9 @@ public sealed partial class World
         if (IsShip(i)) return BodyClass.Ship;
 
         double m = M[i];
-        double gas = Share(i, 0);
-        double ice = Share(i, 1);
-        double solid = Share(i, 2) + Share(i, 3);
+        double gas = Share(i, ElementRole.Gas);
+        double ice = Share(i, ElementRole.Ice);
+        double solid = Share(i, ElementRole.Rock) + Share(i, ElementRole.Metal);
         double temp = Temp[i];
 
         // 1. Gas Giant: massive + dominated by hydrogen/gas
@@ -134,7 +134,7 @@ public sealed partial class World
     public double TailStrength(int i)
     {
         if (!Alive[i] || Attracts(i)) return 0;
-        double ice = Share(i, 1);
+        double ice = Share(i, ElementRole.Ice);
         if (ice < C.CometIceMin) return 0;
         double t = Temp[i];
         if (double.IsNaN(t)) return 0;
@@ -191,15 +191,15 @@ public sealed partial class World
             if (!Alive[i]) continue;
 
             // Atmosphere loss for hot light worlds that cannot hold gas
-            if (IsWorld(i) && Comp[i * NElem + 0] > 0 && !HoldsGas(i))
+            if (IsWorld(i) && Matter(i, ElementRole.Gas) > 0 && !HoldsGas(i))
             {
                 double decay = Math.Exp(-C.GasLossRate * dt);
-                double gas = Comp[i * NElem + 0];
+                double gas = Matter(i, ElementRole.Gas);
                 double newGas = gas * decay;
                 double gasLoss = gas - newGas;
                 if (gasLoss > 0)
                 {
-                    Comp[i * NElem + 0] = newGas;
+                    ScaleMatter(i, ElementRole.Gas, decay);
                     M[i] -= gasLoss;
                     SetRadius(i);
                 }
@@ -208,7 +208,7 @@ public sealed partial class World
             // Comets: small bodies with ice inside the snowline
             if (Attracts(i)) continue;
 
-            double ice = Comp[i * NElem + 1];
+            double ice = Matter(i, ElementRole.Ice);
             if (ice <= 0) continue;
 
             // Fast distance check relative to stars (handles system translation drift over long jumps)
@@ -257,13 +257,13 @@ public sealed partial class World
             double loss = Math.Min(ice, maxSublimation * dt);
             if (loss <= 0) continue;
 
-            Comp[i * NElem + 1] -= loss;
+            LoseMatter(i, ElementRole.Ice, loss);
             double newM = 0;
-            for (int e = 0; e < NElem; e++) newM += Comp[i * NElem + e];
+            for (int e = 0; e < ElementCount; e++) newM += Comp[i * ElementCount + e];
 
-            if (Comp[i * NElem + 1] <= 1e-18 || newM <= 1e-15)
+            if (Matter(i, ElementRole.Ice) <= 1e-18 || newM <= 1e-15)
             {
-                Comp[i * NElem + 1] = 0;
+                ScaleMatter(i, ElementRole.Ice, 0);
                 M[i] = newM;
                 SetRadius(i);
                 LogEvent(i, "comets", "comet.spent", Year, newM, R[i]);
