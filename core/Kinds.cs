@@ -23,7 +23,10 @@ public enum BodyClass
 public sealed partial class Consts
 {
     // PLACEHOLDER [P]: Classification & volatile thresholds (SPEC §8)
-    // Real-world basalt rock melts ~1300-1500 K; in Cosmos toy Kelvin scale Mercury is 386.5 K, 0.2 AU is ~475 K.
+    // Real basalt melts ~1300-1500 K. In Cosmos toy Kelvin scale:
+    // Mercury is 386.5 K, Venus is 318.5 K (no greenhouse model in temperature rule).
+    // Earth moved to 0.2 AU gives dist 16.59, flux 7.355, Temp = 288 * sqrt(45/16.59) = 474.5 K.
+    // LavaTemp = 450 K ensures 0.2 AU Earth reads Lava while Mercury (386.5 K) and Venus (318.5 K) stay Rocky.
     public double LavaTemp = 450;
     // Share of water needed with liquid water state to classify as Ocean world (Earth has 0.01).
     public double OceanIceMin = 0.005;
@@ -41,8 +44,8 @@ public sealed partial class Consts
     public double CometIceMin = 0.10;
     // Snow line sublimation temperature in vacuum (~170-200 K; between Mars 252.7 K and Jupiter 172.7 K).
     public double SnowLineTemp = 200;
-    // Comet ice sublimation rate per year at reference temperature.
-    public double CometSublimationRate = 5e-7;
+    // Comet ice sublimation rate per year at reference temperature (~1e-11 retains ice over 100 yr for small rocks).
+    public double CometSublimationRate = 1e-11;
     // Escape velocity vs thermal velocity ratio needed to retain light gas atmosphere.
     public double GasHoldRatio = 0.0035;
     // Gas loss rate per year when a hot lightweight world cannot hold gas.
@@ -202,24 +205,42 @@ public sealed partial class World
             // Comets: small bodies with ice inside the snowline
             if (Attracts(i)) continue;
 
-            // Fast radial reject: skip objects outside the maximum snow line
-            double xi = X[i], yi = Y[i];
-            if (xi * xi + yi * yi > maxSnowLineSq) continue;
-
             double ice = Comp[i * NElem + 1];
             if (ice <= 0) continue;
 
+            // Fast distance check relative to stars (handles system translation drift over long jumps)
+            double xi = X[i], yi = Y[i];
             double maxSublimation = 0;
             for (int s = 0; s < starCount; s++)
             {
                 int st = starSlots[s];
-                double dx = xi - X[st], dy = yi - Y[st];
-                double d2 = dx * dx + dy * dy;
+                double d2;
+                if (_riding && _prim != null && _prim[i] == st)
+                {
+                    d2 = _bx![i] * _bx![i] + _by![i] * _by![i];
+                }
+                else
+                {
+                    double dx = xi - X[st], dy = yi - Y[st];
+                    d2 = dx * dx + dy * dy;
+                }
+
                 double sl = snowLines[s];
                 if (d2 < sl * sl)
                 {
-                    double t = Temp[i];
-                    if (double.IsNaN(t)) t = C.TemperatureScale;
+                    double t;
+                    if (_riding)
+                    {
+                        double stMass = M[st];
+                        double stLight = Math.Pow(stMass / 50.0, C.LuminosityExponent) * 45 * 45;
+                        double flux = stLight / d2;
+                        t = C.TemperatureScale * Math.Sqrt(Math.Sqrt(flux));
+                    }
+                    else
+                    {
+                        t = Temp[i];
+                        if (double.IsNaN(t)) t = C.TemperatureScale;
+                    }
                     double excessT = Math.Max(0, t - targetSnowTemp);
                     if (excessT > 0)
                     {

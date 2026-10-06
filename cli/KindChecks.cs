@@ -88,14 +88,22 @@ static class KindChecks
 
             double d1Au = World.SolDist(1.0);
             double vCirc = Math.Sqrt(w1.C.G * w1.M[0] / d1Au);
+            // Place 180 degrees opposite Earth so Earth's Hill sphere doesn't perturb the comet orbit
+            double earthAngle = Math.Atan2(w1.Y[3], w1.X[3]);
+            double cometAngle = earthAngle + Math.PI;
+            double cx = Math.Cos(cometAngle) * d1Au, cy = Math.Sin(cometAngle) * d1Au;
+            double cvx = -Math.Sin(cometAngle) * vCirc, cvy = Math.Cos(cometAngle) * vCirc;
 
-            w1.Do(new Command(CmdKind.Move, Target: cometSlot, X: d1Au, Y: 0, Vx: 0, Vy: vCirc));
-            w2.Do(new Command(CmdKind.Move, Target: cometSlot, X: d1Au, Y: 0, Vx: 0, Vy: vCirc));
+            w1.Do(new Command(CmdKind.Move, Target: cometSlot, X: cx, Y: cy, Vx: cvx, Vy: cvy));
+            w2.Do(new Command(CmdKind.Move, Target: cometSlot, X: cx, Y: cy, Vx: cvx, Vy: cvy));
 
-            w1.Advance(H);
-            w2.Advance(H);
+            for (int s = 0; s < 10; s++)
+            {
+                w1.Advance(H);
+                w2.Advance(H);
+            }
 
-            bool isComet = w1.ClassOf(cometSlot) == BodyClass.Comet;
+            bool isCometBefore = w1.ClassOf(cometSlot) == BodyClass.Comet;
             double tail = w1.TailStrength(cometSlot);
             double initialIce = w1.Comp[cometSlot * World.NElem + 1];
 
@@ -110,10 +118,11 @@ static class KindChecks
             }
             double ice200Cuts = w2.Comp[cometSlot * World.NElem + 1];
 
+            bool isCometAfter = w1.ClassOf(cometSlot) == BodyClass.Comet;
             bool equalCuts = Math.Abs(ice1Cut - ice200Cuts) < 1e-12;
-            bool lostIce = ice1Cut < initialIce;
+            bool lostIce = ice1Cut < initialIce && ice1Cut > 0;
 
-            Check(isComet && tail > 0 && lostIce && equalCuts,
+            Check(isCometBefore && isCometAfter && tail > 0 && lostIce && equalCuts,
                 $"Kuiper rock moved to 1 AU: class {w1.ClassOf(cometSlot)}, tail {tail:F2}, ice {initialIce:E2} -> {ice1Cut:E2} (1 cut {ice1Cut:E4} vs 200 cuts {ice200Cuts:E4}, diff {Math.Abs(ice1Cut - ice200Cuts):E2})");
 
             // Long jump until comet is spent
