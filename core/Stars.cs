@@ -23,24 +23,24 @@ public sealed partial class Consts
     public double StarSolarRadius = 1.5 * Math.Cbrt(50 / 0.3); // [P] existing squeezed radius; real Sun ~696340 km
     public double StarLowMass = 0.43;             // [P] low-mass luminosity fit boundary, solar masses
     public double StarLowLightScale = 0.23;       // [P] approximate L/Lsun = 0.23 m^2.3 at low mass
-    public double StarLowLightPower = 2.3;
+    public double StarLowLightPower = 2.3;         // [P] low-mass luminosity fit exponent
     public double StarBrownMin = 13 * 317.8 * 1.5e-4; // [P] conventional deuterium boundary ~13 Jupiters
     public double StarBrownRadius = 0.1;          // [P] brown dwarfs ~1 Jupiter radius = 0.1 solar radius
     public double StarBrownLight = 1e-4;          // [P] faint BD reference at 0.05 solar masses
-    public double StarBrownReference = 0.05;
+    public double StarBrownReference = 0.05;      // [P] mid-band brown dwarf, solar masses
     public double StarBrownCoolYears = 1e9;       // [P] brown dwarfs cool over Gyr
     public double StarCoolingPower = 1.3;         // [P] macro cooling fit, not a detailed cooling track
     public double StarWhiteLimit = 8;             // [P] initial mass below ~8 Suns -> white dwarf
     public double StarNeutronLimit = 20;          // [P] ~8..20 Suns -> NS; heavier -> BH (metallicity ignored)
     public double StarWhiteSlope = 0.109;         // [P] empirical initial-final mass fit (solar units)
-    public double StarWhiteIntercept = 0.394;
+    public double StarWhiteIntercept = 0.394;     // [P] empirical IFMR intercept, solar masses
     public double StarWhiteRadius = 0.00916;      // [P] Earth radius / Sun radius
     public double StarWhiteLight = 0.01;          // [P] young WD cooling normalization
-    public double StarWhiteCoolYears = 1e9;
+    public double StarWhiteCoolYears = 1e9;       // [P] WDs cool on Gyr scales
     public double StarNeutronMass = 1.4;          // [P] typical neutron star mass ~1.4 Suns
     public double StarNeutronRadius = 20.0 / 696340; // [P] NS radius ~10..20 km
     public double StarNeutronLight = 0.02;         // [P] young NS thermal cooling normalization
-    public double StarNeutronCoolYears = 1e6;
+    public double StarNeutronCoolYears = 1e6;     // [P] young NS thermal cooling, Myr normalization
     public double StarBlackFraction = 0.25;       // [P] retained mass strongly depends on progenitor/winds
     public double StarBlackMin = 3;              // [P] stellar BH typically >=~3 solar masses
     public double StarSchwarzschild = 2.953 / 696340; // [P] 2GM/c^2: ~2.953 km per solar mass
@@ -70,6 +70,7 @@ public sealed partial class World
 
     double GiantEnd => 1 + Math.Max(0, C.StarGiantFraction);
     double SolarRadius => C.StarSolarRadius * C.RadiusScale / 1.5;
+    bool StarsEnabled => _starRule != null && _starRule.Enabled && Rules.Contains(_starRule);
 
     void InitStars(int capacity)
     {
@@ -91,7 +92,7 @@ public sealed partial class World
         _starRate[i] = M[i] >= C.StarMass ? 1 / StarLifetime(M[i]) : 0;
     }
 
-    public double StarLifetime(double mass) => mass > 0 && C.StarLifeScale > 0 && C.StarSolarMass > 0
+    public double StarLifetime(double mass) => mass > 0 && mass >= C.StarMass && C.StarLifeYears > 0 && C.StarLifeScale > 0 && C.StarSolarMass > 0
         ? C.StarLifeYears * C.StarLifeScale * Math.Pow(mass / C.StarSolarMass, -C.StarLifeExponent) : double.PositiveInfinity;
 
     public StarPhase StarPhaseOf(int i)
@@ -165,8 +166,21 @@ public sealed partial class World
     {
         if (_updatingStars || !Alive[i] || IsShip(i)) return;
         if (StarInitialMass[i] <= 0 && M[i] >= C.StarBrownMin) ResetStars(i);
-        if (_starRule != null && !_starRule.Enabled) return;
-        if (StarInitialMass[i] > 0) EvolveStar(i, Year);
+        // Progenitor = the main-sequence mass before envelope loss. A god's mass edit while the core
+        // is still burning rewrites that progenitor, without assigning a type or resetting burnt fuel.
+        if (M[i] >= C.StarMass && StarFuel[i] < 1) StarInitialMass[i] = M[i];
+        if (!StarsEnabled) return;
+        if (StarInitialMass[i] > 0)
+        {
+            EvolveStar(i, Year);
+            // A new mass or clock dial can bring death before the old calendar tick. Reschedule now,
+            // so Advance sees it too; Jump already cuts at physical boundaries independently.
+            if (_starRule != null && _starRate[i] > 0 && StarFuel[i] < GiantEnd)
+            {
+                double mark = StarFuel[i] < 1 ? 1 : GiantEnd;
+                _starRule.NextYear = Math.Min(_starRule.NextYear, _starUpdated[i] + (mark - StarFuel[i]) / _starRate[i]);
+            }
+        }
     }
 
     void MergeStars(int k, int d)
@@ -191,7 +205,7 @@ public sealed partial class World
 
     double NextStarBoundary()
     {
-        if (!_starRule.Enabled) return double.PositiveInfinity;
+        if (!StarsEnabled) return double.PositiveInfinity;
         double next = double.PositiveInfinity;
         for (int i = 0; i < N; i++)
         {
