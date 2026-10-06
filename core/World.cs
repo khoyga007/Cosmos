@@ -74,9 +74,9 @@ public sealed partial class World
 
     public Kind KindOf(int i)
     {
+        if (!Alive[i] || !Attracts(i)) return Kind.Rock;
         if (M[i] >= C.StarMass) return Kind.Star;
-        if (!Attracts(i)) return Kind.Rock;
-        int p = Par[i];
+        int p = PrimaryOf(i);
         return p >= 0 && Alive[p] && M[p] < C.StarMass ? Kind.Moon : Kind.Planet;
     }
 
@@ -99,10 +99,10 @@ public sealed partial class World
         return k;
     }
 
-    /// Radius inside which object i, not its primary (parent, else the heaviest object), rules small things.
+    /// Radius inside which object i, not its parent (else the heaviest object), rules small things.
     public double Hill(int i)
     {
-        int p = Par[i] >= 0 && Alive[Par[i]] ? Par[i] : Heaviest();
+        int p = Par[i] >= 0 && Alive[Par[i]] && M[Par[i]] > M[i] ? Par[i] : Heaviest();
         if (p == i || p < 0) return double.MaxValue;
         double dx = X[i] - X[p], dy = Y[i] - Y[p];
         return Math.Sqrt(dx * dx + dy * dy) * Math.Cbrt(M[i] / (3 * M[p]));
@@ -110,7 +110,7 @@ public sealed partial class World
 
     /// Finds the real primary for object i: the lightest pulling body holding it in its Hill zone
     /// with v_rel < v_esc, else the heaviest body in the world (or -1 if none).
-    public int FindPrimary(int i)
+    public int PrimaryOf(int i)
     {
         if (!Alive[i]) return -1;
         int best = -1;
@@ -132,6 +132,8 @@ public sealed partial class World
         int h = Heaviest();
         return h != i ? h : -1;
     }
+
+    public int FindPrimary(int i) => PrimaryOf(i);
 
     // ---- making objects
 

@@ -59,7 +59,6 @@ public sealed partial class World
     readonly int[] _temperatureBands, _starSlots;
     readonly double[] _starLight;
     public readonly List<Rule> Rules = new();
-    Rule[] _builtinRules = null!; // only this table is known not to read rock positions between jump chunks
     public const int EventCapacity = 1024; // PLACEHOLDER [P], not a content decision by Yang
     readonly List<RuleEvent> _events = new();
     public IReadOnlyList<RuleEvent> Events => _events;
@@ -72,7 +71,6 @@ public sealed partial class World
             w => w.UpdateTemperature()));
         InitLayerRules();
         InitKindRules();
-        _builtinRules = Rules.ToArray();
     }
 
     void ResetTemperature(int i) { Temp[i] = double.NaN; _temperatureBands[i] = -1; }

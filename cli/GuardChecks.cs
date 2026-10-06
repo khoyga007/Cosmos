@@ -135,17 +135,25 @@ static class GuardChecks
                 $"Do return contract: slot commands return slot (Sun=0, Earth=3), non-target return -2 (SetConst={rSetConst}, Rule={rSetRule}), fail=-1");
         }
 
-        // 4. #10: hill-orphan re-parenting
+        // 4. #10: hill-orphan & move-child-par-stale via PrimaryOf derived numbers
         {
-            // Scenario A: Remove Earth -> Moon is orphan, finds real primary
+            // Scenario A: Remove Earth -> Moon is orphan, PrimaryOf reads Sun, KindOf becomes Planet
             var w = World.SolSystem(0, 1234);
             const int sun = 0, earth = 3, moon = 9;
-            Check(w.Par[moon] == earth && w.Alive[earth], "Pre-condition: Moon orbits Earth");
+            Check(w.PrimaryOf(moon) == earth && w.KindOf(moon) == Kind.Moon, "Pre-condition: Moon orbits Earth and reads Kind.Moon");
 
+            // move-child-par-stale check: Move Moon far away (+30), Par still stored as Earth, but PrimaryOf reads Sun
+            w.Do(new Command(CmdKind.Move, Target: moon, X: w.X[moon] + 30, Y: w.Y[moon]));
+            Check(w.PrimaryOf(moon) == sun && w.KindOf(moon) == Kind.Planet,
+                $"move-child-par-stale: Move(Moon) +30 puts it outside Earth's Hill zone -> PrimaryOf is Sun (0), KindOf is {w.KindOf(moon)} (Planet, no longer Moon)");
+
+            // Move Moon back and remove Earth
+            w.Do(new Command(CmdKind.Move, Target: moon, X: w.X[earth] + 0.12, Y: w.Y[earth]));
             w.Do(new Command(CmdKind.Remove, Target: earth));
             Check(!w.Alive[earth], "Earth removed");
-            // In Sol, with Earth gone, Sun is the primary holding the Moon
-            Check(w.Par[moon] == sun, $"Moon orphan re-parented to Sun ({w.Par[moon]} == {sun}), not -1");
+            // Par[moon] cleared by Gone(d, -1) to -1; PrimaryOf reads Sun; KindOf reads Planet
+            Check(w.Par[moon] == -1 && w.PrimaryOf(moon) == sun && w.KindOf(moon) == Kind.Planet,
+                $"Earth removed: Par[moon] cleared to -1 by Gone, PrimaryOf(Moon) reads Sun ({w.PrimaryOf(moon)} == {sun}), KindOf reads Planet");
 
             // Scenario B: Hierarchical sub-satellite: Sun -> Jupiter -> Moon -> Sub-moon
             var w2 = new World(16, 42);
@@ -154,20 +162,33 @@ static class GuardChecks
             int sJup = w2.AddOrbiting(sSun, 100, 0, 0.05, gas, "Jupiter"); // massive planet
             double hillJup = w2.Hill(sJup);
 
-            // Moon orbits Jupiter well inside Jupiter's Hill sphere
+            // Moon orbits Jupiter well inside Jupiter's Hill sphere (mass >= AttractMass)
             int sMoon = w2.AddOrbiting(sJup, 100 + hillJup * 0.1, 0, 1e-5, rock, "Moon");
             double hillMoon = w2.Hill(sMoon);
 
-            // Sub-moon orbits Moon inside Moon's Hill sphere
-            int sSubMoon = w2.AddOrbiting(sMoon, w2.X[sMoon] + hillMoon * 0.2, w2.Y[sMoon], 1e-10, rock, "SubMoon");
-            Check(w2.Par[sSubMoon] == sMoon, "Pre-condition: SubMoon orbits Moon");
+            // Sub-moon orbits Moon inside Moon's Hill sphere (mass >= AttractMass so it is a Moon, not a Rock)
+            int sSubMoon = w2.AddOrbiting(sMoon, w2.X[sMoon] + hillMoon * 0.2, w2.Y[sMoon], 1e-6, rock, "SubMoon");
+            Check(w2.PrimaryOf(sSubMoon) == sMoon && w2.KindOf(sSubMoon) == Kind.Moon, "Pre-condition: SubMoon orbits Moon");
 
             // Remove Moon: Sub-moon is deep inside Jupiter's Hill zone, bound to Jupiter.
-            // It MUST be re-parented to Jupiter, NOT jump directly to the Sun!
+            // PrimaryOf MUST read Jupiter, NOT jump directly to the Sun!
             w2.Do(new Command(CmdKind.Remove, Target: sMoon));
             Check(!w2.Alive[sMoon], "Moon removed");
-            int newPar = w2.Par[sSubMoon];
-            Check(newPar == sJup, $"SubMoon orphan re-parented to Jupiter (slot {newPar} == {sJup}), NOT Sun (slot {sSun})");
+            int primary = w2.PrimaryOf(sSubMoon);
+            Check(primary == sJup && w2.KindOf(sSubMoon) == Kind.Moon,
+                $"SubMoon orphan: PrimaryOf reads Jupiter (slot {primary} == {sJup}), NOT Sun ({sSun}), KindOf is Moon");
+
+            // Benchmark KindOf cost over 5000 rocks + 10 bodies
+            var benchW = World.SolSystem(5000, 99);
+            // warm up JIT
+            for (int i = 0; i < benchW.N; i++) _ = benchW.KindOf(i);
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            for (int step = 0; step < 100; step++)
+            {
+                for (int i = 0; i < benchW.N; i++) _ = benchW.KindOf(i);
+            }
+            double costMs = sw.Elapsed.TotalMilliseconds / 100;
+            Check(costMs < 1.0, $"KindOf cost across 5010 objects: {costMs:F3} ms/scan (rocks fast-path < 1ms)");
         }
 
         // 5. #15: layers-water-bank clock reset
