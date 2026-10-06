@@ -76,6 +76,28 @@ static class RailChecks
                 $"rule switch replay: hash {r.Hash():X16} vs live {w.Hash():X16}; unknown rule refused");
         }
 
+        // one more rule in the table (a mod) must not change where a jump puts anything
+        {
+            var w = World.SolSystem(2000, 9); var m = World.SolSystem(2000, 9);
+            m.Rules.Add(new Rule("mod", "", "", 1000, _ => { }));
+            Jump(w, 1e4); Jump(m, 1e4);
+            int differ = 0;
+            for (int i = 0; i < w.N; i++) if (w.Alive[i] != m.Alive[i] || w.X[i] != m.X[i] || w.Y[i] != m.Y[i] || w.Vx[i] != m.Vx[i] || w.Vy[i] != m.Vy[i] || w.Temp[i] != m.Temp[i]) differ++;
+            Check(differ == 0, $"jump 1e4 years with and without an extra rule: {differ} of {w.Live} objects differ");
+        }
+
+        // moving a planet takes its moon along; the hash tells two step counts apart
+        {
+            var w = World.SolSystem(0, 1234); int ea = 3, mo = 9;
+            double rx = w.X[mo] - w.X[ea], ry = w.Y[mo] - w.Y[ea], rvx = w.Vx[mo] - w.Vx[ea], sunX = w.X[0], marsX = w.X[4];
+            w.Do(new Command(CmdKind.Move, Target: ea, X: w.X[ea] + 30, Y: w.Y[ea] - 7, Vx: 0.1, Vy: 0.2));
+            Check(Math.Abs(w.X[mo] - w.X[ea] - rx) < 1e-12 && Math.Abs(w.Y[mo] - w.Y[ea] - ry) < 1e-12 && Math.Abs(w.Vx[mo] - w.Vx[ea] - rvx) < 1e-12 && w.X[0] == sunX && w.X[4] == marsX,
+                $"Move(Earth): Moon still {Math.Sqrt(rx * rx + ry * ry):F3} away, Sun and Mars stay");
+            var a = World.SolSystem(0, 1); var b = World.SolSystem(0, 1);
+            a.Advance(0); b.Advance(0); b.Advance(0);
+            Check(a.Hash() != b.Hash(), $"hash holds the step count: step {a.Step} vs {b.Step}");
+        }
+
         // not bound = straight line, counted
         {
             var w = new World(8, 1);

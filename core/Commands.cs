@@ -17,7 +17,7 @@ public enum CmdKind
     Remove,          // Target is taken out of the world
     SetRule,         // rule Name ("temperature", ...) switched on (Amount != 0) or off (0)
     SeedLife,        // Target (a planet or moon) gets life at level Amount (0..1); 0 wipes it. Whether it lasts is up to the rules
-    Move,            // Target is put at (X, Y) with velocity (Vx, Vy)
+    Move,            // Target is put at (X, Y) with velocity (Vx, Vy); what it holds in orbit goes along
     Force,           // the god's hand: every object within radius Vx of (X, Y) gets velocity toward that point, Amount at
                      // the centre fading to 0 at the edge; negative Amount = away. Mass does not matter
     FastForward,     // every object rides its present orbit for Amount years (closed formula: no pull between siblings, no collisions)
@@ -96,6 +96,16 @@ public sealed partial class World
             {
                 int t = c.Target;
                 if (!Ok(t) || !double.IsFinite(c.X + c.Y + c.Vx + c.Vy)) return -1;
+                // its moons (anything lighter, inside its zone and held by it) keep their place around it;
+                // moving the heaviest object moves all it holds
+                double mx = c.X - X[t], my = c.Y - Y[t], mvx = c.Vx - Vx[t], mvy = c.Vy - Vy[t], zone = Attracts(t) ? Hill(t) : 0;
+                for (int i = 0; i < N; i++)
+                {
+                    if (!Alive[i] || i == t || M[i] >= M[t]) continue;
+                    double dx = X[i] - X[t], dy = Y[i] - Y[t], d2 = dx * dx + dy * dy, ux = Vx[i] - Vx[t], uy = Vy[i] - Vy[t];
+                    if (!(d2 < zone * zone) || !(ux * ux + uy * uy < 2 * C.G * (M[t] + M[i]) / Math.Sqrt(d2))) continue;
+                    X[i] += mx; Y[i] += my; Vx[i] += mvx; Vy[i] += mvy;
+                }
                 X[t] = c.X; Y[t] = c.Y; Vx[t] = c.Vx; Vy[t] = c.Vy;
                 return t;
             }
@@ -107,7 +117,7 @@ public sealed partial class World
                 {
                     if (!Alive[i]) continue;
                     double dx = c.X - X[i], dy = c.Y - Y[i], d2 = dx * dx + dy * dy;
-                    if (d2 >= rad * rad || d2 == 0) continue;
+                    if (d2 >= rad * rad || d2 == 0) continue; // dead on the centre: nowhere to pull to, no side to shove to
                     double d = Math.Sqrt(d2), k = c.Amount * (1 - d / rad) / d;
                     Vx[i] += dx * k; Vy[i] += dy * k;
                 }

@@ -32,11 +32,13 @@ public sealed partial class World
         foreach (Rule r in Rules) if (r.Enabled) fastest = Math.Min(fastest, r.RhythmYears);
         double years = t / C.YearTime;
         int chunks = (int)Math.Clamp(Math.Ceiling(years / fastest), 1, Math.Max(1, C.JumpSamples));
-        bool defer = chunks > 1 && Rules.Count == _builtinRules.Length;
-        for (int i = 0; defer && i < Rules.Count; i++) defer &= ReferenceEquals(Rules[i], _builtinRules[i]);
-        bool hasRocks = false;
-        for (int i = 0; defer && i < N; i++) if (Alive[i] && !Attracts(i)) { hasRocks = true; break; }
-        defer &= hasRocks;
+        // Rocks ride one way only, whatever the rule table holds: the orbit they are on at the start of the jump,
+        // around the primary they have then, taken over the time gone by since the start. The built-in rules do not
+        // read a rock's place, so it is worked out once, at the end; with any other rule in the table it is worked
+        // out after every chunk as well. Same numbers at the end either way.
+        bool defer = false, shown = Rules.Count != _builtinRules.Length;
+        for (int i = 0; !shown && i < Rules.Count; i++) shown = !ReferenceEquals(Rules[i], _builtinRules[i]);
+        for (int i = 0; i < N; i++) if (Alive[i] && !Attracts(i)) { defer = true; break; }
         if (defer)
         {
             Ride(0); // choose the same initial primary hierarchy and retain each rock's relative orbit
@@ -52,24 +54,27 @@ public sealed partial class World
         {
             for (int k = 0; k < chunks; k++)
             {
+                _deferRocks = defer;
                 Ride(t / chunks);
-                if (defer && k == chunks - 1) { FinishRocks(t); _deferRocks = false; }
+                // placed = the rules may read them again (rock temperature)
+                if (defer && (shown || k == chunks - 1)) { PlaceRocks(k == chunks - 1 ? t : t * (k + 1) / chunks); _deferRocks = false; }
                 Year += years / chunks; RunRules();
             }
         }
         finally { _riding = _deferRocks = false; }
     }
 
-    // ponytail: rocks exert no pull, so omit their lump recoil during body chunks. Their initial primary
-    // is held for this jump; future rules that need rock positions use the untrimmed path above.
-    // No-rock worlds and single-chunk jumps retain the original operation order and exact hashes.
-    void FinishRocks(double t)
+    // Rocks exert no pull, so they are no part of any lump: the bodies ride as if the rocks were not there, the
+    // same as when stepping. Where each rock is `t` after the start of the jump; the start itself is kept.
+    // A rock whose primary is gone, or that is not held by it, goes on in a straight line.
+    void PlaceRocks(double t)
     {
         for (int i = 0; i < N; i++)
         {
             if (!Alive[i] || Attracts(i)) continue;
             int p = _prim![i];
-            if (p < 0 || !Kepler(ref _bx![i], ref _by![i], ref _bvx![i], ref _bvy![i], C.G * (M[p] + M[i]), t, out _mean![i]))
+            double x = _bx![i], y = _by![i], vx = _bvx![i], vy = _bvy![i];
+            if (p < 0 || !Alive[p] || !Kepler(ref x, ref y, ref vx, ref vy, C.G * (M[p] + M[i]), t, out _mean![i]))
             {
                 X[i] = _cx![i] + _cvx![i] * t; Y[i] = _cy![i] + _cvy![i] * t;
                 Vx[i] = _cvx[i]; Vy[i] = _cvy[i];
@@ -78,8 +83,8 @@ public sealed partial class World
             }
             else
             {
-                X[i] = X[p] + _bx[i]; Y[i] = Y[p] + _by[i];
-                Vx[i] = Vx[p] + _bvx[i]; Vy[i] = Vy[p] + _bvy[i];
+                X[i] = X[p] + x; Y[i] = Y[p] + y;
+                Vx[i] = Vx[p] + vx; Vy[i] = Vy[p] + vy;
             }
         }
     }

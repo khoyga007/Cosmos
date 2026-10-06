@@ -244,7 +244,7 @@ public sealed partial class World
             mix(BitConverter.DoubleToUInt64Bits(Vx[i])); mix(BitConverter.DoubleToUInt64Bits(Vy[i])); mix((ulong)Par[i]);
             for (int e = 0; e < NElem; e++) mix(BitConverter.DoubleToUInt64Bits(Comp[i * NElem + e]));
         }
-        mix(_rng); mix((ulong)N); foreach (int slot in _free) mix((ulong)slot);
+        mix(_rng); mix((ulong)N); mix((ulong)Step); foreach (int slot in _free) mix((ulong)slot);
         foreach (var f in typeof(Consts).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
         {
             if (f.GetValue(C) is double d) mix(BitConverter.DoubleToUInt64Bits(d));
