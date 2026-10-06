@@ -2,8 +2,7 @@
 // Everything is built in code; the scene file only attaches this script.
 //   run:  godot --path game -- --rocks=5000
 //   Every change to the world goes through World.Do(Command) (SPEC 3): never write world arrays from here.
-//   left click = select an object (camera follows it); drag from selection = push;
-//   right click = create object with parameters configured in GodUi;
+//   left click = select an object; drag = push; right click = create configured object;
 //   wheel = zoom, T = tilt, Space = pause, [ and ] = turn G down / up, 1..7 = time warp (1x..64x)
 using System;
 using Godot;
@@ -23,23 +22,21 @@ public partial class Main : Node2D
     int _sel = -1, _frame, _createdCount;
     public int Selected => _sel;
 
-    double _cx, _cy; // world point at screen centre; rides selected object
+    double _cx, _cy;
     float _zoom = 0.75f, _tilt = 1f;
     bool _paused;
     int _timeWarp = 1;
 
     // Push drag state
-    bool _pushDragging;
-    Vector2 _pushDragStart, _pushDragCurrent;
+    bool _pushDragging, _potentialPushDrag;
+    Vector2 _mouseDownPos, _pushDragStart, _pushDragCurrent;
 
     double _stepMs, _fillMs;
     int _bench; double _benchT; int _benchFrames;
     bool _selftest;
-    const int Stride = 12; // per small object: 8 floats transform + 4 colour
+    const int Stride = 12;
 
     static readonly Color[] ElemCol = { new(0.72f, 0.78f, 1f), new(0.3f, 0.9f, 1f), new(0.9f, 0.5f, 0.25f), new(1f, 0.85f, 0.4f), new(0.75f, 0.4f, 0.95f), new(0.4f, 1f, 0.3f) };
-    static readonly string[] ElemVi = { "Khí nhẹ", "Băng", "Đá", "Kim loại", "Carbon", "Phóng xạ" };
-    static readonly string[] KindVi = { "Sao", "Hành tinh", "Vệ tinh", "Tiểu hành tinh" };
 
     public override void _Ready()
     {
@@ -68,7 +65,7 @@ public partial class Main : Node2D
 
         var layer = new CanvasLayer(); AddChild(layer);
         _hud = new Label { Position = new Vector2(12, 8) }; layer.AddChild(_hud);
-        _panel = new RichTextLabel { Position = new Vector2(12, 36), Size = new Vector2(420, 320), BbcodeEnabled = true, ScrollActive = false, MouseFilter = Control.MouseFilterEnum.Ignore };
+        _panel = new RichTextLabel { Position = new Vector2(12, 36), Size = new Vector2(420, 360), BbcodeEnabled = true, ScrollActive = false, MouseFilter = Control.MouseFilterEnum.Ignore };
         layer.AddChild(_panel);
 
         _ui = new GodUi(this, _w);
@@ -79,6 +76,14 @@ public partial class Main : Node2D
     {
         _timeWarp = Math.Clamp(speed, 1, 64);
         _ui?.UpdateTimeWarp(_timeWarp);
+    }
+
+    public void CheckAutoThrottle(double stepElapsedMs)
+    {
+        if (stepElapsedMs > 50.0 && _timeWarp > 1)
+        {
+            SetTimeWarp(Math.Max(1, _timeWarp / 2));
+        }
     }
 
     Color MixCol(int i)
@@ -105,11 +110,7 @@ public partial class Main : Node2D
         double advanceElapsedMs = (t1 - t0) * f;
         _stepMs += (advanceElapsedMs - _stepMs) * 0.05;
 
-        // Auto-throttle: drop back time warp if stepping takes over 50 ms
-        if (advanceElapsedMs > 50.0 && _timeWarp > 1)
-        {
-            SetTimeWarp(Math.Max(1, _timeWarp / 2));
-        }
+        CheckAutoThrottle(advanceElapsedMs);
 
         if (_sel >= 0 && (_sel >= _w.N || !_w.Alive[_sel]))
         {
@@ -133,8 +134,12 @@ public partial class Main : Node2D
         long t2 = System.Diagnostics.Stopwatch.GetTimestamp();
 
         _fillMs += ((t2 - t1) * f - _fillMs) * 0.05;
-        _hud.Text = $"{Engine.GetFramesPerSecond():F0} fps   {_w.Live} vật thể ({attract} có lực hút)   tốc độ {_timeWarp}× (tính {_stepMs:F2} ms)   draw-fill {_fillMs:F2} ms   G = {_w.C.G:F2}  ([ ] chỉnh G)   va chạm: {_w.Merges}";
-        if (_frame++ % 15 == 0) _panel.Text = PanelText();
+        _hud.Text = $"{Engine.GetFramesPerSecond():F0} fps   Năm: {_w.Year:N0}   {_w.Live} vật thể ({attract} có lực hút)   tốc độ {_timeWarp}× (tính {_stepMs:F2} ms)   G = {_w.C.G:F2}   va chạm: {_w.Merges}";
+        if (_frame++ % 15 == 0)
+        {
+            _panel.Text = PanelText();
+            _ui?.RefreshEvents();
+        }
         QueueRedraw();
 
         if (_bench > 0)
@@ -145,7 +150,6 @@ public partial class Main : Node2D
                 if (3 < _w.N && _w.Alive[3])
                 {
                     _sel = 3;
-                    GodTools.Create(_w, _w.X[3], _w.Y[3] + 0.2, _w.M[3] * 0.01, new[] { 0, 0, 1.0, 0, 0, 0 }, parent: 3, name: "bench_test");
                     GD.Print(PanelText());
                 }
                 int testSlot = Math.Min(500, _w.N - 1);
@@ -173,13 +177,30 @@ public partial class Main : Node2D
         var sb = new System.Text.StringBuilder();
         if (_sel < 0 || _sel >= _w.N || !_w.Alive[_sel])
         {
-            for (int e = 0; e < World.NElem; e++) sb.Append($"[color=#{ElemCol[e].ToHtml(false)}]■[/color] {ElemVi[e]}\n");
+            for (int e = 0; e < World.NElem; e++) sb.Append($"[color=#{ElemCol[e].ToHtml(false)}]■[/color] {GodUi.ElemVi[e]}\n");
             return sb.Append("Bấm trái vào vật thể: xem tham số, camera bám theo\nGiữ chuột trái kéo ra: đẩy vận tốc (mũi tên lực)\nBấm phải: tạo vật thể mới (thông số cấu hình ở bảng phải)").ToString();
         }
         int i = _sel; double m = _w.M[i];
-        sb.Append($"[b]{NameOf(i)}[/b]   {KindVi[(int)_w.KindOf(i)]}\n");
+        sb.Append($"[b]{NameOf(i)}[/b]   {GodUi.KindVi[(int)_w.KindOf(i)]}\n");
         sb.Append($"khối lượng {m / World.EarthMass:G4} Trái Đất   bán kính {_w.R[i]:G3}\n");
         sb.Append($"tốc độ {Math.Sqrt(_w.Vx[i] * _w.Vx[i] + _w.Vy[i] * _w.Vy[i]):F3}   hút vật khác: {(_w.Attracts(i) ? "có" : "không")}\n");
+
+        if (_w.IsWorld(i))
+        {
+            string bandName = !double.IsNaN(_w.Temp[i]) ? GodUi.BandVi[(int)_w.BandOf(_w.Temp[i])] : "Chưa rõ";
+            sb.Append($"[color=#ffaa55]Nhiệt độ:[/color] {_w.Temp[i]:F1} K ({bandName})   ");
+            int wState = Math.Clamp(_w.Water[i], 0, 3);
+            sb.Append($"[color=#44ccff]Nước:[/color] {GodUi.WaterVi[wState]}\n");
+
+            if (_w.Life[i] > 0)
+                sb.Append($"[color=#55ff88]Sự sống:[/color] {_w.Life[i] * 100:F1}% ({GodUi.LifeStageVi[_w.LifeStage(i)]})\n");
+            else
+                sb.Append($"[color=#888888]Sự sống:[/color] Chưa có (nước lỏng {_w.WaterYears[i]:N0} năm)\n");
+
+            if (_w.Pop[i] > 0)
+                sb.Append($"[color=#ffd700]Văn minh:[/color] dân số {_w.Pop[i] * 100:F1}% — {GodUi.TechStageVi[_w.TechStage(i)]} (công nghệ {_w.Tech[i]:F1})\n");
+        }
+
         int g = _w.Grp[i];
         if (g > 0)
         {
@@ -188,7 +209,7 @@ public partial class Main : Node2D
             sb.Append($"thuộc {_w.Groups[g]}: {cnt} vật thể, tổng {tot / World.EarthMass:G3} Trái Đất\n");
         }
         for (int e = 0; e < World.NElem; e++)
-            sb.Append($"[color=#{ElemCol[e].ToHtml(false)}]■[/color] {ElemVi[e]}   {100 * _w.Comp[i * World.NElem + e] / m:F1}%\n");
+            sb.Append($"[color=#{ElemCol[e].ToHtml(false)}]■[/color] {GodUi.ElemVi[e]}   {100 * _w.Comp[i * World.NElem + e] / m:F1}%\n");
         return sb.ToString();
     }
 
@@ -196,6 +217,7 @@ public partial class Main : Node2D
     {
         if (_w == null) return;
         Font font = ThemeDB.FallbackFont;
+
         // Orbit lines
         for (int i = 0; i < _w.N; i++)
         {
@@ -213,6 +235,7 @@ public partial class Main : Node2D
             DrawArc(Vector2.Zero, (float)(_w.Hill(_sel) * _zoom), 0, MathF.Tau, 96, new Color(0.5f, 1f, 0.6f, 0.35f), 1);
         }
         DrawSetTransform(Vector2.Zero);
+
         for (int i = 0; i < _w.N; i++)
         {
             if (!_w.Alive[i] || !_w.Attracts(i)) continue;
@@ -226,6 +249,24 @@ public partial class Main : Node2D
                 DrawSetTransform(Vector2.Zero);
             }
             DrawCircle(p, r, _w.Col[i] != 0 ? new Color((_w.Col[i] << 8) | 0xFF) : MixCol(i));
+
+            // Visual marks on bodies that carry life or civilisation (SPEC 7 Round 2)
+            if (_w.IsWorld(i))
+            {
+                if (_w.Pop[i] > 0)
+                {
+                    // Golden ring for civilisation
+                    DrawArc(p, r + 4, 0, MathF.Tau, 28, new Color(1f, 0.85f, 0.2f, 0.95f), 1.5f);
+                    DrawString(font, p + new Vector2(r + 6, -6), "[Văn minh]", HorizontalAlignment.Left, -1, 11, new Color(1f, 0.85f, 0.2f, 0.95f));
+                }
+                else if (_w.Life[i] > 0)
+                {
+                    // Green ring for life
+                    DrawArc(p, r + 3, 0, MathF.Tau, 24, new Color(0.2f, 1f, 0.45f, 0.9f), 1.2f);
+                    DrawString(font, p + new Vector2(r + 6, -6), "[Sự sống]", HorizontalAlignment.Left, -1, 11, new Color(0.2f, 1f, 0.45f, 0.9f));
+                }
+            }
+
             bool far = true;
             if (kind == Kind.Moon && _w.Par[i] >= 0 && _w.Par[i] < _w.N && _w.Alive[_w.Par[i]])
                 far = Screen(_w.Par[i]).DistanceTo(p) > 30;
@@ -275,7 +316,6 @@ public partial class Main : Node2D
             if (k.Keycode == Key.T) _tilt = _tilt < 1 ? 1f : 0.5f;
             if (k.Keycode == Key.Space) _paused = !_paused;
 
-            // Time warp shortcuts: 1..7
             if (k.Keycode == Key.Key1) SetTimeWarp(1);
             if (k.Keycode == Key.Key2) SetTimeWarp(2);
             if (k.Keycode == Key.Key3) SetTimeWarp(4);
@@ -285,10 +325,18 @@ public partial class Main : Node2D
             if (k.Keycode == Key.Key7) SetTimeWarp(64);
         }
 
-        if (e is InputEventMouseMotion mm && _pushDragging)
+        if (e is InputEventMouseMotion mm)
         {
-            _pushDragCurrent = mm.Position;
-            QueueRedraw();
+            if (_potentialPushDrag && !_pushDragging && (mm.Position - _mouseDownPos).Length() > 6)
+            {
+                _pushDragging = true;
+                _pushDragStart = _mouseDownPos;
+            }
+            if (_pushDragging)
+            {
+                _pushDragCurrent = mm.Position;
+                QueueRedraw();
+            }
         }
 
         if (e is InputEventMouseButton m)
@@ -300,31 +348,12 @@ public partial class Main : Node2D
 
                 if (m.ButtonIndex == MouseButton.Left)
                 {
-                    // Check if clicking near the selected object to initiate push drag
-                    if (_sel >= 0 && _sel < _w.N && _w.Alive[_sel] && Screen(_sel).DistanceTo(m.Position) <= Px(_sel) + 20)
-                    {
-                        _pushDragging = true;
-                        _pushDragStart = m.Position;
-                        _pushDragCurrent = m.Position;
-                    }
-                    else
-                    {
-                        // Select nearest object under cursor
-                        _sel = -1; float best = float.MaxValue;
-                        for (int i = 0; i < _w.N; i++)
-                        {
-                            if (!_w.Alive[i]) continue;
-                            float d = Screen(i).DistanceTo(m.Position) - Px(i);
-                            if (d < 12 && d < best) { best = d; _sel = i; }
-                        }
-                        _ui?.RefreshSelection();
-                        _panel.Text = PanelText();
-                    }
+                    _mouseDownPos = m.Position;
+                    _potentialPushDrag = (_sel >= 0 && _sel < _w.N && _w.Alive[_sel] && Screen(_sel).DistanceTo(m.Position) <= Px(_sel) + 20);
                 }
 
                 if (m.ButtonIndex == MouseButton.Right)
                 {
-                    // Create tool: place configured object at cursor
                     Vector2 c = GetViewportRect().Size / 2;
                     double x = _cx + (m.Position.X - c.X) / _zoom;
                     double y = _cy + (m.Position.Y - c.Y) / (_zoom * _tilt);
@@ -341,37 +370,55 @@ public partial class Main : Node2D
                     }
                 }
             }
-            else // Mouse button released
+            else // Button released
             {
-                if (m.ButtonIndex == MouseButton.Left && _pushDragging)
+                if (m.ButtonIndex == MouseButton.Left)
                 {
-                    if (_sel >= 0 && _sel < _w.N && _w.Alive[_sel])
+                    if (_pushDragging)
                     {
-                        Vector2 drag = _pushDragCurrent - _pushDragStart;
-                        if (drag.Length() > 5)
+                        if (_sel >= 0 && _sel < _w.N && _w.Alive[_sel])
                         {
-                            double dvx = (drag.X / _zoom) * 0.05;
-                            double dvy = (drag.Y / (_zoom * _tilt)) * 0.05;
-                            GodTools.Push(_w, _sel, dvx, dvy);
-                            _ui?.RefreshSelection();
-                            _panel.Text = PanelText();
+                            Vector2 drag = _pushDragCurrent - _pushDragStart;
+                            if (drag.Length() > 5)
+                            {
+                                double dvx = (drag.X / _zoom) * 0.05;
+                                double dvy = (drag.Y / (_zoom * _tilt)) * 0.05;
+                                GodTools.Push(_w, _sel, dvx, dvy);
+                                _ui?.RefreshSelection();
+                                _panel.Text = PanelText();
+                            }
                         }
+                        _pushDragging = false;
+                        _potentialPushDrag = false;
+                        QueueRedraw();
                     }
-                    _pushDragging = false;
-                    QueueRedraw();
+                    else
+                    {
+                        _potentialPushDrag = false;
+                        // Click to select nearest object
+                        _sel = -1; float best = float.MaxValue;
+                        for (int i = 0; i < _w.N; i++)
+                        {
+                            if (!_w.Alive[i]) continue;
+                            float d = Screen(i).DistanceTo(m.Position) - Px(i);
+                            if (d < 12 && d < best) { best = d; _sel = i; }
+                        }
+                        _ui?.RefreshSelection();
+                        _panel.Text = PanelText();
+                    }
                 }
             }
         }
     }
 
     /// <summary>
-    /// Headless self-test (SPEC 6, P2):
-    /// Calls each tool method with fixed inputs, replays journal on fresh world,
-    /// prints one line per tool with before/after numbers, exits 0 on match or 1 on mismatch.
+    /// Headless self-test (SPEC 6 P2 & SPEC 7 Round 2):
+    /// Calls each tool method with fixed inputs, covers FastForward, SeedLife, SetRule, SetTimeWarp + throttle,
+    /// replays journal on fresh world, prints one line per tool with before/after numbers, exits 0 on match or 1 on mismatch.
     /// </summary>
     public void RunSelfTest()
     {
-        GD.Print("=== COSMOS P2 SELFTEST START ===");
+        GD.Print("=== COSMOS ROUND 2 SELFTEST START ===");
         ulong seed = 1234;
         int rocks = 500;
         var w = World.SolSystem(rocks, seed);
@@ -397,7 +444,7 @@ public partial class Main : Node2D
         GD.Print($"TOOL CreateAtRest: slot={slotRest} live {liveBeforeRest} -> {w.Live}, vx={w.Vx[slotRest]:F2}, vy={w.Vy[slotRest]:F2}, kind={w.KindOf(slotRest)}");
 
         // 2. Tool AddMatter: edit composition
-        double matterBefore = w.Comp[slotMoon * World.NElem + 1]; // ice
+        double matterBefore = w.Comp[slotMoon * World.NElem + 1];
         double massBefore = w.M[slotMoon];
         double deltaIce = 0.01 * World.EarthMass;
         int editRes = GodTools.AddMatter(w, slotMoon, 1, deltaIce);
@@ -413,12 +460,15 @@ public partial class Main : Node2D
         double vxAfter = w.Vx[slotMoon], vyAfter = w.Vy[slotMoon];
         GD.Print($"TOOL Push: slot={slotMoon} vx {vxBefore:F4} -> {vxAfter:F4}, vy {vyBefore:F4} -> {vyAfter:F4}");
 
-        // 4. Tool TimeControl: advance steps
+        // 4. Tool TimeControl & Throttle check (Round 2 requirement: calls SetTimeWarp and auto-throttle path)
+        SetTimeWarp(32);
+        int warpSet = _timeWarp;
+        CheckAutoThrottle(65.0); // simulated load > 50ms
+        int warpThrottled = _timeWarp;
         long stepBefore = w.Step;
-        int warp = 8;
-        for (int s = 0; s < warp; s++) w.Advance(0.5);
+        for (int s = 0; s < _timeWarp; s++) w.Advance(0.5);
         long stepAfter = w.Step;
-        GD.Print($"TOOL TimeControl: warp={warp}x step {stepBefore} -> {stepAfter}");
+        GD.Print($"TOOL TimeControl: set={warpSet}x throttled={warpThrottled}x on 65ms step {stepBefore} -> {stepAfter}");
 
         // 5. Tool SetConst
         double gBefore = w.C.G, rScaleBefore = w.C.RadiusScale;
@@ -427,7 +477,30 @@ public partial class Main : Node2D
         if (!setG || !setR) { GD.PrintErr("FAIL: SetConst failed"); GetTree().Quit(1); return; }
         GD.Print($"TOOL SetConst: G {gBefore:F2} -> {w.C.G:F2}, RadiusScale {rScaleBefore:F2} -> {w.C.RadiusScale:F2}");
 
-        // Additional stepping with interleaved push to test multiple steps replay
+        // 6. Tool SetRule (Round 2)
+        var ruleTemp = w.Rules.Find(r => r.Id == "temperature");
+        bool ruleBefore = ruleTemp?.Enabled ?? false;
+        GodTools.SetRule(w, "temperature", false);
+        bool ruleOff = ruleTemp?.Enabled ?? false;
+        GodTools.SetRule(w, "temperature", true);
+        bool ruleOn = ruleTemp?.Enabled ?? false;
+        GD.Print($"TOOL SetRule: temperature rule enabled {ruleBefore} -> {ruleOff} -> {ruleOn}");
+
+        // 7. Tool SeedLife (Round 2)
+        double lifeBefore = w.Life[earth];
+        int seedRes = GodTools.SeedLife(w, earth, 0.65);
+        if (seedRes < 0) { GD.PrintErr("FAIL: SeedLife failed"); GetTree().Quit(1); return; }
+        double lifeAfter = w.Life[earth];
+        GD.Print($"TOOL SeedLife: slot={earth} life {lifeBefore:F3} -> {lifeAfter:F3}, stage={w.LifeStage(earth)}");
+
+        // 8. Tool FastForward (Round 2)
+        double yrBefore = w.Year;
+        bool ffRes = GodTools.FastForward(w, 500.0);
+        if (!ffRes) { GD.PrintErr("FAIL: FastForward failed"); GetTree().Quit(1); return; }
+        double yrAfter = w.Year;
+        GD.Print($"TOOL FastForward: years {yrBefore:F1} -> {yrAfter:F1}, earth_water={(WaterState)w.Water[earth]}, events={w.Events.Count}");
+
+        // Additional Advance steps with interleaved Push to test mixed journal
         for (int i = 0; i < 20; i++) w.Advance(0.5);
         GodTools.Push(w, slotMoon, -0.005, 0.01);
         for (int i = 0; i < 20; i++) w.Advance(0.5);
@@ -450,7 +523,7 @@ public partial class Main : Node2D
 
         if (origHash == replayHash && next == journalCount)
         {
-            GD.Print($"PASS: selftest verified all tools and exact journal replay ({origHash:X16}).");
+            GD.Print($"PASS: selftest verified all Round 2 tools and exact journal replay ({origHash:X16}).");
             GetTree().Quit(0);
         }
         else

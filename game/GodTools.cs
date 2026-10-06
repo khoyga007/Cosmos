@@ -4,7 +4,7 @@ using Cosmos.Core;
 namespace Cosmos.Game;
 
 /// <summary>
-/// Core god tool actions in the window (SPEC 6, P2).
+/// Core god tool actions in the window (SPEC 6 P2 & SPEC 7 Round 2).
 /// Every tool creates a Command and sends it through World.Do.
 /// No direct writes to world arrays.
 /// </summary>
@@ -72,7 +72,6 @@ public static class GodTools
         Command cmd;
         if (parent >= 0 && parent < w.N && w.Alive[parent])
         {
-            // Avoid placing at exact same position as parent (would divide by zero in AddOrbiting)
             if (x == w.X[parent] && y == w.Y[parent]) x += w.R[parent] + 1.0;
             cmd = new Command(CmdKind.CreateOrbiting, Target: parent, X: x, Y: y, Amount: mass, Mix: normMix, Name: name, Col: col);
         }
@@ -112,6 +111,37 @@ public static class GodTools
     public static bool SetConst(World w, string name, double value)
     {
         var cmd = new Command(CmdKind.SetConst, Name: name, Amount: value);
+        int r = w.Do(cmd);
+        return r >= 0;
+    }
+
+    /// <summary>
+    /// Round 2: Turn rule on or off.
+    /// </summary>
+    public static bool SetRule(World w, string ruleId, bool enabled)
+    {
+        var cmd = new Command(CmdKind.SetRule, Name: ruleId, Amount: enabled ? 1 : 0);
+        int r = w.Do(cmd);
+        return r >= 0;
+    }
+
+    /// <summary>
+    /// Round 2: Seed life at level 0..1 on a planet or moon (0 wipes it).
+    /// </summary>
+    public static int SeedLife(World w, int target, double level)
+    {
+        if (target < 0 || target >= w.N || !w.Alive[target] || !w.IsWorld(target)) return -1;
+        var cmd = new Command(CmdKind.SeedLife, Target: target, Amount: level);
+        return w.Do(cmd);
+    }
+
+    /// <summary>
+    /// Round 2: Fast forward simulation by years (two-body closed formula).
+    /// </summary>
+    public static bool FastForward(World w, double years)
+    {
+        if (!double.IsFinite(years) || years <= 0) return false;
+        var cmd = new Command(CmdKind.FastForward, Amount: years);
         int r = w.Do(cmd);
         return r >= 0;
     }
