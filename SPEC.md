@@ -166,3 +166,17 @@ Not in scope: Roche breakup (Claire), drawing.
 | 7 | Visual | whole VISUAL backlog (NEXT.md), textures, effects, sound | after Alpha only |
 
 3 and 4 may run in parallel (different owners); 5 needs both.
+
+### After Alpha (Yang 2026-10-06)
+Audience: Yang plays it himself; if it turns out well -> itch.io. Mods: design for free modding throughout, but NOT opened to outsiders until after 1.0. English: required if shared, deferred until then (UI stays Vietnamese).
+| # | Phase | Contents | Done when |
+|---|---|---|---|
+| 7 | Visual | textures, shaders, event effects, lighting, sound, music | no placeholder left on screen |
+| 8 | UI / experience | control panels redone, readable journal + chronicle, narrator summarising history, shortcuts, settings. Onboarding kept light (player = Yang) | Yang plays without asking what a control does |
+| 9 | Save + data | save, load, rewind to a save point; stock start scenes; data files so rules/numbers/tables change without a rebuild | a world saved today opens in a later build |
+| — | BETA | = end of phase 9: feature complete, no new systems after this | |
+| 10 | Balance + content | tune numbers so histories come out interesting; fill the tables (elements, events, eras, ethics); long playtests | many random worlds in a row without stalls or sameness |
+| 11 | Performance + stability | big worlds, many systems; no crash over hours | target frame rate at the world size Yang picks |
+| 12 | Packaging | release build Yang can install and update on his own machine | clean install runs |
+| — | 1.0 | = end of phase 12 | |
+| later | Sharing | itch.io page, English, mod support opened to outsiders (docs, stable data format) | only if Yang decides to share |
