@@ -1,53 +1,51 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using Godot;
 using Cosmos.Core;
 
 namespace Cosmos.Game;
 
 /// <summary>
-/// UI panel for god tools (SPEC 6 P2 & SPEC 7 Round 2):
-/// 1. Create panel (mass + 6 element sliders, preview kind + radius).
-/// 2. Edit & SeedLife panel (modify matter + seed life slider 0..1).
-/// 3. Push panel (drag helper + quick velocity nudges).
-/// 4. Time & FastForward panel (warp 1x..64x + jump 1 / 100 / 1e4 / 1e6 years).
-/// 5. Rules & Consts panel (SetRule switches + editable Consts.All()).
-/// 6. Event log panel (World.Events translated into Vietnamese sentences).
+/// Panels of the window (SPEC 7 round 3). Laid out by anchors, so they follow the window size.
+///   bottom bar  : time — pause, speed, jumps. Always on screen.
+///   right panel : tabs "Tạo" (what the create tool drops), "Vật thể" (the selected object), "Vũ trụ" (rules and
+///                 constants), "Nhật ký" (events as sentences). Tab hides it.
+/// No button, slider or tab takes the keyboard: Space must always pause, never press the last button again.
 /// </summary>
 public partial class GodUi : CanvasLayer
 {
     readonly Main _main;
     readonly World _w;
 
-    // Create tab
+    Control _side = null!;
+    TabContainer _tabs = null!;
+
+    // create
+    Button _btnCreate = null!;
     LineEdit _txtMass = null!;
     readonly HSlider[] _sliders = new HSlider[World.NElem];
-    readonly Label[] _sliderLabels = new Label[World.NElem];
-    Label _lblSum = null!;
     Label _lblPreview = null!;
-    Label _lblParent = null!;
 
-    // Edit tab
-    Label _lblEditTarget = null!;
-    readonly Label[] _editElemLabels = new Label[World.NElem];
-    HSlider _sliderSeedLife = null!;
-    Label _lblSeedVal = null!;
-    Button _btnSeedLife = null!;
+    // selected object
+    Label _lblTarget = null!;
+    VBoxContainer _objBody = null!;
+    readonly Label[] _elemLabels = new Label[World.NElem];
+    HSlider _sliderSeed = null!;
+    Button _btnSeed = null!, _btnWipe = null!;
+    Label _lblLife = null!;
 
-    // Push tab
-    Label _lblPushTarget = null!;
-
-    // Time & Jump tab
+    // time
+    Button _btnPause = null!;
     readonly Button[] _warpButtons = new Button[7];
     static readonly int[] WarpSpeeds = { 1, 2, 4, 8, 16, 32, 64 };
 
-    // Consts & Rules tab
-    VBoxContainer _rulesList = null!;
+    // universe
     VBoxContainer _constList = null!;
-    readonly Dictionary<string, LineEdit> _constEdits = new();
 
-    // Event Log tab
+    // log
     RichTextLabel _txtEvents = null!;
+    int _eventsCount = -1; double _eventsLastYear = double.NaN;
 
     public static readonly string[] ElemVi = { "Khí nhẹ", "Băng", "Đá", "Kim loại", "Carbon", "Phóng xạ" };
     public static readonly string[] KindVi = { "Sao", "Hành tinh", "Vệ tinh", "Tiểu hành tinh" };
@@ -55,6 +53,17 @@ public partial class GodUi : CanvasLayer
     public static readonly string[] LifeStageVi = { "Chưa có", "Vi sinh vật", "Đa bào phức tạp", "Sinh quyển trù phú" };
     public static readonly string[] TechStageVi = { "Chưa phát triển", "Thời kỳ Nông nghiệp", "Thời kỳ Công nghiệp", "Kỷ nguyên Không gian" };
     public static readonly string[] BandVi = { "Đóng băng", "Ôn đới", "Thiêu đốt" };
+    static readonly Dictionary<string, string> RuleVi = new() { ["temperature"] = "Nhiệt độ", ["water"] = "Nước", ["life"] = "Sự sống", ["civ"] = "Văn minh" };
+
+    // what the create buttons drop: name, mass in Earths, shares of gas / ice / rock / metal / carbon / radio
+    static readonly (string Name, double Earths, double[] Mix)[] Presets =
+    {
+        ("Thiên thạch", 1e-4, new[] { 0, 0.05, 0.75, 0.18, 0.02, 0 }),
+        ("Mặt Trăng", 0.0123, new[] { 0, 0.01, 0.80, 0.18, 0.005, 0.005 }),
+        ("Trái Đất", 1, new[] { 0, 0.01, 0.66, 0.32, 0.005, 0.005 }),
+        ("Sao Mộc", 317.8, new[] { 0.90, 0.05, 0.03, 0.02, 0, 0 }),
+        ("Mặt Trời", 50 / World.EarthMass, new[] { 1.0, 0, 0, 0, 0, 0 }),
+    };
 
     public GodUi(Main main, World w)
     {
@@ -62,377 +71,341 @@ public partial class GodUi : CanvasLayer
         _w = w;
     }
 
+    static Button Btn(string text, Action pressed, float minWidth = 0)
+    {
+        var b = new Button { Text = text, FocusMode = Control.FocusModeEnum.None, CustomMinimumSize = new Vector2(minWidth, 0) };
+        b.Pressed += pressed;
+        return b;
+    }
+
+    static Label Note(string text) => new()
+    {
+        Text = text, AutowrapMode = TextServer.AutowrapMode.WordSmart, Modulate = new Color(0.72f, 0.76f, 0.86f),
+        SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
+    };
+
+    static bool Number(string text, out double value) =>
+        double.TryParse(text.Trim().Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out value) && double.IsFinite(value);
+
     public override void _Ready()
     {
-        var root = new PanelContainer
-        {
-            Position = new Vector2(850, 36),
-            Size = new Vector2(418, 740),
-            MouseFilter = Control.MouseFilterEnum.Stop
-        };
-        AddChild(root);
+        BuildTimeBar();
 
-        var tabs = new TabContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ExpandFill };
-        root.AddChild(tabs);
+        // right panel: full height, fixed width, clear of the time bar
+        var side = new PanelContainer { MouseFilter = Control.MouseFilterEnum.Stop };
+        side.AnchorLeft = 1; side.AnchorRight = 1; side.AnchorTop = 0; side.AnchorBottom = 1;
+        side.OffsetLeft = -372; side.OffsetRight = -10; side.OffsetTop = 10; side.OffsetBottom = -10;
+        AddChild(side);
+        _side = side;
 
-        BuildCreateTab(tabs);
-        BuildEditTab(tabs);
-        BuildPushTab(tabs);
-        BuildTimeJumpTab(tabs);
-        BuildRulesConstsTab(tabs);
-        BuildEventsTab(tabs);
+        var margin = new MarginContainer();
+        foreach (string m in new[] { "margin_left", "margin_right", "margin_top", "margin_bottom" }) margin.AddThemeConstantOverride(m, 6);
+        side.AddChild(margin);
+        _tabs = new TabContainer();
+        _tabs.GetTabBar().FocusMode = Control.FocusModeEnum.None;
+        margin.AddChild(_tabs);
 
-        UpdatePreview();
+        BuildCreateTab();
+        BuildObjectTab();
+        BuildUniverseTab();
+        BuildEventsTab();
+
+        ApplyPreset(2);
+        UpdateCreating(false);
+        UpdatePaused(false);
+        RefreshSelection();
     }
 
-    void BuildCreateTab(TabContainer tabs)
+    public void TogglePanel() => _side.Visible = !_side.Visible;
+
+    VBoxContainer Tab(string title)
     {
-        var vbox = new VBoxContainer { Name = "Tạo vật thể" };
-        tabs.AddChild(vbox);
-
-        vbox.AddChild(new Label { Text = "Tạo vật thể mới (thả bằng chuột phải):" });
-
-        var hboxM = new HBoxContainer();
-        hboxM.AddChild(new Label { Text = "Khối lượng (M_TráiĐất):", CustomMinimumSize = new Vector2(170, 0) });
-        _txtMass = new LineEdit { Text = "1.0", CustomMinimumSize = new Vector2(80, 0) };
-        _txtMass.TextChanged += _ => UpdatePreview();
-        hboxM.AddChild(_txtMass);
-        vbox.AddChild(hboxM);
-
-        var hboxPresets = new HBoxContainer();
-        AddPresetButton(hboxPresets, "M.Trăng", 0.0123);
-        AddPresetButton(hboxPresets, "T.Đất", 1.0);
-        AddPresetButton(hboxPresets, "S.Mộc", 317.8);
-        AddPresetButton(hboxPresets, "M.Trời", 50.0 / World.EarthMass);
-        vbox.AddChild(hboxPresets);
-
-        vbox.AddChild(new HSeparator());
-        vbox.AddChild(new Label { Text = "Tỉ lệ 6 nhóm nguyên tố:" });
-
-        double[] defaultRatios = { 0, 0.01, 0.66, 0.32, 0.005, 0.005 };
-        for (int e = 0; e < World.NElem; e++)
-        {
-            int idx = e;
-            var row = new HBoxContainer();
-            row.AddChild(new Label { Text = ElemVi[e], CustomMinimumSize = new Vector2(75, 0) });
-            var slider = new HSlider
-            {
-                MinValue = 0,
-                MaxValue = 1,
-                Step = 0.01,
-                Value = defaultRatios[e],
-                CustomMinimumSize = new Vector2(180, 0),
-                SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
-            };
-            var valLbl = new Label { Text = $"{defaultRatios[e] * 100:F0}%", CustomMinimumSize = new Vector2(45, 0) };
-            slider.ValueChanged += v =>
-            {
-                valLbl.Text = $"{v * 100:F0}%";
-                UpdatePreview();
-            };
-            _sliders[e] = slider;
-            _sliderLabels[e] = valLbl;
-            row.AddChild(slider);
-            row.AddChild(valLbl);
-            vbox.AddChild(row);
-        }
-
-        _lblSum = new Label();
-        vbox.AddChild(_lblSum);
-
-        vbox.AddChild(new HSeparator());
-        _lblPreview = new Label();
-        vbox.AddChild(_lblPreview);
-        _lblParent = new Label();
-        vbox.AddChild(_lblParent);
-
-        var tip = new Label
-        {
-            Text = "Thao tác: Bấm chuột phải vào không gian để thả.\n- Nếu đang chọn vật thể: bay quỹ đạo tròn.\n- Nếu không chọn vật thể: đứng yên.",
-            AutowrapMode = TextServer.AutowrapMode.Word
-        };
-        vbox.AddChild(tip);
+        var pad = new MarginContainer { Name = title };
+        foreach (string m in new[] { "margin_left", "margin_right", "margin_top", "margin_bottom" }) pad.AddThemeConstantOverride(m, 8);
+        _tabs.AddChild(pad);
+        var v = new VBoxContainer();
+        v.AddThemeConstantOverride("separation", 8);
+        pad.AddChild(v);
+        return v;
     }
 
-    void AddPresetButton(HBoxContainer parent, string title, double val)
+    // ---- time bar ----
+
+    void BuildTimeBar()
     {
-        var btn = new Button { Text = title, CustomMinimumSize = new Vector2(80, 0) };
-        btn.Pressed += () =>
-        {
-            _txtMass.Text = val.ToString("G4");
-            UpdatePreview();
-        };
-        parent.AddChild(btn);
-    }
-
-    void BuildEditTab(TabContainer tabs)
-    {
-        var vbox = new VBoxContainer { Name = "Sửa & Gieo sống" };
-        tabs.AddChild(vbox);
-
-        _lblEditTarget = new Label { Text = "Chưa chọn vật thể nào." };
-        vbox.AddChild(_lblEditTarget);
-        vbox.AddChild(new HSeparator());
-
-        vbox.AddChild(new Label { Text = "Thêm / Bớt nguyên tố:" });
-        for (int e = 0; e < World.NElem; e++)
-        {
-            int idx = e;
-            var row = new HBoxContainer();
-            row.AddChild(new Label { Text = ElemVi[e], CustomMinimumSize = new Vector2(75, 0) });
-            _editElemLabels[e] = new Label { Text = "0%", CustomMinimumSize = new Vector2(80, 0) };
-            row.AddChild(_editElemLabels[e]);
-
-            var btnSub = new Button { Text = "-0.1 M⊕" };
-            btnSub.Pressed += () => EditDelta(idx, -0.1 * World.EarthMass);
-            row.AddChild(btnSub);
-
-            var btnAdd = new Button { Text = "+0.1 M⊕" };
-            btnAdd.Pressed += () => EditDelta(idx, 0.1 * World.EarthMass);
-            row.AddChild(btnAdd);
-
-            vbox.AddChild(row);
-        }
-
-        vbox.AddChild(new HSeparator());
-        vbox.AddChild(new Label { Text = "Quyền năng thần: Gieo mầm sống (SeedLife):" });
-
-        var rowSeed = new HBoxContainer();
-        _sliderSeedLife = new HSlider { MinValue = 0, MaxValue = 1, Step = 0.05, Value = 0.5, CustomMinimumSize = new Vector2(180, 0), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        _lblSeedVal = new Label { Text = "50%", CustomMinimumSize = new Vector2(50, 0) };
-        _sliderSeedLife.ValueChanged += v => _lblSeedVal.Text = $"{v * 100:F0}%";
-        rowSeed.AddChild(_sliderSeedLife);
-        rowSeed.AddChild(_lblSeedVal);
-        vbox.AddChild(rowSeed);
-
-        var rowSeedBtns = new HBoxContainer();
-        _btnSeedLife = new Button { Text = "Gieo sự sống", CustomMinimumSize = new Vector2(120, 0) };
-        _btnSeedLife.Pressed += () =>
-        {
-            int sel = _main.Selected;
-            if (sel >= 0 && sel < _w.N && _w.Alive[sel] && _w.IsWorld(sel))
-            {
-                GodTools.SeedLife(_w, sel, _sliderSeedLife.Value);
-                UpdateEditTab();
-            }
-        };
-        rowSeedBtns.AddChild(_btnSeedLife);
-
-        var btnWipe = new Button { Text = "Diệt sạch (level 0)" };
-        btnWipe.Pressed += () =>
-        {
-            int sel = _main.Selected;
-            if (sel >= 0 && sel < _w.N && _w.Alive[sel] && _w.IsWorld(sel))
-            {
-                GodTools.SeedLife(_w, sel, 0);
-                UpdateEditTab();
-            }
-        };
-        rowSeedBtns.AddChild(btnWipe);
-        vbox.AddChild(rowSeedBtns);
-    }
-
-    void EditDelta(int elem, double delta)
-    {
-        int sel = _main.Selected;
-        if (sel < 0 || sel >= _w.N || !_w.Alive[sel]) return;
-        GodTools.AddMatter(_w, sel, elem, delta);
-        UpdateEditTab();
-    }
-
-    void BuildPushTab(TabContainer tabs)
-    {
-        var vbox = new VBoxContainer { Name = "Đẩy" };
-        tabs.AddChild(vbox);
-
-        _lblPushTarget = new Label { Text = "Chưa chọn vật thể nào." };
-        vbox.AddChild(_lblPushTarget);
-        vbox.AddChild(new HSeparator());
-
-        var desc = new Label
-        {
-            Text = "Cách đẩy chuột:\n1. Bấm chuột trái chọn vật thể.\n2. Giữ chuột trái trên vật thể và kéo ra ngoài.\n3. Mũi tên lực vàng sẽ hiện; thả chuột để kích hoạt.\n\nHoặc bấm nút đẩy nhanh bên dưới:",
-            AutowrapMode = TextServer.AutowrapMode.Word
-        };
-        vbox.AddChild(desc);
-
-        var row1 = new HBoxContainer();
-        AddNudgeButton(row1, "← Vx -0.1", -0.1, 0);
-        AddNudgeButton(row1, "→ Vx +0.1", 0.1, 0);
-        vbox.AddChild(row1);
-
-        var row2 = new HBoxContainer();
-        AddNudgeButton(row2, "↑ Vy -0.1", 0, -0.1);
-        AddNudgeButton(row2, "↓ Vy +0.1", 0, 0.1);
-        vbox.AddChild(row2);
-
-        var btnStop = new Button { Text = "Hãm phanh (Vx=0, Vy=0)" };
-        btnStop.Pressed += () =>
-        {
-            int sel = _main.Selected;
-            if (sel >= 0 && sel < _w.N && _w.Alive[sel])
-            {
-                GodTools.Push(_w, sel, -_w.Vx[sel], -_w.Vy[sel]);
-            }
-        };
-        vbox.AddChild(btnStop);
-    }
-
-    void AddNudgeButton(HBoxContainer parent, string text, double dvx, double dvy)
-    {
-        var btn = new Button { Text = text, CustomMinimumSize = new Vector2(120, 0) };
-        btn.Pressed += () =>
-        {
-            int sel = _main.Selected;
-            if (sel >= 0 && sel < _w.N && _w.Alive[sel])
-            {
-                GodTools.Push(_w, sel, dvx, dvy);
-            }
-        };
-        parent.AddChild(btn);
-    }
-
-    void BuildTimeJumpTab(TabContainer tabs)
-    {
-        var vbox = new VBoxContainer { Name = "Thời gian & Nhảy" };
-        tabs.AddChild(vbox);
-
-        vbox.AddChild(new Label { Text = "Tốc độ bước tính (Advance / khung hình):" });
+        var bar = new PanelContainer { MouseFilter = Control.MouseFilterEnum.Stop };
+        bar.AnchorLeft = 0; bar.AnchorRight = 0; bar.AnchorTop = 1; bar.AnchorBottom = 1;
+        bar.OffsetLeft = 10; bar.OffsetBottom = -10; bar.OffsetTop = -10;
+        bar.GrowVertical = Control.GrowDirection.Begin; bar.GrowHorizontal = Control.GrowDirection.End;
+        AddChild(bar);
+        var pad = new MarginContainer();
+        foreach (string m in new[] { "margin_left", "margin_right" }) pad.AddThemeConstantOverride(m, 8);
+        foreach (string m in new[] { "margin_top", "margin_bottom" }) pad.AddThemeConstantOverride(m, 5);
+        bar.AddChild(pad);
         var row = new HBoxContainer();
+        row.AddThemeConstantOverride("separation", 4);
+        pad.AddChild(row);
+
+        _btnPause = Btn("Tạm dừng", _main.TogglePause, 96);
+        row.AddChild(_btnPause);
         for (int i = 0; i < WarpSpeeds.Length; i++)
         {
             int speed = WarpSpeeds[i];
-            var btn = new Button { Text = $"{speed}×", CustomMinimumSize = new Vector2(48, 0) };
-            btn.Pressed += () => _main.SetTimeWarp(speed);
-            _warpButtons[i] = btn;
-            row.AddChild(btn);
+            var b = Btn($"{speed}×", () => _main.SetTimeWarp(speed), 40);
+            b.ToggleMode = true;
+            _warpButtons[i] = b;
+            row.AddChild(b);
         }
-        vbox.AddChild(row);
-
-        vbox.AddChild(new HSeparator());
-        vbox.AddChild(new Label { Text = "Cú nhảy thời gian FastForward (quỹ đạo giải tích):" });
-
-        var rowJump1 = new HBoxContainer();
-        AddJumpButton(rowJump1, "Nhảy 1 năm", 1.0);
-        AddJumpButton(rowJump1, "Nhảy 100 năm", 100.0);
-        vbox.AddChild(rowJump1);
-
-        var rowJump2 = new HBoxContainer();
-        AddJumpButton(rowJump2, "Nhảy 10.000 năm", 1e4);
-        AddJumpButton(rowJump2, "Nhảy 1.000.000 năm", 1e6);
-        vbox.AddChild(rowJump2);
-
-        var note = new Label
+        row.AddChild(new VSeparator());
+        row.AddChild(new Label { Text = "Nhảy tới" });
+        foreach (var (text, years) in new[] { ("+1 năm", 1.0), ("+100 năm", 100.0), ("+1 vạn năm", 1e4), ("+1 triệu năm", 1e6) })
         {
-            Text = "\nPhím tắt:\n- 1 đến 7: chọn tốc độ 1× đến 64×\n- Space: tạm dừng / tiếp tục\n- Cú nhảy FastForward chạy mô hình 2 vật thể đóng; các luật sinh quyển tự chạy theo nhịp.",
-            AutowrapMode = TextServer.AutowrapMode.Word
-        };
-        vbox.AddChild(note);
+            double y = years; string t = text;
+            row.AddChild(Btn(text, () =>
+            {
+                int before = _w.Events.Count;
+                GodTools.FastForward(_w, y);
+                int news = _w.Events.Count - before;
+                _main.Toast(news > 0 ? $"Đã nhảy {t.TrimStart('+')}: {news} sự kiện mới, xem tab Nhật ký" : $"Đã nhảy {t.TrimStart('+')}: không có gì đáng kể xảy ra");
+                RefreshSelection();
+                RefreshEvents();
+            }));
+        }
     }
 
-    void AddJumpButton(HBoxContainer parent, string text, double years)
+    public void UpdateTimeWarp(int currentWarp)
     {
-        var btn = new Button { Text = text, CustomMinimumSize = new Vector2(170, 0) };
-        btn.Pressed += () =>
-        {
-            GodTools.FastForward(_w, years);
-            RefreshSelection();
-            RefreshEvents();
-        };
-        parent.AddChild(btn);
+        for (int i = 0; i < WarpSpeeds.Length; i++) _warpButtons[i]?.SetPressedNoSignal(WarpSpeeds[i] == currentWarp);
     }
 
-    void BuildRulesConstsTab(TabContainer tabs)
+    public void UpdatePaused(bool paused)
     {
-        var vbox = new VBoxContainer { Name = "Luật & Hằng số" };
-        tabs.AddChild(vbox);
-
-        vbox.AddChild(new Label { Text = "Công tắc bật/tắt các luật (SetRule):" });
-        _rulesList = new VBoxContainer();
-        vbox.AddChild(_rulesList);
-        RefreshRules();
-
-        vbox.AddChild(new HSeparator());
-        vbox.AddChild(new Label { Text = "Hằng số vũ trụ (Consts.All):" });
-        var scroll = new ScrollContainer
-        {
-            CustomMinimumSize = new Vector2(390, 360),
-            SizeFlagsVertical = Control.SizeFlags.ExpandFill
-        };
-        _constList = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        scroll.AddChild(_constList);
-        vbox.AddChild(scroll);
-
-        RefreshConsts();
+        if (_btnPause != null) _btnPause.Text = paused ? "Chạy tiếp" : "Tạm dừng";
     }
 
-    public void RefreshRules()
-    {
-        if (_rulesList == null) return;
-        foreach (Node c in _rulesList.GetChildren()) c.QueueFree();
+    // ---- create ----
 
-        foreach (var rule in _w.Rules)
+    void BuildCreateTab()
+    {
+        var v = Tab("Tạo");
+
+        _btnCreate = Btn("", () => _main.SetCreating(!_main.Creating));
+        _btnCreate.CustomMinimumSize = new Vector2(0, 40);
+        v.AddChild(_btnCreate);
+        v.AddChild(Note("Con trỏ mang theo vật thể mới. Bấm vào không gian: nó tự quay tròn quanh vật đang thống trị chỗ đó. Giữ và kéo: phóng nó đi, đường vàng cho thấy trước quỹ đạo."));
+
+        v.AddChild(new HSeparator());
+        var grid = new GridContainer { Columns = 3 };
+        for (int i = 0; i < Presets.Length; i++)
+        {
+            int idx = i;
+            var b = Btn(Presets[i].Name, () => { ApplyPreset(idx); if (!_main.Creating) _main.SetCreating(true); }, 104);
+            grid.AddChild(b);
+        }
+        v.AddChild(grid);
+
+        var rowM = new HBoxContainer();
+        rowM.AddChild(new Label { Text = "Khối lượng (số Trái Đất)", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
+        _txtMass = new LineEdit { CustomMinimumSize = new Vector2(96, 0) };
+        _txtMass.TextChanged += _ => UpdatePreview();
+        _txtMass.TextSubmitted += _ => _txtMass.ReleaseFocus();
+        rowM.AddChild(_txtMass);
+        v.AddChild(rowM);
+
+        v.AddChild(new Label { Text = "Thành phần" });
+        for (int e = 0; e < World.NElem; e++)
         {
             var row = new HBoxContainer();
-            var chk = new CheckBox { Text = $"{rule.Id} (nhịp {rule.RhythmYears:G2} năm)", ButtonPressed = rule.Enabled };
-            string rId = rule.Id;
-            chk.Toggled += toggled =>
-            {
-                GodTools.SetRule(_w, rId, toggled);
-            };
-            row.AddChild(chk);
-            _rulesList.AddChild(row);
+            row.AddChild(new Label { Text = ElemVi[e], CustomMinimumSize = new Vector2(78, 0) });
+            var slider = new HSlider { MinValue = 0, MaxValue = 1, Step = 0.005, FocusMode = Control.FocusModeEnum.None, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
+            slider.ValueChanged += _ => UpdatePreview();
+            _sliders[e] = slider;
+            row.AddChild(slider);
+            v.AddChild(row);
         }
+        _lblPreview = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
+        v.AddChild(_lblPreview);
+    }
+
+    public void ApplyPreset(int i)
+    {
+        _txtMass.Text = Presets[i].Earths.ToString("G4", CultureInfo.InvariantCulture);
+        for (int e = 0; e < World.NElem; e++) _sliders[e].SetValueNoSignal(Presets[i].Mix[e]);
+        UpdatePreview();
+    }
+
+    public void UpdateCreating(bool on)
+    {
+        if (_btnCreate == null) return;
+        _btnCreate.Text = on ? "Đang đặt vật thể — bấm để thôi (Esc)" : "Đặt vật thể vào không gian (C)";
+        _btnCreate.Modulate = on ? new Color(1f, 0.9f, 0.35f) : Colors.White;
+    }
+
+    public double GetCreateMass() => (Number(_txtMass.Text, out double m) && m > 0 ? m : 1) * World.EarthMass;
+
+    public double[] GetCreateMix()
+    {
+        var mix = new double[World.NElem];
+        for (int i = 0; i < World.NElem; i++) mix[i] = _sliders[i].Value;
+        return mix;
+    }
+
+    void UpdatePreview()
+    {
+        if (_lblPreview == null) return;
+        double[] mix = GetCreateMix();
+        double sum = 0;
+        foreach (double s in mix) sum += s;
+        var (kind, radius) = GodTools.Preview(_w, GetCreateMass(), mix);
+        var parts = new List<string>();
+        for (int e = 0; e < World.NElem; e++) if (sum > 0 && mix[e] / sum >= 0.005) parts.Add($"{ElemVi[e]} {100 * mix[e] / sum:F0}%");
+        _lblPreview.Text = $"Sẽ là: {KindVi[(int)kind]}, bán kính {radius:G3}\n{(parts.Count > 0 ? string.Join(" · ", parts) : "Đá 100%")}";
+    }
+
+    // ---- selected object ----
+
+    void BuildObjectTab()
+    {
+        var v = Tab("Vật thể");
+        _lblTarget = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
+        v.AddChild(_lblTarget);
+
+        _objBody = new VBoxContainer();
+        _objBody.AddThemeConstantOverride("separation", 8);
+        v.AddChild(_objBody);
+
+        var row = new HBoxContainer();
+        row.AddChild(Btn("Bám theo (F)", _main.FollowSelected));
+        row.AddChild(Btn("Về quỹ đạo tròn", _main.CircularizeSelected));
+        row.AddChild(Btn("Xoá (Del)", _main.RemoveSelected));
+        _objBody.AddChild(row);
+        _objBody.AddChild(Note("Đẩy: giữ chuột trái trên vật đang chọn rồi kéo ra."));
+
+        _objBody.AddChild(new HSeparator());
+        _objBody.AddChild(new Label { Text = "Thêm / bớt vật chất (mỗi lần 10% khối lượng)" });
+        for (int e = 0; e < World.NElem; e++)
+        {
+            int idx = e;
+            var r = new HBoxContainer();
+            r.AddChild(new Label { Text = ElemVi[e], CustomMinimumSize = new Vector2(78, 0) });
+            _elemLabels[e] = new Label { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+            r.AddChild(_elemLabels[e]);
+            r.AddChild(Btn("−", () => EditMatter(idx, -0.1), 36));
+            r.AddChild(Btn("+", () => EditMatter(idx, 0.1), 36));
+            _objBody.AddChild(r);
+        }
+
+        _objBody.AddChild(new HSeparator());
+        _lblLife = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
+        _objBody.AddChild(_lblLife);
+        _sliderSeed = new HSlider { MinValue = 0.05, MaxValue = 1, Step = 0.05, Value = 0.5, FocusMode = Control.FocusModeEnum.None };
+        _sliderSeed.ValueChanged += _ => UpdateObjectTab();
+        _objBody.AddChild(_sliderSeed);
+        var rowSeed = new HBoxContainer();
+        _btnSeed = Btn("Gieo sự sống", () => Seed(_sliderSeed.Value));
+        _btnWipe = Btn("Diệt sạch sự sống", () => Seed(0));
+        rowSeed.AddChild(_btnSeed); rowSeed.AddChild(_btnWipe);
+        _objBody.AddChild(rowSeed);
+        _objBody.AddChild(Note("Gieo xong có sống nổi hay không là do nước, nhiệt độ và thành phần của nó."));
+    }
+
+    bool Sel(out int i)
+    {
+        i = _main.Selected;
+        return i >= 0 && i < _w.N && _w.Alive[i];
+    }
+
+    void EditMatter(int elem, double shareOfMass)
+    {
+        if (!Sel(out int i)) return;
+        GodTools.AddMatter(_w, i, elem, shareOfMass * _w.M[i]);
+        UpdateObjectTab();
+    }
+
+    void Seed(double level)
+    {
+        if (!Sel(out int i) || !_w.IsWorld(i)) return;
+        string name = _w.Name[i] ?? $"Vật thể #{i}";
+        if (GodTools.SeedLife(_w, i, level) >= 0) _main.Toast(level > 0 ? $"Đã gieo sự sống {level * 100:F0}% lên {name}" : $"Đã diệt sạch sự sống trên {name}");
+        UpdateObjectTab();
+    }
+
+    void UpdateObjectTab()
+    {
+        if (_lblTarget == null) return;
+        if (!Sel(out int i))
+        {
+            _lblTarget.Text = "Chưa chọn vật thể nào. Bấm vào một vật thể trong không gian.";
+            _objBody.Visible = false;
+            return;
+        }
+        _objBody.Visible = true;
+        double m = _w.M[i];
+        _lblTarget.Text = $"{_w.Name[i] ?? $"Vật thể #{i}"} — {KindVi[(int)_w.KindOf(i)]}, {m / World.EarthMass:G4} Trái Đất";
+        for (int e = 0; e < World.NElem; e++) _elemLabels[e].Text = $"{100 * _w.Comp[i * World.NElem + e] / m:F1}%";
+        bool world = _w.IsWorld(i);
+        _sliderSeed.Editable = world; _btnSeed.Disabled = !world; _btnWipe.Disabled = !world || _w.Life[i] <= 0;
+        _btnSeed.Text = $"Gieo sự sống {_sliderSeed.Value * 100:F0}%";
+        _lblLife.Text = !world ? "Sự sống: chỉ hành tinh và vệ tinh mới mang được."
+            : _w.Life[i] > 0 ? $"Sự sống hiện tại: {_w.Life[i] * 100:F1}% ({LifeStageVi[_w.LifeStage(i)]})"
+            : "Sự sống: chưa có.";
+    }
+
+    public void RefreshSelection() { UpdateObjectTab(); }
+
+    /// Numbers that move by themselves (called a few times a second).
+    public void RefreshLive() { if (_side.Visible && _tabs.CurrentTab == 1) UpdateObjectTab(); }
+
+    // ---- universe: rules and constants ----
+
+    void BuildUniverseTab()
+    {
+        var v = Tab("Vũ trụ");
+        v.AddChild(new Label { Text = "Luật đang chạy" });
+        foreach (var rule in _w.Rules)
+        {
+            string id = rule.Id;
+            var chk = new CheckBox { Text = $"{(RuleVi.TryGetValue(id, out string? vi) ? vi : id)}  (mỗi {rule.RhythmYears:G3} năm)", ButtonPressed = rule.Enabled, FocusMode = Control.FocusModeEnum.None };
+            chk.Toggled += on => { GodTools.SetRule(_w, id, on); _main.Toast($"Luật {(RuleVi.TryGetValue(id, out string? n) ? n : id)}: {(on ? "bật" : "tắt")}"); };
+            v.AddChild(chk);
+        }
+        v.AddChild(new HSeparator());
+        v.AddChild(new Label { Text = "Hằng số (gõ số mới rồi Enter)" });
+        var scroll = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
+        _constList = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        scroll.AddChild(_constList);
+        v.AddChild(scroll);
+        RefreshConsts();
     }
 
     public void RefreshConsts()
     {
         if (_constList == null) return;
         foreach (Node c in _constList.GetChildren()) c.QueueFree();
-        _constEdits.Clear();
-
         foreach (var (name, val) in _w.C.All())
         {
             var row = new HBoxContainer();
-            row.AddChild(new Label { Text = name, CustomMinimumSize = new Vector2(130, 0) });
-            var txt = new LineEdit { Text = val.ToString("G4"), CustomMinimumSize = new Vector2(120, 0) };
-            _constEdits[name] = txt;
-            row.AddChild(txt);
-
-            var btnSet = new Button { Text = "Áp dụng" };
+            row.AddChild(new Label { Text = name, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, ClipText = true });
+            var txt = new LineEdit { Text = val.ToString("G6", CultureInfo.InvariantCulture), CustomMinimumSize = new Vector2(110, 0) };
             string cname = name;
-            btnSet.Pressed += () =>
+            txt.TextSubmitted += text =>
             {
-                if (double.TryParse(txt.Text, out double nv))
-                {
-                    GodTools.SetConst(_w, cname, nv);
-                }
+                bool ok = Number(text, out double nv) && GodTools.SetConst(_w, cname, nv);
+                _main.Toast(ok ? $"{cname} = {nv.ToString("G6", CultureInfo.InvariantCulture)}" : $"{cname}: số không hợp lệ");
+                txt.ReleaseFocus();
             };
-            row.AddChild(btnSet);
+            row.AddChild(txt);
             _constList.AddChild(row);
         }
     }
 
-    void BuildEventsTab(TabContainer tabs)
+    // ---- event log ----
+
+    void BuildEventsTab()
     {
-        var vbox = new VBoxContainer { Name = "Nhật ký" };
-        tabs.AddChild(vbox);
-
-        var rowTop = new HBoxContainer();
-        rowTop.AddChild(new Label { Text = "Nhật ký sự kiện mô phỏng:", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
-        var btnRef = new Button { Text = "Làm mới" };
-        btnRef.Pressed += RefreshEvents;
-        rowTop.AddChild(btnRef);
-        vbox.AddChild(rowTop);
-
-        _txtEvents = new RichTextLabel
-        {
-            BbcodeEnabled = true,
-            ScrollActive = true,
-            CustomMinimumSize = new Vector2(390, 640),
-            SizeFlagsVertical = Control.SizeFlags.ExpandFill
-        };
-        vbox.AddChild(_txtEvents);
+        var v = Tab("Nhật ký");
+        _txtEvents = new RichTextLabel { BbcodeEnabled = true, ScrollActive = true, SizeFlagsVertical = Control.SizeFlags.ExpandFill, FocusMode = Control.FocusModeEnum.None };
+        v.AddChild(_txtEvents);
         RefreshEvents();
     }
 
@@ -519,121 +492,13 @@ public partial class GodUi : CanvasLayer
     public void RefreshEvents()
     {
         if (_txtEvents == null) return;
-        var sb = new System.Text.StringBuilder();
         int count = _w.Events.Count;
-        if (count == 0)
-        {
-            _txtEvents.Text = "Chưa có sự kiện nào được ghi nhận.";
-            return;
-        }
-
-        // Display newest first
-        for (int i = count - 1; i >= Math.Max(0, count - 100); i--)
-        {
-            sb.AppendLine(TranslateEvent(_w, _w.Events[i]));
-            sb.AppendLine();
-        }
+        double last = count > 0 ? _w.Events[count - 1].Year : double.NaN;
+        if (count == _eventsCount && last.Equals(_eventsLastYear)) return; // nothing new: keep the scroll where it is
+        _eventsCount = count; _eventsLastYear = last;
+        if (count == 0) { _txtEvents.Text = "Chưa có sự kiện nào. Thử nhảy tới 1 triệu năm."; return; }
+        var sb = new System.Text.StringBuilder();
+        for (int i = count - 1; i >= Math.Max(0, count - 100); i--) sb.AppendLine(TranslateEvent(_w, _w.Events[i])).AppendLine();
         _txtEvents.Text = sb.ToString();
-    }
-
-    public void UpdateTimeWarp(int currentWarp)
-    {
-        for (int i = 0; i < WarpSpeeds.Length; i++)
-        {
-            if (_warpButtons[i] != null)
-                _warpButtons[i].Modulate = WarpSpeeds[i] == currentWarp ? new Color(1, 1, 0) : Colors.White;
-        }
-    }
-
-    public double GetCreateMass()
-    {
-        if (double.TryParse(_txtMass?.Text, out double m) && m > 0)
-            return m * World.EarthMass;
-        return 1.0 * World.EarthMass;
-    }
-
-    public double[] GetCreateMix()
-    {
-        var mix = new double[World.NElem];
-        for (int i = 0; i < World.NElem; i++)
-        {
-            mix[i] = _sliders[i]?.Value ?? 0;
-        }
-        return mix;
-    }
-
-    public void UpdatePreview()
-    {
-        if (_lblSum == null || _lblPreview == null || _lblParent == null) return;
-
-        double[] mix = GetCreateMix();
-        double sum = 0;
-        for (int i = 0; i < World.NElem; i++) sum += mix[i];
-        _lblSum.Text = $"Tổng tỉ lệ: {sum:F2} (tự chuẩn hoá khi tạo)";
-
-        double mass = GetCreateMass();
-        int parent = _main.Selected;
-        var (previewKind, previewR) = GodTools.Preview(_w, mass, mix, parent);
-
-        _lblPreview.Text = $"Dự kiến: {KindVi[(int)previewKind]}   Bán kính: {previewR:G3}";
-        if (parent >= 0 && parent < _w.N && _w.Alive[parent])
-        {
-            string pName = _w.Name[parent] ?? $"Vật thể #{parent}";
-            _lblParent.Text = $"Quỹ đạo quanh: {pName}";
-        }
-        else
-        {
-            _lblParent.Text = "Tâm: Không (đứng yên tại chỗ thả)";
-        }
-    }
-
-    public void RefreshSelection()
-    {
-        UpdatePreview();
-        UpdateEditTab();
-        UpdatePushTab();
-    }
-
-    void UpdateEditTab()
-    {
-        if (_lblEditTarget == null) return;
-        int sel = _main.Selected;
-        if (sel < 0 || sel >= _w.N || !_w.Alive[sel])
-        {
-            _lblEditTarget.Text = "Chưa chọn vật thể nào.";
-            for (int e = 0; e < World.NElem; e++)
-                if (_editElemLabels[e] != null) _editElemLabels[e].Text = "0%";
-            if (_btnSeedLife != null) _btnSeedLife.Disabled = true;
-            return;
-        }
-
-        string sName = _w.Name[sel] ?? $"Vật thể #{sel}";
-        _lblEditTarget.Text = $"Đang chọn: {sName} (khối lượng {_w.M[sel] / World.EarthMass:G4} M⊕)";
-
-        double total = _w.M[sel];
-        for (int e = 0; e < World.NElem; e++)
-        {
-            double val = _w.Comp[sel * World.NElem + e];
-            double pct = total > 0 ? (val / total) * 100 : 0;
-            if (_editElemLabels[e] != null)
-                _editElemLabels[e].Text = $"{val / World.EarthMass:G3} ({pct:F1}%)";
-        }
-
-        if (_btnSeedLife != null)
-            _btnSeedLife.Disabled = !_w.IsWorld(sel);
-    }
-
-    void UpdatePushTab()
-    {
-        if (_lblPushTarget == null) return;
-        int sel = _main.Selected;
-        if (sel < 0 || sel >= _w.N || !_w.Alive[sel])
-        {
-            _lblPushTarget.Text = "Chưa chọn vật thể nào.";
-            return;
-        }
-        string sName = _w.Name[sel] ?? $"Vật thể #{sel}";
-        double spd = Math.Sqrt(_w.Vx[sel] * _w.Vx[sel] + _w.Vy[sel] * _w.Vy[sel]);
-        _lblPushTarget.Text = $"Đang chọn: {sName} (Vx={_w.Vx[sel]:F3}, Vy={_w.Vy[sel]:F3}, v={spd:F3})";
     }
 }

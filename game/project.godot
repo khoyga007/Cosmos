@@ -9,6 +9,7 @@ config/features=PackedStringArray("4.7", "C#", "GL Compatibility")
 [display]
 window/size/viewport_width=1280
 window/size/viewport_height=800
+window/size/mode=2
 window/vsync/vsync_mode=0
 
 [dotnet]
