@@ -16,6 +16,8 @@ namespace Cosmos.Core;
 public sealed partial class Consts
 {
     public double CivDome = 0.05;        // population a space-age people can keep where no biosphere feeds them (domes)
+    public double CivDomeTemp = 288;     // K: where a dome is cheapest to keep [P]
+    public double CivDomeTempRange = 250; // K away from that at which no dome holds; in between its room shrinks in line [P]
     public double CivMetalUse = 5e-8;    // share of the planet's mass turned from metal into rock per year, at full population, from industry on
 
     public double ShipPop = 0.03;        // a space-age world with at least this population sends ships
@@ -44,6 +46,7 @@ public sealed partial class World
     public int[] ShipCiv = null!;   // >= 0: this object is a ship of that civilisation
     public int[] ShipTo = null!, ShipFrom = null!;
     public double[] ShipTech = null!, ShipBorn = null!;
+    double[] _launchYear = null!;   // year a world reached a ship-launching stage inside the stretch the civ rule just ran (NaN = not in that run); for dating only, not state
 
     const double ShipRhythmYears = 2; // [P] how often a world may send one
     static readonly string[] NameParts = { "ka", "ren", "tho", "lu", "mi", "sa", "vor", "el", "an", "dra", "qui", "zen", "ta", "no", "ri", "bel", "os", "ya", "ur", "she" };
@@ -51,7 +54,8 @@ public sealed partial class World
     void InitCiv(int capacity)
     {
         Civ = new int[capacity]; ShipCiv = new int[capacity]; ShipTo = new int[capacity]; ShipFrom = new int[capacity];
-        ShipTech = new double[capacity]; ShipBorn = new double[capacity];
+        ShipTech = new double[capacity]; ShipBorn = new double[capacity]; _launchYear = new double[capacity];
+        Array.Fill(_launchYear, double.NaN);
         Array.Fill(Civ, -1); Array.Fill(ShipCiv, -1);
     }
 
@@ -70,11 +74,11 @@ public sealed partial class World
         return n;
     }
 
-    void CivEvent(int slot, int civ, string change, double a = 0, double b = 0, double c = 0)
+    void CivEvent(int slot, int civ, string change, double a = 0, double b = 0, double c = 0, double year = double.NaN)
     {
-        LogEvent(slot, "civ", change, a, b, c);
+        LogEvent(slot, "civ", change, a, b, c, year);
         if (Chronicle.Count == ChronicleCapacity) Chronicle.RemoveAt(0);
-        Chronicle.Add((civ, new RuleEvent(Year, slot, "civ", change, a, b, c)));
+        Chronicle.Add((civ, new RuleEvent(double.IsNaN(year) ? Year : year, slot, "civ", change, a, b, c)));
     }
 
     // a people that rose here by itself: gets a name of its own
@@ -89,7 +93,32 @@ public sealed partial class World
     }
 
     // What the population can live on: the biosphere when there is enough of one; in the space age domes otherwise.
-    double CivRoom(int i) => Life[i] >= C.CivLifeMin / 5 ? Life[i] : (TechStage(i) < Stages.Count && Stages[TechStage(i)].CanDome ? C.CivDome : 0);
+    double CivRoom(int i) => Life[i] >= C.CivLifeMin / 5 ? Life[i]
+        : TechStage(i) < Stages.Count && Stages[TechStage(i)].CanDome ? DomeRoom(i, Civ[i]) : 0;
+
+    /// What a dome on world i can hold for this people. Three things decide it [P]:
+    ///   heat: full room at CivDomeTemp, none CivDomeTempRange away from it (Mercury's day side, a moon of Neptune);
+    ///   water: ice of its own (WaterIceMin) lets it stand alone;
+    ///   supply: without ice it lives on what ships bring, so only while the people still has a world whose
+    ///           biosphere feeds it. The home world gone = the dry colonies starve.
+    public double DomeRoom(int i, int civ)
+    {
+        if (C.CivDome <= 0 || double.IsNaN(Temp[i]) || !IsSolid(i)) return 0;
+        double heat = C.CivDomeTempRange > 0 ? 1 - Math.Abs(Temp[i] - C.CivDomeTemp) / C.CivDomeTempRange : 1;
+        if (!(heat > 0)) return 0;
+        if (Share(i, ElementRole.Ice) < C.WaterIceMin && !Fed(civ)) return 0;
+        return C.CivDome * Math.Min(1, heat);
+    }
+
+    // does this people have a world that feeds itself? Looked up at the head of each run of the civ and ship rules
+    readonly List<bool> _fed = new();
+    bool Fed(int civ) => (uint)civ < (uint)_fed.Count && _fed[civ];
+    void FindFed()
+    {
+        _fed.Clear(); for (int c = 0; c < Civs.Count; c++) _fed.Add(false);
+        for (int j = 0; j < N; j++)
+            if (Alive[j] && Pop[j] > 0 && (uint)Civ[j] < (uint)_fed.Count && Life[j] >= C.CivLifeMin / 5) _fed[Civ[j]] = true;
+    }
 
     // Industry eats metal: `lived` = population summed over the stretch (people * years). The mass stays (waste rock).
     void UseMetal(int i, double lived)
@@ -142,7 +171,7 @@ public sealed partial class World
         {
             if (j == from || !Alive[j] || !IsSolid(j)) continue;
             if (Pop[j] > 0) { if (Civ[j] == civ) own++; continue; }
-            if (C.CivDome <= 0 && Life[j] < C.CivLifeMin / 5) continue; // nothing to live on there
+            if (Life[j] < C.CivLifeMin / 5 && !(DomeRoom(j, civ) > 0)) continue; // nothing to live on there
             double dx = X[j] - X[from], dy = Y[j] - Y[from], d = dx * dx + dy * dy;
             if (d < bestD && d < reach * reach) { bestD = d; best = j; }
         }
@@ -156,6 +185,7 @@ public sealed partial class World
     void UpdateShips()
     {
         bool direct = _riding || RuleYears > 4 * ShipRhythmYears; // years went by in one go: no time to watch a ship fly
+        FindFed();
         if (!direct)
             for (int i = 0; i < N; i++)
                 if (Alive[i] && IsShip(i) && (!Ok(ShipTo[i]) || Year - ShipBorn[i] > C.ShipLifeYears))
@@ -177,7 +207,9 @@ public sealed partial class World
             }
             int goal = ShipGoal(i, civ, supply: !direct);
             if (goal < 0) continue;
-            void sent() { while (_civLaunches.Count < Civs.Count) _civLaunches.Add(0); if (_civLaunches[civ]++ == 0) CivEvent(i, civ, "civ.ship.first", civ, goal, Tech[i]); }
+            // in a jump the first ship leaves when its world reached the space age, not at the end of the chunk
+            double leftYear = direct && _launchYear[i] >= Year - RuleYears ? _launchYear[i] : Year;
+            void sent() { while (_civLaunches.Count < Civs.Count) _civLaunches.Add(0); if (_civLaunches[civ]++ == 0) CivEvent(i, civ, "civ.ship.first", civ, goal, Tech[i], leftYear); }
             if (direct) { sent(); Land(goal, civ, Tech[i]); continue; }
 
             double dx = X[goal] - X[i], dy = Y[goal] - Y[i], d = Math.Sqrt(dx * dx + dy * dy);

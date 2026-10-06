@@ -132,8 +132,8 @@ public sealed partial class World
             {
                 if (!fits || WaterYears[i] < C.LifeSparkYears) continue;
                 Life[i] = l = C.LifeSeed;
-                LogEvent(i, "life", "life.start", WaterYears[i], Temp[i], Share(i, ElementRole.Carbon));
                 dt = Math.Min(dt, WaterYears[i] - C.LifeSparkYears); // it has been alive since the wait was over
+                LogEvent(i, "life", "life.start", WaterYears[i], Temp[i], Share(i, ElementRole.Carbon), Year - dt);
             }
             int stage = LifeStage(i);
             double l0 = l;
@@ -155,12 +155,20 @@ public sealed partial class World
                 RichYears[i] = at >= 0 && at <= dt ? dt - at : 0;
             }
             int after = LifeStage(i);
-            if (after != stage) LogEvent(i, "life", $"life.stage.{stage}.{after}", l, Temp[i], Water[i]);
+            if (after > stage && fits && C.LifeGrowth > 0)
+                // each mark it grew past gets its own line, at the year the growth curve crossed it
+                for (int k = stage; k < after; k++)
+                {
+                    double mark = LifeStages[k], at = Math.Clamp(Math.Log((1 / l0 - 1) / (1 / mark - 1)) / C.LifeGrowth, 0, dt);
+                    LogEvent(i, "life", $"life.stage.{k}.{k + 1}", k + 1 == after ? l : mark, Temp[i], Water[i], Year - dt + at);
+                }
+            else if (after != stage) LogEvent(i, "life", $"life.stage.{stage}.{after}", l, Temp[i], Water[i]);
         }
     }
 
     void UpdateCiv()
     {
+        FindFed();
         for (int i = 0; i < N; i++)
         {
             if (!Alive[i] || !IsWorld(i)) continue;
@@ -170,22 +178,19 @@ public sealed partial class World
             {
                 if (Life[i] < C.CivLifeMin || RichYears[i] < C.CivRiseYears) continue;
                 Pop[i] = p = C.CivSeed; Tech[i] = 0; Civ[i] = NewCiv(i);
-                CivEvent(i, Civ[i], "civ.start", RichYears[i], room, Share(i, ElementRole.Metal));
                 dt = Math.Min(dt, RichYears[i] - C.CivRiseYears); // it has been there since the wait was over
+                CivEvent(i, Civ[i], "civ.start", RichYears[i], room, Share(i, ElementRole.Metal), Year - dt);
             }
             int stage = TechStage(i);
             double p0 = p, lived; // lived = population summed over the stretch (people * years), exact for both curves
             // the biosphere feeds the people: population follows what life there is, and starves when it fails
-            if (room > 0)
+            double PopAt(double years) => room > 0 ? room / (1 + (room / p0 - 1) * Math.Exp(-C.CivGrowth * years)) : p0 * Math.Exp(-years / C.CivDecayYears);
+            double LivedTo(double years)
             {
-                p = room / (1 + (room / p - 1) * Math.Exp(-C.CivGrowth * dt));
-                lived = C.CivGrowth > 0 ? room * dt + room / C.CivGrowth * Math.Log(p0 / p) : p0 * dt;
+                double q = PopAt(years);
+                return room > 0 ? (C.CivGrowth > 0 ? room * years + room / C.CivGrowth * Math.Log(p0 / q) : p0 * years) : C.CivDecayYears * (p0 - q);
             }
-            else
-            {
-                p *= Math.Exp(-dt / C.CivDecayYears);
-                lived = C.CivDecayYears * (p0 - p);
-            }
+            p = PopAt(dt); lived = LivedTo(dt);
             if (p < C.CivSeed / 10)
             {
                 Pop[i] = 0; Tech[i] = 0;
@@ -194,10 +199,23 @@ public sealed partial class World
             }
             Pop[i] = p;
             double metal = C.CivMetalRef > 0 ? Math.Min(1, Share(i, ElementRole.Metal) / C.CivMetalRef) : 1; // 0 = metal not needed
-            Tech[i] += C.CivTechRate * lived * metal;
+            // nothing to learn past the last stage: tech stops one full step above its threshold (a new row in Stages moves the ceiling)
+            double tech0 = Tech[i], rate = C.CivTechRate * metal, top = Stages.Count > 0 ? Stages[^1].TechThreshold + 1 : 0;
+            if (tech0 < top) Tech[i] = Math.Min(top, tech0 + rate * lived);
             if (stage < Stages.Count && Stages[stage].UsesMetal) UseMetal(i, lived);
             int after = TechStage(i);
-            if (after != stage) CivEvent(i, Civ[i], $"civ.stage.{stage}.{after}", Tech[i], p, Share(i, ElementRole.Metal));
+            _launchYear[i] = double.NaN;
+            if (after > stage && rate > 0)
+                // each stage it passed gets its own line, at the year its tech got there (found on the same curves)
+                for (int k = stage + 1; k <= after; k++)
+                {
+                    double need = (Stages[k].TechThreshold - tech0) / rate, lo = 0, hi = dt;
+                    for (int it = 0; it < 50; it++) { double mid = 0.5 * (lo + hi); if (LivedTo(mid) < need) lo = mid; else hi = mid; }
+                    double when = Year - dt + hi;
+                    CivEvent(i, Civ[i], $"civ.stage.{k - 1}.{k}", k == after ? Tech[i] : Stages[k].TechThreshold, PopAt(hi), Share(i, ElementRole.Metal), when);
+                    if (Stages[k].CanLaunchShips && !Stages[k - 1].CanLaunchShips) _launchYear[i] = when;
+                }
+            else if (after != stage) CivEvent(i, Civ[i], $"civ.stage.{stage}.{after}", Tech[i], p, Share(i, ElementRole.Metal));
         }
     }
     // Names, metal, ships and colonies: core/Civ.cs.
@@ -206,7 +224,7 @@ public sealed partial class World
     void EndSwallowedWorld(int i)
     {
         if (Life[i] > 0) LogEvent(i, "life", "life.end", Temp[i], Water[i], LifeStage(i));
-        if (Pop[i] > 0) CivEvent(i, Civ[i], "civ.end", 0, Temp[i], TechStage(i));
+        if (Pop[i] > 0) CivEvent(i, Civ[i], "civ.end", -1, Temp[i], TechStage(i)); // room -1 = its world was swallowed, it did not starve
         Life[i] = RichYears[i] = Pop[i] = Tech[i] = 0;
         Touched[i] = Year;
     }

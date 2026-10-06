@@ -266,7 +266,8 @@ public sealed partial class World
                 ScaleMatter(i, ElementRole.Ice, 0);
                 M[i] = newM;
                 SetRadius(i);
-                LogEvent(i, "comets", "comet.spent", Year, newM, R[i]);
+                // thousands of nameless belt rocks drying out at once would push everything else out of the journal
+                if (Name[i] != null || Attracts(i)) LogEvent(i, "comets", "comet.spent", Year, newM, R[i]);
             }
             else
             {

@@ -125,7 +125,8 @@ static class KindChecks
             Check(isCometBefore && isCometAfter && tail > 0 && lostIce && equalCuts,
                 $"Kuiper rock moved to 1 AU: class {w1.ClassOf(cometSlot)}, tail {tail:F2}, ice {initialIce:E2} -> {ice1Cut:E2} (1 cut {ice1Cut:E4} vs 200 cuts {ice200Cuts:E4}, diff {Math.Abs(ice1Cut - ice200Cuts):E2})");
 
-            // Long jump until comet is spent
+            // Long jump until comet is spent; only a comet somebody named gets a line (the nameless thousands would flood the log)
+            w1.Name[cometSlot] = "Halley";
             w1.Do(new Command(CmdKind.FastForward, Amount: 2e6));
             bool spentEvent = w1.Events.Any(e => e.ObjectSlot == cometSlot && e.RuleId == "comets" && e.Change == "comet.spent");
             bool noIce = w1.Comp[cometSlot * World.NElem + 1] == 0;

@@ -30,6 +30,7 @@ if (args.Length > 1 && args[0] == "jump-bench")
 if (args.Length > 0 && args[0] == "kinds") return KindChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "guards") return GuardChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "civtable") return CivTableChecks.Run() ? 0 : 1;
+if (args.Length > 0 && args[0] == "ships") return ShipChecks.Run() ? 0 : 1;
 bool allOk = true;
 void Check(bool ok, string line) { allOk &= ok; Console.WriteLine($"{(ok ? "OK    " : "FAILED")} {line}"); }
 
@@ -124,6 +125,7 @@ allOk &= ElementChecks.Run();
 allOk &= KindChecks.Run();
 allOk &= GuardChecks.Run();
 allOk &= CivTableChecks.Run();
+allOk &= ShipChecks.Run();
 allOk &= Audit.Run();
 return allOk ? 0 : 1;
 

@@ -60,8 +60,9 @@ static class LayerChecks
         for (int s = 0; s < 2000; s++) sol.Advance(H);
         Jump(sol, 5e5);
         string after = string.Join(", ", sol.Events.Skip(before).Where(e => e.ObjectSlot == earth && e.RuleId != "temperature").Select(e => $"{e.Change}@{e.Year:F0}"));
-        Check(sol.Life[earth] == 0 && Math.Abs(sol.Pop[earth] - sol.C.CivDome) < 1e-3 && !after.Contains("civ.end") && after.Contains("life.end"),
-            $"Earth pushed out: {sol.Temp[earth]:F0} K, water {(WaterState)sol.Water[earth]}, pop {sol.Pop[earth]:F3} under domes; then: {after}");
+        double dome = sol.DomeRoom(earth, sol.Civ[earth]); // a cold world holds fewer people under domes than a mild one
+        Check(sol.Life[earth] == 0 && dome > 0 && dome < sol.C.CivDome && Math.Abs(sol.Pop[earth] - dome) < 1e-3 && !after.Contains("civ.end") && after.Contains("life.end"),
+            $"Earth pushed out: {sol.Temp[earth]:F0} K, water {(WaterState)sol.Water[earth]}, pop {sol.Pop[earth]:F3} under domes (room {dome:F3} of {sol.C.CivDome}); then: {after}");
 
         // without domes the same throw ends them: on Earth, and on every colony
         {

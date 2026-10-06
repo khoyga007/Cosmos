@@ -11,6 +11,7 @@ public sealed partial class Consts
     // normalised to Sol's Earth; the god may tune every field through SetConst.
     public double LuminosityExponent = 3.5;
     public double TemperatureScale = 288;
+    public double CosmicBackground = 2.7;  // K: what empty space itself gives; nothing is colder, however far from any star
     public double FrozenEdge = 240;
     public double ScorchedEdge = 350;
 }
@@ -100,7 +101,8 @@ public sealed partial class World
                 double dx = X[i] - X[j], dy = Y[i] - Y[j], d2 = dx * dx + dy * dy;
                 if (d2 > 0) flux += _starLight[s] / d2;
             }
-            double before = Temp[i], after = C.TemperatureScale * Math.Sqrt(Math.Sqrt(flux));
+            double before = Temp[i], star = C.TemperatureScale * Math.Sqrt(Math.Sqrt(flux)), floor = StarPhaseOf(i) == StarPhase.None ? Math.Max(0, C.CosmicBackground) : 0; // a star or its corpse has its own surface number, this one is only what falls on it
+            double after = Math.Max(star, floor); // a lit world keeps its star's number to the bit; only the dark ones sit on the floor
             int band = (int)BandOf(after), oldBand = _temperatureBands[i];
             Temp[i] = after; _temperatureBands[i] = band;
             if (oldBand >= 0 && oldBand != band && KindOf(i) == Kind.Planet)
@@ -108,10 +110,11 @@ public sealed partial class World
         }
     }
 
-    public void LogEvent(int objectSlot, string ruleId, string change, double a = 0, double b = 0, double c = 0)
+    /// `year`: when it happened, for a rule whose one run stands for a long stretch and that knows the moment inside it.
+    public void LogEvent(int objectSlot, string ruleId, string change, double a = 0, double b = 0, double c = 0, double year = double.NaN)
     {
         if (_events.Count == EventCapacity) _events.RemoveAt(0);
-        _events.Add(new RuleEvent(Year, objectSlot, ruleId, change, a, b, c));
+        _events.Add(new RuleEvent(double.IsNaN(year) ? Year : year, objectSlot, ruleId, change, a, b, c));
     }
 
     void RunRules()

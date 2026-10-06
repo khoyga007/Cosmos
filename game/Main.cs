@@ -745,7 +745,7 @@ public partial class Main : Node2D
             float gr = MathF.Max(KindPx(kind), (float)radius * _zoom);
             DrawCircle(at, gr, ghost);
             DrawArc(at, gr + 3, 0, MathF.Tau, 24, new Color(1, 1, 1, 0.6f), 1);
-            DrawString(font, (placing ? _mouse : at) + new Vector2(gr + 12, 18), $"{GodUi.KindVi[(int)kind]} — {say}", HorizontalAlignment.Left, -1, 13, AimCol);
+            DrawString(font, (placing ? _mouse : at) + new Vector2(gr + 12, 18), $"{_ui.CreateRemnantName ?? GodUi.KindVi[(int)kind]} — {say}", HorizontalAlignment.Left, -1, 13, AimCol);
         }
     }
 

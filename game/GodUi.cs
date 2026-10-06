@@ -585,6 +585,8 @@ public partial class GodUi : CanvasLayer
             if (e.Change == "star.remnant.black") return $"{yr}lõi sụp thành [color=#ffb36d]lỗ đen[/color].";
         }
 
+        if (e.RuleId == "comets" && e.Change == "comet.spent") return $"{yr}băng đã bốc hơi hết, chỉ còn lại lõi đá.";
+
         return $"{yr}[{e.RuleId}] {e.Change}";
     }
 
@@ -620,6 +622,8 @@ public partial class GodUi : CanvasLayer
         }
         if (e.Change == "civ.colony")
             return $"{head}[color=#ffd700]{who} lập thuộc địa[/color]{(e.C < w.C.CivLifeMin / 5 ? " trong vòm kín" : " giữa sinh quyển sẵn có")}.";
+        if (e.Change == "civ.end" && e.A < 0)
+            return home ? $"{head}[color=#ff4444]{who} bị thiêu rụi cùng quê hương khi nó bị nuốt chửng.[/color]" : $"{head}[color=#ff4444]Thuộc địa của {who} mất cùng thế giới bị nuốt chửng.[/color]";
         if (e.Change == "civ.end")
             return home ? $"{head}[color=#ff4444]{who} diệt vong trên quê hương.[/color]" : $"{head}[color=#ff4444]Thuộc địa của {who} lụi tàn.[/color]";
         if (e.Change.StartsWith("civ.stage."))

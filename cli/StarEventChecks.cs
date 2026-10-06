@@ -9,20 +9,21 @@ static class StarEventChecks
     {
         bool ok = true;
         void Check(bool pass, string line) { ok &= pass; Console.WriteLine($"{(pass ? "OK    " : "FAILED")} star-events: {line}"); }
-        // Captured from the original 236b4db DLL; arbitrary births and exact remnant boundaries expose rounding drift.
+        // Arbitrary births and exact remnant boundaries expose rounding drift. Re-captured 2026-10-06 when Consts gained
+        // CosmicBackground/CivDomeTemp/CivDomeTempRange (every constant is in the hash); with those three left out the 236b4db values still matched.
         double[] births = { 1.23, 2.0000000000000004, 7.999999999, 8.0, 20.0, 20.0000001, 31.123 };
-        ulong[] legacy = { 0xAB3F1B0E1DDC4FE7, 0x25461FF74BA238F0, 0x4000912E9A592623, 0x3DA58C0D21ED76BA,
-            0x4FB1AC405F8DA510, 0xBF9824FE88F5F7C9, 0x1E9C60C37424E34E };
-        bool exact = true;
+        ulong[] legacy = { 0x1DB4604E88ACC8CA, 0xE29317D31FA0FA51, 0x03F0F2BC88866FD6, 0x56B53B3F8A6D4F53,
+            0xE5428827A641A0AD, 0xE0CFD74E273024A4, 0xBB02A1A98984530B };
+        bool exact = true; var got = new List<string>();
         for (int n = 0; n < births.Length; n++)
         {
             var w = new World(4, 1);
             w.Do(new Command(CmdKind.Create, Amount: births[n] * 50, Mix: w.Mix(("gas", 1)), Vx: .02, Vy: -.03));
             w.Do(new Command(CmdKind.SetConst, Name: "StarLifeScale", Amount: .01));
             w.Do(new Command(CmdKind.FastForward, Amount: w.StarLifetime(births[n] * 50) * 1.2));
-            exact &= w.Hash() == legacy[n];
+            exact &= w.Hash() == legacy[n]; got.Add($"0x{w.Hash():X16}");
         }
-        Check(exact, "seven arbitrary/boundary progenitor hashes remain bit-identical to the original DLL");
+        Check(exact, "seven arbitrary/boundary progenitor hashes remain bit-identical" + (exact ? "" : $"; now: {string.Join(", ", got)}"));
         bool Refused(IEnumerable<StarEvent> rows)
         {
             try { _ = new World(4, 1, starEvents: rows); return false; }

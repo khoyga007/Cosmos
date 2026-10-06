@@ -8,16 +8,17 @@ using Cosmos.Core;
 
 static class ElementChecks
 {
-    // Captured from 236b4db before replacing the material layout; includes real stepping, layers, edits and remnants.
-    static readonly ulong[] Legacy = { 0xE914BDC4B7FB0F4B, 0x63B5C44B467131D2, 0xE6AF00AE612FD0F1, 0x27291AD7151463EB,
-        0xF119D94EA5D83720, 0xE97790037CF3B6BC, 0x5FB9F47D0BB39F04, 0xB812A74856695F03, 0x6C866F3AA02536AC,
-        0x461923819FDE010D, 0x8D7EC8B03F5BE4C2 };
+    // Real stepping, layers, edits and remnants. Re-captured 2026-10-06: Consts gained three fields (all hashed); with them left out
+    // only sol0-life, sol0-edit and sol2000-jump moved (events now carry their own year, tech ceiling, dome rules).
+    static readonly ulong[] Legacy = { 0xA8A5409EE7031F06, 0x6DADA1B5A0DFE793, 0x8A6D07920D330C95, 0x8B40C7BE31DAEE76,
+        0x2EBF1A9252E4D9D9, 0x3BA2A247DDC969D5, 0xDBAD0EA94D819A73, 0xA4DE01401BFF0FF6, 0xDD1BA97B6DC46C9D,
+        0x77B9FC2B68ADC608, 0xC98E2688995DF287 };
 
     public static bool Run()
     {
         bool ok = true;
         void Check(bool pass, string line) { ok &= pass; Console.WriteLine($"{(pass ? "OK    " : "FAILED")} elements: {line}"); }
-        Check(Probe().Values.SequenceEqual(Legacy), "all eleven default-table hashes remain bit-identical (stars: 236b4db; Sol: since the scene lost its net momentum)");
+        Check(Probe().Values.SequenceEqual(Legacy), "all eleven default-table hashes remain bit-identical (captured 2026-10-06)");
         var source = ElementCatalog.Elements.ToList();
         source.Add(new Element("test", "Test", 4, 0x123456, ElementRole.None));
         var table = source.ToArray(); var w = new World(16, 5, source); source.Clear();
