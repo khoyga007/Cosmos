@@ -34,6 +34,13 @@ public partial class GodUi : CanvasLayer
     HSlider _sliderSeed = null!;
     Button _btnSeed = null!, _btnWipe = null!;
     Label _lblLife = null!;
+    VBoxContainer _objList = null!;
+    int _lastLive = -1;
+    long _lastMerges = -1;
+    int _lastEvents = -1;
+    int _lastStarSum = -1;
+    int _lastGenSum = -1;
+    int _lastSel = -1;
 
     // tools
     readonly Button[] _toolButtons = new Button[6];
@@ -154,8 +161,14 @@ public partial class GodUi : CanvasLayer
 
         BuildCreateTab();
         BuildObjectTab();
+        BuildCelestialTab();
         BuildUniverseTab();
         BuildEventsTab();
+
+        _tabs.TabChanged += idx =>
+        {
+            if (idx == 2) RefreshObjectListIfNeeded();
+        };
 
         ApplyPreset(2);
         UpdateCreating(false);
@@ -164,6 +177,7 @@ public partial class GodUi : CanvasLayer
     }
 
     public void TogglePanel() => _side.Visible = !_side.Visible;
+    public Rect2 GetSideRect() => _side.GetGlobalRect();
 
     VBoxContainer Tab(string title)
     {
@@ -408,6 +422,158 @@ public partial class GodUi : CanvasLayer
         _objBody.AddChild(Note("Gieo xong có sống nổi hay không là do nước, nhiệt độ và thành phần của nó."));
     }
 
+    void BuildCelestialTab()
+    {
+        var v = Tab("Thiên thể");
+        v.AddChild(new Label { Text = "Vật thể đáng kể" });
+        var scroll = new ScrollContainer
+        {
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+        };
+        _objList = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        _objList.AddThemeConstantOverride("separation", 3);
+        scroll.AddChild(_objList);
+        v.AddChild(scroll);
+    }
+
+    bool Live(int i) => i >= 0 && i < _w.N && _w.Alive[i];
+    public void ShowObjectTab() => _tabs.CurrentTab = 1;
+    public void ShowCelestialTab()
+    {
+        _tabs.CurrentTab = 2;
+        RefreshObjectListIfNeeded();
+    }
+
+    public void OnObjectRowClicked(int slot, int gen)
+    {
+        if (!Live(slot) || _w.Gen[slot] != gen)
+        {
+            RefreshObjectList();
+            return;
+        }
+        _main.JumpTo(slot);
+    }
+
+    (int Live, long Merges, int Events, int StarSum, int GenSum, int Sel) ComputeObjectSignature()
+    {
+        int starSum = 0, genSum = 0;
+        for (int i = 0; i < _w.N; i++)
+        {
+            if (_w.Alive[i])
+            {
+                genSum += _w.Gen[i];
+                starSum += (int)_w.StarPhaseOf(i);
+            }
+        }
+        return (_w.Live, _w.Merges, _w.Events.Count, starSum, genSum, _main.Selected);
+    }
+
+    public void RefreshObjectListIfNeeded()
+    {
+        if (_objList == null) return;
+        var sig = ComputeObjectSignature();
+        if (sig.Live == _lastLive && sig.Merges == _lastMerges && sig.Events == _lastEvents &&
+            sig.StarSum == _lastStarSum && sig.GenSum == _lastGenSum && sig.Sel == _lastSel)
+            return;
+
+        RefreshObjectList();
+    }
+
+    public void RefreshObjectList()
+    {
+        if (_objList == null) return;
+        foreach (Node c in _objList.GetChildren())
+        {
+            _objList.RemoveChild(c);
+            c.QueueFree();
+        }
+
+        int shipCount = 0;
+        int firstShip = -1;
+
+        for (int i = 0; i < _w.N; i++)
+        {
+            if (!_w.Alive[i]) continue;
+            if (_w.IsShip(i))
+            {
+                shipCount++;
+                if (firstShip < 0) firstShip = i;
+                continue;
+            }
+
+            bool starOrRemnant = _w.StarPhaseOf(i) != StarPhase.None || _w.KindOf(i) == Kind.Star;
+            bool planetOrMoon = _w.KindOf(i) is Kind.Planet or Kind.Moon;
+            bool named = !string.IsNullOrEmpty(_w.Name[i]);
+
+            if (starOrRemnant || planetOrMoon || named)
+            {
+                int slot = i;
+                int gen = _w.Gen[i];
+                string name = _w.Name[i] ?? $"Vật thể #{i}";
+                string kind = KindName(_w, i);
+                string text = $"{name}  ({kind})";
+
+                var b = Btn(text, () => OnObjectRowClicked(slot, gen));
+                b.SetMeta("slot", slot);
+                b.SetMeta("gen", gen);
+                b.SetMeta("name", name);
+                b.Alignment = HorizontalAlignment.Left;
+                if (slot == _main.Selected)
+                    b.Modulate = new Color(1f, 0.95f, 0.4f);
+                _objList.AddChild(b);
+            }
+        }
+
+        if (shipCount > 0)
+        {
+            int shipSlot = firstShip;
+            int shipGen = firstShip >= 0 ? _w.Gen[firstShip] : 0;
+            var b = Btn($"Tàu vũ trụ ({shipCount} tàu)", () =>
+            {
+                if (shipSlot >= 0 && Live(shipSlot) && _w.Gen[shipSlot] == shipGen)
+                    _main.JumpTo(shipSlot);
+            });
+            b.Alignment = HorizontalAlignment.Left;
+            _objList.AddChild(b);
+        }
+
+        var s = ComputeObjectSignature();
+        _lastLive = s.Live;
+        _lastMerges = s.Merges;
+        _lastEvents = s.Events;
+        _lastStarSum = s.StarSum;
+        _lastGenSum = s.GenSum;
+        _lastSel = s.Sel;
+    }
+
+    public Button? FindObjectButton(string name)
+    {
+        if (_objList == null) return null;
+        foreach (Node c in _objList.GetChildren())
+        {
+            if (c.IsQueuedForDeletion()) continue;
+            if (c is Button b)
+            {
+                if (b.HasMeta("name") && (string)b.GetMeta("name") == name) return b;
+                if (b.Text.Contains(name)) return b;
+            }
+        }
+        return null;
+    }
+
+    public Button? FindObjectButton(int slot)
+    {
+        if (_objList == null) return null;
+        foreach (Node c in _objList.GetChildren())
+        {
+            if (c.IsQueuedForDeletion()) continue;
+            if (c is Button b && b.HasMeta("slot") && (int)b.GetMeta("slot") == slot) return b;
+        }
+        return null;
+    }
+
     bool Sel(out int i)
     {
         i = _main.Selected;
@@ -450,10 +616,23 @@ public partial class GodUi : CanvasLayer
             : "Sự sống: chưa có.";
     }
 
-    public void RefreshSelection() { UpdateObjectTab(); }
+    public void RefreshSelection()
+    {
+        UpdateObjectTab();
+        RefreshObjectListIfNeeded();
+    }
 
     /// Numbers that move by themselves (called a few times a second).
-    public void RefreshLive() { if (_side.Visible && _tabs.CurrentTab == 1) UpdateObjectTab(); }
+    public void RefreshLive()
+    {
+        if (_side.Visible)
+        {
+            if (_tabs.CurrentTab == 1)
+                UpdateObjectTab();
+            else if (_tabs.CurrentTab == 2)
+                RefreshObjectListIfNeeded();
+        }
+    }
 
     // ---- universe: rules and constants ----
 
