@@ -59,3 +59,5 @@ READ `SPEC.md` FIRST (game, model, engine decisions, round-1 work packages). Thi
 - Reactions per awareness level: LATER (Yang).
 - Undecided by Yang: civics, which circumstances push which ethic, stubbornness values, what each reaction is, first contact content, "lộ diện".
 - Core today: Pop = 0..1 fill, one Tech number, 4 stages, all civs identical except name; only interaction = industry eats metal.
+- Empire-to-empire interaction: take ALL of WorldBox's kingdom layer, combined with the Stellaris ethics: self-running (god never commands), pairwise opinion with named reasons, wars of several kinds with winners/losers and territory changing hands, alliances, internal revolt/secession, succession, ruler traits, culture/religion/language spreading independent of borders, god tools on relations (force friendship/spite, madness, bless, curse), world chronicle.
+- OPEN, asked Yang: what is the unit that changes hands / revolts — a whole world (planet = WorldBox city), or nations inside one planet? Core today: one civ per world, one star system only.
