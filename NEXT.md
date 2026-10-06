@@ -20,6 +20,13 @@ READ `SPEC.md` FIRST (game, model, engine decisions, round-1 work packages). Thi
 - Claire next, AFTER Yang has looked: "lộ diện" slice (civ reacts to the god), snapshot/rewind, civ uses metal. SPEC §4 OPEN list still open.
 - Yang's standing answers 06/10: layer content = Claire decides; Web-chat ideas allowed if good; old web folders = keep.
 
+## 06/10 session 4 — civilisation acts
+- SPEC §2c built by Claire: names + chronicle, metal use, domes, ships as objects, colonies. Checks: `cli` 56 OK; `--selftest` PASS; `--uitest` 22 OK (click takes a ship, Delete removes it, Earth panel shows people + chronicle); bench ~113 fps @5010.
+- Seen in numbers, NOT by eye: Sol +1e6 yr -> people on Earth + domes on Mercury/Venus/Mars/Moon; stepping: ship Earth->Mars 0.1-0.7 yr, constant supply traffic (1 launch / 2 yr / world).
+- Changed behaviour: Earth thrown out no longer ends a space-age people (domes 5%); farming/industry people still die.
+- Yang to judge: ship speed/traffic, dome size, panel length (chronicle up to 9 lines).
+- Selica P3 report on bridge (18 defect on OLD base fab4bc2, re-measuring on master): setconst-density-0, setconst-yeartime-0, swept-phase... wait for her rebased run before fixing.
+
 ## Lessons (process)
 - Yang explaining an idea over several messages = listen only; build on his explicit go. (06/10: core rewritten mid-explanation, Yang objected; commit f0817b1 kept because it matched.)
 - Smallest playable slice before infrastructure.

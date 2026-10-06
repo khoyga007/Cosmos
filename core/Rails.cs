@@ -27,6 +27,7 @@ public sealed partial class World
     // JumpSamples (the cost of a jump is chunks * objects).
     void Jump(double t)
     {
+        LandShips(); // a trip is short next to a jump: whoever is flying arrives
         double fastest = double.MaxValue;
         foreach (Rule r in Rules) if (r.Enabled) fastest = Math.Min(fastest, r.RhythmYears);
         double years = t / C.YearTime;

@@ -127,6 +127,7 @@ public sealed partial class World
     // the heavier one keeps its identity; mass, momentum and matter are summed
     void Merge(int a, int b)
     {
+        if (IsShip(a) || IsShip(b)) { if (IsShip(a)) ShipArrives(a, b); else ShipArrives(b, a); return; }
         int k = M[a] >= M[b] ? a : b, d = k == a ? b : a;
         double m = M[k] + M[d];
         X[k] = (X[k] * M[k] + X[d] * M[d]) / m; Y[k] = (Y[k] * M[k] + Y[d] * M[d]) / m;
@@ -190,6 +191,7 @@ public sealed partial class World
     {
         if (!double.IsFinite(h) || h < 0 || !double.IsFinite(C.YearTime) || C.YearTime <= 0)
             throw new ArgumentOutOfRangeException(nameof(h), "Advance requires finite non-negative time and positive YearTime.");
+        SteerShips(h);
         double hs = h / Sub, g = C.G;
         for (int sub = 0; sub < Sub; sub++)
         {

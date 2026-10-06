@@ -22,12 +22,30 @@ static class LayerChecks
         string waters = string.Join(" ", Enumerable.Range(1, 9).Select(i => $"{sol.Name[i]}={(WaterState)sol.Water[i]}"));
         Check(Enumerable.Range(1, 9).All(i => (sol.Water[i] == (int)WaterState.Liquid) == (i == earth)) && sol.Events.Count == 0, waters);
 
-        // a million years, untouched: life then a civilisation on Earth, nowhere else
+        // a million years, untouched: life then a civilisation on Earth; life nowhere else, people only where ships took them
+        double metal0 = sol.Share(earth, 3), mass0 = sol.M[earth];
         Jump(sol, 1e6);
-        bool onlyEarth = Enumerable.Range(0, sol.N).All(i => i == earth || sol.Life[i] == 0 && sol.Pop[i] == 0);
+        bool onlyEarth = Enumerable.Range(0, sol.N).All(i => i == earth || sol.Life[i] == 0 && (sol.Pop[i] == 0 || sol.IsSolid(i) && sol.Civ[i] == sol.Civ[earth]));
         Check(onlyEarth && sol.Life[earth] > 0.9 && sol.Pop[earth] > 0.5 && sol.TechStage(earth) == World.MaxTechStage
             && Story(sol, earth).StartsWith("life.start@") && Story(sol, earth).Contains("civ.start@"),
             $"Sol + 1e6 years: Earth life {sol.Life[earth]:F3} pop {sol.Pop[earth]:F3} tech {sol.Tech[earth]:F1}; story: {Story(sol, earth)}");
+
+        // the civilisation: a name, metal eaten (mass kept), colonies on every solid world, a chronicle of its own
+        {
+            int civ = sol.Civ[earth];
+            var same = World.SolSystem(0, 1234); Jump(same, 1e6);
+            int[] solid = Enumerable.Range(0, sol.N).Where(i => i != earth && sol.IsSolid(i)).ToArray();
+            string colonies = string.Join(" ", solid.Select(i => $"{sol.Name[i]}={sol.Pop[i]:F3}"));
+            string chron = string.Join(", ", sol.Chronicle.Where(c => c.Civ == civ).Select(c => $"{c.Event.Change}@{c.Event.Year:F0}/{sol.Name[c.Event.ObjectSlot]}"));
+            Check(sol.Civs.Count == 1 && civ == 0 && sol.Civs[0].Home == earth && sol.Civs[0].Name.Length >= 4 && same.Civs[0].Name == sol.Civs[0].Name,
+                $"one civilisation, named {sol.Civs[0].Name}, home {sol.Name[sol.Civs[0].Home]}, born year {sol.Civs[0].BornYear:F0}; same seed, same name");
+            Check(sol.Share(earth, 3) < metal0 - 0.005 && sol.Share(earth, 3) > 0 && sol.M[earth] == mass0,
+                $"industry ate metal: share {metal0:F3} -> {sol.Share(earth, 3):F3}, mass unchanged");
+            Check(solid.Length == 4 && solid.All(i => sol.Pop[i] > 0 && sol.Pop[i] <= sol.C.CivDome * 1.001 && sol.Civ[i] == civ) && sol.WorldsOf(civ) == 5 && sol.Live == 10,
+                $"colonies under domes, no ship objects left by a jump: {colonies}");
+            Check(chron.Contains("civ.start@") && chron.Contains("civ.ship.first@") && sol.Chronicle.Count(c => c.Event.Change == "civ.colony") == 4,
+                $"chronicle: {chron}");
+        }
 
         // the same million years in ten jumps or as stepping-size pieces must tell the same story
         var ten = World.SolSystem(0, 1234);
@@ -35,15 +53,53 @@ static class LayerChecks
         Check(Math.Abs(ten.Life[earth] - sol.Life[earth]) < 0.02 && Math.Abs(ten.Pop[earth] - sol.Pop[earth]) < 0.02 && ten.TechStage(earth) == sol.TechStage(earth),
             $"ten jumps of 1e5: life {ten.Life[earth]:F3} pop {ten.Pop[earth]:F3} tech {ten.Tech[earth]:F1}; story: {Story(ten, earth)}");
 
-        // the god throws Earth outward: water freezes, life dies, the civilisation with it
+        // the god throws Earth outward: water freezes, life dies; a space-age people lives on under domes
         double dx = sol.X[earth] - sol.X[0], dy = sol.Y[earth] - sol.Y[0], d = Math.Sqrt(dx * dx + dy * dy);
         sol.Do(new Command(CmdKind.Push, Target: earth, Vx: -dy / d * 0.25, Vy: dx / d * 0.25));
         int before = sol.Events.Count;
         for (int s = 0; s < 2000; s++) sol.Advance(H);
         Jump(sol, 5e5);
         string after = string.Join(", ", sol.Events.Skip(before).Where(e => e.ObjectSlot == earth && e.RuleId != "temperature").Select(e => $"{e.Change}@{e.Year:F0}"));
-        Check(sol.Life[earth] == 0 && sol.Pop[earth] == 0 && after.Contains("civ.end") && after.Contains("life.end"),
-            $"Earth pushed out: {sol.Temp[earth]:F0} K, water {(WaterState)sol.Water[earth]}; then: {after}");
+        Check(sol.Life[earth] == 0 && Math.Abs(sol.Pop[earth] - sol.C.CivDome) < 1e-3 && !after.Contains("civ.end") && after.Contains("life.end"),
+            $"Earth pushed out: {sol.Temp[earth]:F0} K, water {(WaterState)sol.Water[earth]}, pop {sol.Pop[earth]:F3} under domes; then: {after}");
+
+        // without domes the same throw ends them: on Earth, and on every colony
+        {
+            var w = World.SolSystem(0, 1234);
+            w.Do(new Command(CmdKind.SetConst, Name: "CivDome", Amount: 0));
+            Jump(w, 1e6);
+            int colonised = w.Chronicle.Count(c => c.Event.Change == "civ.colony");
+            double ex = w.X[earth] - w.X[0], ey = w.Y[earth] - w.Y[0], ed = Math.Sqrt(ex * ex + ey * ey);
+            w.Do(new Command(CmdKind.Push, Target: earth, Vx: -ey / ed * 0.25, Vy: ex / ed * 0.25));
+            for (int s = 0; s < 2000; s++) w.Advance(H);
+            Jump(w, 5e5);
+            Check(w.Pop[earth] == 0 && Story(w, earth).Contains("civ.end") && w.WorldsOf(0) == 0 && colonised == 0,
+                $"CivDome 0: Earth pop {w.Pop[earth]:F3}, worlds left {w.WorldsOf(0)}, colonies ever founded {colonised}, ends logged {w.Chronicle.Count(c => c.Event.Change == "civ.end")}");
+        }
+
+        // stepping: ships are objects. They fly, land, found colonies; the god can remove one; all of it replays.
+        {
+            var w = World.SolSystem(0, 1234);
+            w.Do(new Command(CmdKind.SetConst, Name: "ShipPop", Amount: 2)); // no ships during the jump
+            Jump(w, 6.95e5); // just into the space age
+            w.Do(new Command(CmdKind.SetConst, Name: "ShipPop", Amount: 0.03));
+            int civ = w.Civ[earth], had = w.WorldsOf(civ), seen = 0, maxFlying = 0, removed = -1; double removedAt = 0;
+            for (int s = 0; s < 40000; s++)
+            {
+                w.Advance(H);
+                int flying = 0, first = -1;
+                for (int i = 0; i < w.N; i++) if (w.Alive[i] && w.IsShip(i)) { flying++; if (first < 0) first = i; }
+                maxFlying = Math.Max(maxFlying, flying); if (flying > 0) seen++;
+                if (removed < 0 && first >= 0 && s > 600) { removed = w.Do(new Command(CmdKind.Remove, Target: first)); removedAt = w.Year; }
+            }
+            string where = string.Join(" ", Enumerable.Range(1, 9).Where(i => w.Pop[i] > 0).Select(i => $"{w.Name[i]}={w.Pop[i]:F4}"));
+            Check(seen > 0 && maxFlying <= 2 * 5 && removed >= 0 && had == 1 && w.WorldsOf(civ) == 5,
+                $"ships flown over {40000 * H / w.C.YearTime:F0} years: worlds {had} -> {w.WorldsOf(civ)} ({where}), most in flight {maxFlying}, steps with a ship up {seen}, god removed one in year {removedAt:F1}");
+            var r = World.SolSystem(0, 1234); int next = 0;
+            for (int s = 0; s < 40000; s++) { r.Replay(w.Journal, ref next); r.Advance(H); }
+            r.Replay(w.Journal, ref next);
+            Check(r.Hash() == w.Hash() && r.Chronicle.SequenceEqual(w.Chronicle), $"ships replay from the journal: {w.Hash():X16} / {r.Hash():X16}");
+        }
 
         // seeding: life put on frozen Mars dies out; put on a fitting planet it takes hold without the long wait
         var seed = World.SolSystem(0, 1234);

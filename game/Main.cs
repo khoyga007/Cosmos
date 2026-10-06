@@ -208,7 +208,15 @@ public partial class Main : Node2D
     // Bodies win over rocks: with 5000 rocks on screen a click near a planet must not land on a pebble.
     int Pick(Vector2 at)
     {
-        int best = -1; float bestD = 10;
+        int best = -1; float bestD = 8;
+        for (int i = 0; i < _w.N; i++)
+        {
+            if (!_w.Alive[i] || !_w.IsShip(i)) continue;
+            float d = Screen(i).DistanceTo(at);
+            if (d < bestD) { bestD = d; best = i; }
+        }
+        if (best >= 0) return best;
+        bestD = 10;
         for (int i = 0; i < _w.N; i++)
         {
             if (!_w.Alive[i] || !_w.Attracts(i)) continue;
@@ -300,6 +308,10 @@ public partial class Main : Node2D
         }
     }
 
+    static readonly Color ShipCol = new(1f, 0.92f, 0.45f);
+    const int ChronicleLines = 9;
+    readonly System.Collections.Generic.List<int> _lines = new();
+
     string PanelText()
     {
         var sb = new System.Text.StringBuilder();
@@ -310,8 +322,22 @@ public partial class Main : Node2D
             return sb.ToString();
         }
         int i = _sel; double m = _w.M[i];
-        sb.Append($"[b]{NameOf(i)}[/b]   {GodUi.KindVi[(int)_w.KindOf(i)]}{(_follow == i ? "   [color=#9aa4c0](đang bám theo)[/color]" : "")}\n");
+        sb.Append($"[b]{NameOf(i)}[/b]   {(_w.IsShip(i) ? "Tàu vũ trụ" : GodUi.KindVi[(int)_w.KindOf(i)])}{(_follow == i ? "   [color=#9aa4c0](đang bám theo)[/color]" : "")}\n");
         sb.Append($"khối lượng {m / World.EarthMass:G4} Trái Đất   bán kính {_w.R[i]:G3}\n");
+        if (_w.IsShip(i))
+        {
+            int to = _w.ShipTo[i], from = _w.ShipFrom[i];
+            sb.Append($"[color=#ffd700]Tàu của văn minh {_w.Civs[_w.ShipCiv[i]].Name}[/color]\n");
+            if (Live(from)) sb.Append($"rời {NameOf(from)} năm {_w.ShipBorn[i]:N1}\n");
+            if (Live(to))
+            {
+                double tx = _w.X[to] - _w.X[i], ty = _w.Y[to] - _w.Y[i];
+                sb.Append($"đang tới {NameOf(to)}, còn cách {Math.Sqrt(tx * tx + ty * ty):G3}\n");
+                sb.Append(_w.Pop[to] > 0 ? "chở tri thức và tiếp tế cho thuộc địa\n" : "chở người đi lập thuộc địa\n");
+            }
+            sb.Append("[color=#9aa4c0]Tàu tự lái bằng động cơ. Anh vẫn đẩy, hút, di dời, xoá nó được.[/color]\n");
+            return sb.ToString();
+        }
         int p = GodTools.PrimaryAt(_w, _w.X[i], _w.Y[i], m, i);
         if (p >= 0)
         {
@@ -332,8 +358,28 @@ public partial class Main : Node2D
             else
                 sb.Append($"[color=#888888]Sự sống:[/color] Chưa có (nước lỏng {_w.WaterYears[i]:N0} năm)\n");
 
-            if (_w.Pop[i] > 0)
-                sb.Append($"[color=#ffd700]Văn minh:[/color] dân số {_w.Pop[i] * 100:F1}% — {GodUi.TechStageVi[_w.TechStage(i)]} (công nghệ {_w.Tech[i]:F1})\n");
+            int civ = _w.Civ[i];
+            if (civ >= 0)
+            {
+                CivInfo info = _w.Civs[civ];
+                bool home = info.Home == i;
+                if (_w.Pop[i] > 0)
+                {
+                    sb.Append($"[color=#ffd700]Văn minh {info.Name}[/color] — {(home ? "quê hương" : $"thuộc địa (quê hương: {(Live(info.Home) ? NameOf(info.Home) : "đã mất")})")}\n");
+                    sb.Append($"dân số {_w.Pop[i] * 100:F2}% — {GodUi.TechStageVi[_w.TechStage(i)]} (công nghệ {_w.Tech[i]:F1}){(_w.Life[i] < _w.C.CivLifeMin / 5 ? " — sống trong vòm kín" : "")}\n");
+                }
+                else sb.Append($"[color=#888888]Văn minh {info.Name} từng sống ở đây.[/color]\n");
+                sb.Append($"ra đời năm {info.BornYear:N0}, đang sống trên {_w.WorldsOf(civ)} thế giới\n");
+                sb.Append("[color=#ffd700]Niên biểu:[/color]\n");
+                // oldest first; when it is long, the birth and then the latest lines
+                _lines.Clear();
+                for (int k = 0; k < _w.Chronicle.Count; k++) if (_w.Chronicle[k].Civ == civ) _lines.Add(k);
+                for (int k = 0; k < _lines.Count; k++)
+                {
+                    if (_lines.Count > ChronicleLines && k == 1) { sb.Append("  …\n"); k = _lines.Count - ChronicleLines + 1; }
+                    sb.Append("  ").Append(GodUi.CivLine(_w, _w.Chronicle[_lines[k]].Event)).Append('\n');
+                }
+            }
         }
 
         int g = _w.Grp[i];
@@ -414,6 +460,9 @@ public partial class Main : Node2D
         }
         DrawSetTransform(Vector2.Zero);
 
+        // a moon's labels are dropped while it sits on top of its planet on screen
+        bool far(int i, Vector2 p) => !(_w.Par[i] >= 0 && _w.Par[i] < _w.N && _w.Alive[_w.Par[i]]) || Screen(_w.Par[i]).DistanceTo(p) > 30;
+
         for (int i = 0; i < _w.N; i++)
         {
             if (!_w.Alive[i] || !_w.Attracts(i)) continue;
@@ -434,7 +483,10 @@ public partial class Main : Node2D
                 if (_w.Pop[i] > 0)
                 {
                     DrawArc(p, r + 4, 0, MathF.Tau, 28, new Color(1f, 0.85f, 0.2f, 0.95f), 1.5f);
-                    DrawString(font, p + new Vector2(r + 6, -10), "văn minh", HorizontalAlignment.Left, -1, 11, new Color(1f, 0.85f, 0.2f, 0.95f));
+                    int civ = _w.Civ[i];
+                    string tag = civ < 0 ? "văn minh" : _w.Civs[civ].Home == i ? _w.Civs[civ].Name : $"thuộc địa {_w.Civs[civ].Name}";
+                    if (kind != Kind.Moon || far(i, p))
+                        DrawString(font, p + new Vector2(r + 6, -10), tag, HorizontalAlignment.Left, -1, 11, new Color(1f, 0.85f, 0.2f, 0.95f));
                 }
                 else if (_w.Life[i] > 0)
                 {
@@ -443,11 +495,17 @@ public partial class Main : Node2D
                 }
             }
 
-            bool far = true;
-            if (kind == Kind.Moon && _w.Par[i] >= 0 && _w.Par[i] < _w.N && _w.Alive[_w.Par[i]])
-                far = Screen(_w.Par[i]).DistanceTo(p) > 30;
-            if (kind != Kind.Star && far)
+            if (kind != Kind.Star && (kind != Kind.Moon || far(i, p)))
                 DrawString(font, p + new Vector2(r + 6, 4), NameOf(i), HorizontalAlignment.Left, -1, 13, new Color(1, 1, 1, 0.75f));
+        }
+
+        // Ships: a small diamond, and for the selected one a line to where it is going
+        for (int i = 0; i < _w.N; i++)
+        {
+            if (!_w.Alive[i] || !_w.IsShip(i)) continue;
+            Vector2 p = Screen(i);
+            DrawColoredPolygon(new[] { p + new Vector2(0, -5), p + new Vector2(4, 0), p + new Vector2(0, 5), p + new Vector2(-4, 0) }, ShipCol);
+            if (i == _sel && Live(_w.ShipTo[i])) DrawDashedLine(p, Screen(_w.ShipTo[i]), new Color(ShipCol.R, ShipCol.G, ShipCol.B, 0.5f), 1, 6);
         }
 
         // Selection ring
@@ -840,6 +898,30 @@ public partial class Main : Node2D
         else Say(false, "hand: no rocks to try on (run with --rocks)");
         Key(Godot.Key.Escape);
         Say(_tool == Tool.Select, "Esc drops the tool");
+
+        // civilisation: after the jump Earth carries a named people with a chronicle; in stepping its ships are
+        // objects on screen that a click takes before the planet next to them
+        GodTools.FastForward(_w, 7e5);
+        Home(); Click(Screen(earth));
+        string civPanel = PanelText();
+        int civ = _w.Civ[earth];
+        Say(_sel == earth && civ >= 0 && civPanel.Contains($"Văn minh {_w.Civs[civ].Name}") && civPanel.Contains("Niên biểu") && civPanel.Contains("trỗi dậy"),
+            $"Earth panel after 7e5 years: people {(civ >= 0 ? _w.Civs[civ].Name : "none")}, {_w.WorldsOf(civ)} worlds, chronicle shown");
+        int ship = -1;
+        for (int k = 0; k < 6000 && ship < 0; k++)
+        {
+            _w.Advance(0.5);
+            for (int i = 0; i < _w.N; i++) if (_w.Alive[i] && _w.IsShip(i) && _w.ShipTo[i] != 9 && Screen(i).DistanceTo(Screen(earth)) > 12) ship = i;
+        }
+        if (ship >= 0)
+        {
+            Click(Screen(ship) + new Vector2(3, 0));
+            string shipPanel = PanelText();
+            int n0 = _w.Live;
+            Key(Godot.Key.Delete);
+            Say(shipPanel.Contains("Tàu của văn minh") && shipPanel.Contains("đang tới") && _w.Live == n0 - 1, $"ship: click took it ({shipPanel.Split((char)10)[0]}), Delete removed it");
+        }
+        else Say(false, "ship: none seen in 6000 steps");
 
         // everything above went through the journal
         var fresh = World.SolSystem(_rocks, 1234); int next = 0;

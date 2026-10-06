@@ -36,6 +36,15 @@ Only planets + moons carry layers (`IsWorld`: pulls others, not a star). Code `c
 - Events: `water.<old>.<new>` (0 none 1 ice 2 liquid 3 vapour) · `life.start` `life.stage.<a>.<b>` `life.end` · `civ.start` `civ.stage.<a>.<b>` `civ.end` · `impact`.
 - NOT built, next slices [C]: civ uses up the planet's metal; civ over several planets (shared object, §2); "lộ diện" = the god shows itself, the civ reacts (belief, fear) — Yang's 05/10 requirement that civs know the god exists, to design after he has seen this slice; "tua lại" = rewind = snapshot (§3 LATER).
 
+### 2c. Civilisation acts — `core/Civ.cs` [C][P] (Yang 06/10: "làm hướng 2 đi, kèm hướng 1"; "lộ diện" NOT now)
+- Identity: `Civs[]` (Name from world rng out of invented syllables, Home slot, BornYear); `Civ[slot]` = people on a world (kept after `civ.end`). `Chronicle` = per-civ event list (not hashed, same events as `Events`).
+- Metal: from stage 2 a world turns metal into rock, `CivMetalUse` * population-years * mass; mass conserved.
+- Domes: stage-3 people without a biosphere hold `CivDome` (0.05) instead of dying. `CivDome` 0 = old behaviour.
+- Rule `ships` (2 yr): stage-3 world with Pop >= `ShipPop` sends a ship to the nearest empty solid world (rock+metal >= LifeSolidMin); none left -> supply runs to own worlds (raise Tech to home's). Landing on empty world = colony (Pop = CivSeed, ship's Tech), event `civ.colony`; first ship of a people = `civ.ship.first`.
+- Ship = ordinary object (mass `ShipMass`, no pull) + `ShipCiv/ShipTo/ShipFrom/ShipTech/ShipBorn`. Engine `SteerShips(h)` at top of `Advance`: wanted velocity = goal's velocity + closing speed min(`ShipSpeed`, sqrt(0.5*`ShipThrust`*d)), turn limited by thrust*h; inside 1.5 R of a star it holds off sideways until the goal comes round. Touching any pulling body = `Merge` -> `ShipArrives` (lands if solid, else lost; no mass added, no impact). Lost after `ShipLifeYears`.
+- Fast-forward: `Jump` lands all flying ships first; rule then founds colonies directly (one per world per run), no objects.
+- NOT built: contact between two peoples, war, trade, colony independence, moving a planet with its ships.
+
 ## 3. Engine decisions (Claire's, delegated)
 - Godot 4.7.2 .NET (`E:\Godot\Godot_v4.7.2-stable_mono_win64\`) = shell. Sim core = plain C# library `core/`, NO Godot types, runs headless in `cli/`.
 - Sim 2D, one plane per world. Fixed step, seeded stream, sequential → a run repeats exactly (cli "repeat" check must stay green).

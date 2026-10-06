@@ -514,23 +514,7 @@ public partial class GodUi : CanvasLayer
             return $"{yr}Sự sống thay đổi ({e.Change}).";
         }
 
-        if (e.RuleId == "civ")
-        {
-            if (e.Change == "civ.start")
-                return $"{yr}[color=#ffd700]Nền văn minh đầu tiên trỗi dậy[/color] sau {e.A:N0} năm sinh quyển cực thịnh!";
-            if (e.Change.StartsWith("civ.stage."))
-            {
-                var parts = e.Change.Split('.');
-                if (parts.Length == 4 && int.TryParse(parts[2], out int o) && int.TryParse(parts[3], out int n))
-                {
-                    string newStage = n >= 0 && n < TechStageVi.Length ? TechStageVi[n] : $"Cấp {n}";
-                    return $"{yr}Văn minh bước vào [color=#ffd700][b]{newStage}[/b][/color] (dân số {e.B * 100:F1}%).";
-                }
-            }
-            if (e.Change == "civ.end")
-                return $"{yr}[color=#ff4444]Nền văn minh sụp đổ và diệt vong![/color]";
-            return $"{yr}Văn minh biến chuyển ({e.Change}).";
-        }
+        if (e.RuleId == "civ") return yr + CivLine(w, e, false);
 
         if (e.RuleId == "impact")
         {
@@ -538,6 +522,41 @@ public partial class GodUi : CanvasLayer
         }
 
         return $"{yr}[{e.RuleId}] {e.Change}";
+    }
+
+    /// One line of a civilisation's story. `dated`: start with the year and the place (the object panel's chronicle);
+    /// the journal already has both in front.
+    public static string CivLine(World w, RuleEvent e, bool dated = true)
+    {
+        int slot = e.ObjectSlot;
+        string place = slot >= 0 && slot < w.N ? (w.Name[slot] ?? $"Vật thể #{slot}") : "?";
+        int civ = slot >= 0 && slot < w.N ? w.Civ[slot] : -1;
+        if (e.Change is "civ.colony" or "civ.ship.first") civ = (int)e.A;
+        string who = civ >= 0 && civ < w.Civs.Count ? w.Civs[civ].Name : "?";
+        bool home = civ >= 0 && civ < w.Civs.Count && w.Civs[civ].Home == slot;
+        string head = dated ? $"năm {e.Year:N0}, {place}: " : "";
+        if (e.Change == "civ.start")
+            return $"{head}[color=#ffd700]Văn minh {who} trỗi dậy[/color] sau {e.A:N0} năm sinh quyển cực thịnh.";
+        if (e.Change == "civ.ship.first")
+        {
+            int goal = (int)e.B;
+            string to = goal >= 0 && goal < w.N && w.Name[goal] != null ? w.Name[goal] : "một thế giới khác";
+            return $"{head}[color=#ffd700]{who} phóng con tàu đầu tiên[/color], hướng tới {to}.";
+        }
+        if (e.Change == "civ.colony")
+            return $"{head}[color=#ffd700]{who} lập thuộc địa[/color]{(e.C < w.C.CivLifeMin / 5 ? " trong vòm kín" : " giữa sinh quyển sẵn có")}.";
+        if (e.Change == "civ.end")
+            return home ? $"{head}[color=#ff4444]{who} diệt vong trên quê hương.[/color]" : $"{head}[color=#ff4444]Thuộc địa của {who} lụi tàn.[/color]";
+        if (e.Change.StartsWith("civ.stage."))
+        {
+            var parts = e.Change.Split('.');
+            if (parts.Length == 4 && int.TryParse(parts[3], out int n))
+            {
+                string stage = n >= 0 && n < TechStageVi.Length ? TechStageVi[n] : $"Cấp {n}";
+                return $"{head}{who} bước vào [color=#ffd700][b]{stage}[/b][/color] (dân số {e.B * 100:F1}%).";
+            }
+        }
+        return $"{head}{who}: {e.Change}";
     }
 
     public void RefreshEvents()

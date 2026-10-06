@@ -53,15 +53,17 @@ public sealed partial class World
     {
         Water = new int[capacity]; WaterYears = new double[capacity]; Life = new double[capacity];
         RichYears = new double[capacity]; Pop = new double[capacity]; Tech = new double[capacity]; Touched = new double[capacity];
+        InitCiv(capacity);
     }
 
-    void ResetLayers(int i) { Water[i] = -1; WaterYears[i] = Life[i] = RichYears[i] = Pop[i] = Tech[i] = Touched[i] = 0; }
+    void ResetLayers(int i) { Water[i] = -1; WaterYears[i] = Life[i] = RichYears[i] = Pop[i] = Tech[i] = Touched[i] = 0; ResetCiv(i); }
 
     void InitLayerRules()
     {
         Rules.Add(new Rule("water", "Temp,Comp,M,WaterFreeze,WaterBoil,WaterIceMin,WaterHoldMass", "Water,WaterYears", 1, w => w.UpdateWater()));
         Rules.Add(new Rule("life", "Water,WaterYears,Comp,Life*", "Life,RichYears", 1000, w => w.UpdateLife()));
-        Rules.Add(new Rule("civ", "Life,RichYears,Comp,Civ*", "Pop,Tech", 100, w => w.UpdateCiv()));
+        Rules.Add(new Rule("civ", "Life,RichYears,Comp,Civ*", "Pop,Tech,Comp,Civ", 100, w => w.UpdateCiv()));
+        Rules.Add(new Rule("ships", "Pop,Tech,Civ,X,Y,Ship*", "Pop,Tech,Civ,objects", ShipRhythmYears, w => w.UpdateShips()));
     }
 
     /// A planet or a moon: pulls others, is not a star. Only these carry layers.
@@ -70,7 +72,7 @@ public sealed partial class World
     public int LifeStage(int i) { int s = 0; while (s < LifeStageAt.Length && Life[i] >= LifeStageAt[s]) s++; return s; }
     public int TechStage(int i) => Pop[i] > 0 ? (int)Math.Min(Tech[i], MaxTechStage) : 0;
 
-    double Share(int i, int elem) => Comp[i * NElem + elem] / M[i];
+    public double Share(int i, int elem) => Comp[i * NElem + elem] / M[i];
 
     void UpdateWater()
     {
@@ -136,18 +138,18 @@ public sealed partial class World
         {
             if (!Alive[i] || !IsWorld(i)) continue;
             double dt = Math.Min(RuleYears, Year - Touched[i]);
-            double p = Pop[i], room = Life[i];
+            double p = Pop[i], room = CivRoom(i);
             if (p <= 0)
             {
-                if (room < C.CivLifeMin || RichYears[i] < C.CivRiseYears) continue;
-                Pop[i] = p = C.CivSeed; Tech[i] = 0;
-                LogEvent(i, "civ", "civ.start", RichYears[i], room, Share(i, 3));
+                if (Life[i] < C.CivLifeMin || RichYears[i] < C.CivRiseYears) continue;
+                Pop[i] = p = C.CivSeed; Tech[i] = 0; Civ[i] = NewCiv(i);
+                CivEvent(i, Civ[i], "civ.start", RichYears[i], room, Share(i, 3));
                 dt = Math.Min(dt, RichYears[i] - C.CivRiseYears); // it has been there since the wait was over
             }
             int stage = TechStage(i);
             double p0 = p, lived; // lived = population summed over the stretch (people * years), exact for both curves
             // the biosphere feeds the people: population follows what life there is, and starves when it fails
-            if (room > 0 && room >= C.CivLifeMin / 5)
+            if (room > 0)
             {
                 p = room / (1 + (room / p - 1) * Math.Exp(-C.CivGrowth * dt));
                 lived = C.CivGrowth > 0 ? room * dt + room / C.CivGrowth * Math.Log(p0 / p) : p0 * dt;
@@ -160,18 +162,18 @@ public sealed partial class World
             if (p < C.CivSeed / 10)
             {
                 Pop[i] = 0; Tech[i] = 0;
-                LogEvent(i, "civ", "civ.end", room, Temp[i], stage);
+                CivEvent(i, Civ[i], "civ.end", room, Temp[i], stage);
                 continue;
             }
             Pop[i] = p;
             double metal = C.CivMetalRef > 0 ? Math.Min(1, Share(i, 3) / C.CivMetalRef) : 1; // 0 = metal not needed
             Tech[i] += C.CivTechRate * lived * metal;
+            if (stage >= 2) UseMetal(i, lived);
             int after = TechStage(i);
-            if (after != stage) LogEvent(i, "civ", $"civ.stage.{stage}.{after}", Tech[i], p, Share(i, 3));
+            if (after != stage) CivEvent(i, Civ[i], $"civ.stage.{stage}.{after}", Tech[i], p, Share(i, 3));
         }
     }
-    // ponytail: a civilisation does not use up the planet's metal yet, and lives on one planet only
-    // (shared object over several planets = SPEC 2, not built).
+    // Names, metal, ships and colonies: core/Civ.cs.
 
     // Called from Merge before the masses are summed: `share` = mass of what hit / mass of the one that stays.
     void Impact(int k, double share)
@@ -191,5 +193,6 @@ public sealed partial class World
             if (!Alive[i]) continue;
             mix((ulong)Water[i]); number(WaterYears[i]); number(Life[i]); number(RichYears[i]); number(Pop[i]); number(Tech[i]); number(Touched[i]);
         }
+        HashCiv(mix);
     }
 }
