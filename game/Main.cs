@@ -765,7 +765,8 @@ public partial class Main : Node2D
         int p = GodTools.PrimaryAt(_w, x, y, mass);
         Vector2 drag = _mouse - ToScreen(x, y);
         Kind kind = GodTools.Preview(_w, mass, mix, p).Kind;
-        string name = $"{GodUi.KindVi[(int)kind]} mới {++_createdCount}";
+        double birthSuns = _ui.CreateBirthSuns;
+        string name = $"{_ui.CreateRemnantName ?? GodUi.KindVi[(int)kind]} mới {++_createdCount}";
         int slot; string did;
         if (drag.Length() < LaunchStart)
         {
@@ -779,7 +780,9 @@ public partial class Main : Node2D
             slot = GodTools.Launch(_w, x, y, (p >= 0 ? _w.Vx[p] : 0) + rvx, (p >= 0 ? _w.Vy[p] : 0) + rvy, mass, mix, name);
             did = $"phóng {share:F2}× tốc độ quỹ đạo";
         }
-        if (slot >= 0) { Select(slot); Toast($"Đã tạo {name}: {did}"); }
+        bool stillBurning = slot >= 0 && birthSuns > 0 && GodTools.MakeRemnant(_w, slot, birthSuns) < 0;
+        if (stillBurning) { Select(slot); Toast($"Đã tạo {name} nhưng nó vẫn là sao thường: khối lượng không hợp với xác của sao {birthSuns:0.#} Mặt Trời"); }
+        else if (slot >= 0) { Select(slot); Toast($"Đã tạo {name}: {did}"); }
         else { _createdCount--; Toast("Không tạo được: hết chỗ hoặc thông số sai"); }
     }
 
@@ -1034,6 +1037,23 @@ public partial class Main : Node2D
         else Say(false, "hand: no rocks to try on (run with --rocks)");
         Key(Godot.Key.Escape);
         Say(_tool == Tool.Select, "Esc drops the tool");
+
+        // dead stars: each preset drops the remnant itself, no burning star and no explosion on the way
+        Home();
+        for (int k = 0; k < 3; k++)
+        {
+            Key(Godot.Key.C);
+            _ui.ApplyPreset(5 + k);
+            int events = _w.Events.Count, n0 = _w.Live;
+            Click(new Vector2(60, 60));
+            int dead = _sel;
+            StarPhase want = StarPhase.WhiteDwarf + k;
+            Say(_w.Live == n0 + 1 && Live(dead) && _w.StarPhaseOf(dead) == want && _w.Events.Count == events && PanelText().Contains(GodUi.StarPhaseVi[(int)want]),
+                $"create preset {5 + k}: {(Live(dead) ? _w.StarPhaseOf(dead).ToString() : "nothing")}, {(Live(dead) ? _w.M[dead] / _w.C.StarSolarMass : 0):F2} Suns, panel names it");
+            Key(Godot.Key.Escape);
+            if (Live(dead)) GodTools.Remove(_w, dead);
+        }
+        _ui.ApplyPreset(2);
 
         // civilisation: after the jump Earth carries a named people with a chronicle; in stepping its ships are
         // objects on screen that a click takes before the planet next to them

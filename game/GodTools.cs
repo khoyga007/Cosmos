@@ -196,6 +196,17 @@ public static class GodTools
         return Push(w, target, -dy / d * v - rvx, dx / d * v - rvy);
     }
 
+    /// <summary>
+    /// Turn the target star into what is left of a star born with birthSuns solar masses, the moment its burning
+    /// ended (white dwarf, neutron star or black hole by the core's limits). Its mass and matter stay as they are.
+    /// </summary>
+    public static int MakeRemnant(World w, int target, double birthSuns)
+    {
+        if (target < 0 || target >= w.N || !w.Alive[target]) return -1;
+        double birth = birthSuns * w.C.StarSolarMass, end = 1 + Math.Max(0, w.C.StarGiantFraction);
+        return w.Do(new Command(CmdKind.SetStarState, Target: target, StarState: new StellarState(w.StarLifetime(birth) * end, end, birth)));
+    }
+
     public static int Remove(World w, int target)
     {
         if (target < 0 || target >= w.N || !w.Alive[target]) return -1;

@@ -97,15 +97,20 @@ public partial class GodUi : CanvasLayer
     public static readonly string[] BandVi = { "Đóng băng", "Ôn đới", "Thiêu đốt" };
     static readonly Dictionary<string, string> RuleVi = new() { ["temperature"] = "Nhiệt độ", ["water"] = "Nước", ["life"] = "Sự sống", ["civ"] = "Văn minh" };
 
-    // what the create buttons drop: name, mass in Earths, shares of gas / ice / rock / metal / carbon / radio
-    static readonly (string Name, double Earths, double[] Mix)[] Presets =
+    // what the create buttons drop: name, mass in Earths, shares of gas / ice / rock / metal / carbon / radio.
+    // BirthSuns > 0 = a dead star: what is left of a star born with that many solar masses (set through SetStarState)
+    static readonly (string Name, double Earths, double[] Mix, double BirthSuns)[] Presets =
     {
-        ("Thiên thạch", 1e-4, new[] { 0, 0.05, 0.75, 0.18, 0.02, 0 }),
-        ("Vệ tinh", 0.0123, new[] { 0, 0.01, 0.80, 0.18, 0.005, 0.005 }),
-        ("Hành tinh đá", 1, new[] { 0, 0.01, 0.66, 0.32, 0.005, 0.005 }),
-        ("Hành tinh khí", 317.8, new[] { 0.90, 0.05, 0.03, 0.02, 0, 0 }),
-        ("Sao", 50 / World.EarthMass, new[] { 1.0, 0, 0, 0, 0, 0 }),
+        ("Thiên thạch", 1e-4, new[] { 0, 0.05, 0.75, 0.18, 0.02, 0 }, 0),
+        ("Vệ tinh", 0.0123, new[] { 0, 0.01, 0.80, 0.18, 0.005, 0.005 }, 0),
+        ("Hành tinh đá", 1, new[] { 0, 0.01, 0.66, 0.32, 0.005, 0.005 }, 0),
+        ("Hành tinh khí", 317.8, new[] { 0.90, 0.05, 0.03, 0.02, 0, 0 }, 0),
+        ("Sao", 50 / World.EarthMass, new[] { 1.0, 0, 0, 0, 0, 0 }, 0),
+        ("Sao lùn trắng", 0.6 * 50 / World.EarthMass, new[] { 1.0, 0, 0, 0, 0, 0 }, 2),
+        ("Sao neutron", 1.4 * 50 / World.EarthMass, new[] { 1.0, 0, 0, 0, 0, 0 }, 10),
+        ("Lỗ đen", 7.5 * 50 / World.EarthMass, new[] { 1.0, 0, 0, 0, 0, 0 }, 30),
     };
+    int _preset;
 
     public GodUi(Main main, World w)
     {
@@ -317,6 +322,7 @@ public partial class GodUi : CanvasLayer
 
     public void ApplyPreset(int i)
     {
+        _preset = i;
         _txtMass.Text = Presets[i].Earths.ToString("G4", CultureInfo.InvariantCulture);
         for (int e = 0; e < World.NElem; e++) _sliders[e].SetValueNoSignal(e < Presets[i].Mix.Length ? Presets[i].Mix[e] : 0);
         UpdatePreview();
@@ -328,6 +334,9 @@ public partial class GodUi : CanvasLayer
         _btnCreate.Text = on ? "Đang đặt vật thể — bấm để thôi (Esc)" : "Đặt vật thể vào không gian (C)";
         _btnCreate.Modulate = on ? new Color(1f, 0.9f, 0.35f) : Colors.White;
     }
+
+    public double CreateBirthSuns => Presets[_preset].BirthSuns;
+    public string? CreateRemnantName => Presets[_preset].BirthSuns > 0 ? Presets[_preset].Name : null;
 
     public double GetCreateMass() => (Number(_txtMass.Text, out double m) && m > 0 ? m : 1) * World.EarthMass;
 
@@ -347,7 +356,8 @@ public partial class GodUi : CanvasLayer
         var (kind, radius) = GodTools.Preview(_w, GetCreateMass(), mix);
         var parts = new List<string>();
         for (int e = 0; e < World.NElem; e++) if (sum > 0 && mix[e] / sum >= 0.005) parts.Add($"{ElemVi[e]} {100 * mix[e] / sum:0.#}%");
-        _lblPreview.Text = $"Sẽ là: {KindVi[(int)kind]}, bán kính {radius:G3}\n{(parts.Count > 0 ? string.Join(" · ", parts) : "Đá 100%")}";
+        string what = CreateRemnantName is string dead ? $"{dead} (xác của ngôi sao {CreateBirthSuns:0.#} Mặt Trời)" : $"{KindVi[(int)kind]}, bán kính {radius:G3}";
+        _lblPreview.Text = $"Sẽ là: {what}\n{(parts.Count > 0 ? string.Join(" · ", parts) : "Đá 100%")}";
     }
 
     // ---- selected object ----
