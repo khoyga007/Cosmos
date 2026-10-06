@@ -50,7 +50,7 @@ public sealed partial class World
 
     readonly Stack<int> _free = new();
     readonly int[] _att, _near; int _na;          // pulling objects and nearby sweep candidates
-    readonly List<(int, int)> _hits = new();      // pairs that touched in this small step
+    readonly List<(int A, int B, double Year)> _hits = new();  // pairs that touched in this step, with the year the touch began
     ulong _rng;
 
     public World(int capacity, ulong seed, IEnumerable<Element>? elements = null, IEnumerable<StarEvent>? starEvents = null)
@@ -180,7 +180,8 @@ public sealed partial class World
     }
 
     // the heavier one keeps its identity; mass, momentum and matter are summed
-    void Merge(int a, int b)
+    // `year`: the year the touch began, which in a jump is earlier than the year it was noticed in.
+    void Merge(int a, int b, double year)
     {
         if (IsShip(a) || IsShip(b)) { if (IsShip(a)) ShipArrives(a, b); else ShipArrives(b, a); return; }
         int k = M[a] >= M[b] ? a : b, d = k == a ? b : a;
@@ -189,12 +190,12 @@ public sealed partial class World
         X[k] = (X[k] * M[k] + X[d] * M[d]) / m; Y[k] = (Y[k] * M[k] + Y[d] * M[d]) / m;
         Vx[k] = (Vx[k] * M[k] + Vx[d] * M[d]) / m; Vy[k] = (Vy[k] * M[k] + Vy[d] * M[d]) / m;
         for (int e = 0; e < ElementCount; e++) Comp[k * ElementCount + e] += Comp[d * ElementCount + e];
-        Impact(k, M[d] / M[k]);
+        Impact(k, M[d] / M[k], year);
         M[k] = m; SetRadius(k);
         // victim, survivor slot, swallowed mass, victim generation. Not for dust: a belt falling in would push
         // everything else out of the bounded log
-        if (M[d] >= C.AttractMass || Life[d] > 0 || Pop[d] > 0) LogEvent(d, "contact", "merge", k, M[d], Gen[d]);
-        EndSwallowedWorld(d);
+        if (M[d] >= C.AttractMass || Life[d] > 0 || Pop[d] > 0) LogEvent(d, "contact", "merge", k, M[d], Gen[d], year);
+        EndSwallowedWorld(d, year);
         Alive[d] = false; M[d] = 0; _free.Push(d); Live--; Merges++;
         Gone(d, k);
     }
@@ -290,7 +291,7 @@ public sealed partial class World
                     int j = _att[k];
                     if (j == i) continue;
                     double dx = X[j] - x, dy = Y[j] - y, d2 = dx * dx + dy * dy, rr = ri + R[j];
-                    if (d2 <= rr * rr) { if (sweep || i < j) _hits.Add((i, j)); continue; }
+                    if (d2 <= rr * rr) { if (sweep || i < j) _hits.Add((i, j, Year)); continue; }
                     if (sweep && d2 <= (rr + travel) * (rr + travel)) _near[near++] = j;
                     double inv = g * M[j] / (d2 * Math.Sqrt(d2));
                     ax += dx * inv; ay += dy * inv;
@@ -300,7 +301,7 @@ public sealed partial class World
                 {
                     int j = _near[k];
                     if (SweptContact(x - X[j], y - Y[j], (Vx[i] - Vx[j]) * hs, (Vy[i] - Vy[j]) * hs, ri + R[j]))
-                        _hits.Add((i, j));
+                        _hits.Add((i, j, Year));
                 }
             }
             // Pulling objects kick first; gravity only reads positions. A rock's sweep then has both final velocities.
@@ -313,7 +314,7 @@ public sealed partial class World
                 {
                     int j = _att[l];
                     if (SweptContact(X[i] - X[j], Y[i] - Y[j],
-                        (Vx[i] - Vx[j]) * hs, (Vy[i] - Vy[j]) * hs, R[i] + R[j])) _hits.Add((i, j));
+                        (Vx[i] - Vx[j]) * hs, (Vy[i] - Vy[j]) * hs, R[i] + R[j])) _hits.Add((i, j, Year));
                 }
             }
             for (int i = 0; i < N; i++) if (Alive[i] && !Attracts(i)) Kick(i, true);
@@ -321,7 +322,7 @@ public sealed partial class World
 
             if (_hits.Count > 0)
             {
-                foreach (var (a, b) in _hits) if (Alive[a] && Alive[b]) Merge(a, b);
+                foreach (var (a, b, when) in _hits) if (Alive[a] && Alive[b]) Merge(a, b, when);
                 _hits.Clear();
             }
         }

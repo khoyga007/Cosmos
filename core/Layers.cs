@@ -221,22 +221,23 @@ public sealed partial class World
     // Names, metal, ships and colonies: core/Civ.cs.
 
     // A swallowed world's layers stop here, before the dead-slot filters can hide their ending from the journal.
-    void EndSwallowedWorld(int i)
+    // `year`: the year the world was swallowed, which in a jump is earlier than the year it was noticed in.
+    void EndSwallowedWorld(int i, double year = double.NaN)
     {
-        if (Life[i] > 0) LogEvent(i, "life", "life.end", Temp[i], Water[i], LifeStage(i));
-        if (Pop[i] > 0) CivEvent(i, Civ[i], "civ.end", -1, Temp[i], TechStage(i)); // room -1 = its world was swallowed, it did not starve
+        if (Life[i] > 0) LogEvent(i, "life", "life.end", Temp[i], Water[i], LifeStage(i), year);
+        if (Pop[i] > 0) CivEvent(i, Civ[i], "civ.end", -1, Temp[i], TechStage(i), year); // room -1 = its world was swallowed, it did not starve
         Life[i] = RichYears[i] = Pop[i] = Tech[i] = 0;
-        Touched[i] = Year;
+        Touched[i] = Year; // the layer clock is the world clock: only the journal is dated back
     }
 
     // Called from Merge before the masses are summed: `share` = mass of what hit / mass of the one that stays.
-    void Impact(int k, double share)
+    void Impact(int k, double share, double year = double.NaN)
     {
         if (Life[k] <= 0 && Pop[k] <= 0) return;
         double keep = Math.Exp(-share / C.ImpactScale), before = Life[k];
         Life[k] *= keep; Pop[k] *= keep; Touched[k] = Year;
         if (Life[k] < C.CivLifeMin) RichYears[k] = 0; // the rich biosphere is gone now, not at the next life run
-        if (share >= C.ImpactScale / 10) LogEvent(k, "impact", "impact", share, before, Life[k]);
+        if (share >= C.ImpactScale / 10) LogEvent(k, "impact", "impact", share, before, Life[k], year);
     }
 
     void HashLayers(Action<ulong> mix)

@@ -67,7 +67,7 @@ public sealed partial class World
                 {
                     Ride(t / chunks);
                     double elapsed = began == jumpBegan ? (k == chunks - 1 ? t : t * (k + 1) / chunks) : (target - began) * C.YearTime;
-                    bool contact = RailContacts(elapsed);
+                    bool contact = RailContacts(elapsed, began);
                     if (defer && (shown || k == chunks - 1 || contact))
                     {
                         PlaceRocks(elapsed);
@@ -95,11 +95,14 @@ public sealed partial class World
                         double at = Math.Min(target, NextStarBoundary());
                         _deferRocks = defer;
                         if (at > Year) { Ride((at - Year) * C.YearTime); Year = at; }
-                        bool contact = RailContacts((Year - began) * C.YearTime);
+                        bool contact = RailContacts((Year - began) * C.YearTime, began);
                         if (defer) { PlaceRocks((Year - began) * C.YearTime); _deferRocks = false; }
                         if (contact) MergeRailContacts();
                         _starRule.NextYear = Year;
                         RunRules();
+                        // No re-check here on purpose: merging in this same year would move the mass earlier and change
+                        // the trajectory (cli -- elements then reports the eleven table hashes differ). The engulfment is
+                        // instead merged at the tick that notices it and back-dated to the year it happened, in RailContacts.
                         if (defer) { StartRockOrbits(); began = Year; PlanRockContacts((jumpBegan + years - Year) * C.YearTime); }
                     }
                 }
@@ -140,7 +143,9 @@ public sealed partial class World
         }
     }
 
-    bool RailContacts(double elapsed)
+    // `elapsed`: time units from `began` to the tick this is called at. `began`: the year the rock orbits were
+    // planned from, which is what a planned entry offset is measured against.
+    bool RailContacts(double elapsed, double began)
     {
         // ponytail: sibling contacts sampled at chunk endpoints; a full Kepler intersection solver is a later tier.
         for (int k = 0; k < _na; k++)
@@ -148,18 +153,21 @@ public sealed partial class World
         {
             int i = _att[k], j = _att[l];
             double x = X[i] - X[j], y = Y[i] - Y[j], r = R[i] + R[j];
-            if (x * x + y * y <= r * r) _hits.Add((i, j));
+            if (x * x + y * y <= r * r) _hits.Add((i, j, Year));
         }
         foreach (var (i, p, gi, gp, at) in _rockContacts)
-            if (at <= elapsed && Alive[i] && Alive[p] && Gen[i] == gi && Gen[p] == gp
-                && PrimaryContactTime(_bx![i], _by![i], _bvx![i], _bvy![i], C.G * (M[i] + M[p]), R[i] + R[p]) <= elapsed)
-                _hits.Add((i, p));
+            if (at <= elapsed && Alive[i] && Alive[p] && Gen[i] == gi && Gen[p] == gp)
+            {
+                // Re-tested against the radius now: a star that grew its envelope onto a rock moves the entry to now.
+                double now = PrimaryContactTime(_bx![i], _by![i], _bvx![i], _bvy![i], C.G * (M[i] + M[p]), R[i] + R[p]);
+                if (now <= elapsed) _hits.Add((i, p, now > 0 ? began + now / C.YearTime : Year)); // 0 = touching already: that is this tick
+            }
         return _hits.Count > 0;
     }
 
     void MergeRailContacts()
     {
-        foreach (var (i, p) in _hits) if (Alive[i] && Alive[p]) Merge(i, p);
+        foreach (var (i, p, when) in _hits) if (Alive[i] && Alive[p]) Merge(i, p, when);
         _hits.Clear();
     }
 
@@ -286,8 +294,9 @@ public sealed partial class World
         {
             int i = ord[k], p = prim[i];
             double dx = X[i] - X[p], dy = Y[i] - Y[p];
-            if (PrimaryContactTime(dx, dy, Vx[i] - Vx[p], Vy[i] - Vy[p], C.G * (M[i] + M[p]), R[i] + R[p]) <= t)
-                _hits.Add((i, p));
+            // Year is still the year this ride starts: a contact inside the ride is dated where it happens, not where it was noticed.
+            double at = PrimaryContactTime(dx, dy, Vx[i] - Vx[p], Vy[i] - Vy[p], C.G * (M[i] + M[p]), R[i] + R[p]);
+            if (at <= t) _hits.Add((i, p, Year + at / C.YearTime));
         }
 
         // lump = an object plus everything that rides around it: mass, centre of mass, its velocity
