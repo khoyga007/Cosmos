@@ -9,6 +9,7 @@
 // Every number is a PLACEHOLDER [P] by Claire (Yang 06/10: build direction 2 + 1), all Consts.
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Cosmos.Core;
 
@@ -26,7 +27,10 @@ public sealed partial class Consts
 }
 
 /// Home = the world it rose on, -1 once that world is gone.
-public readonly record struct CivInfo(string Name, int Home, double BornYear);
+public readonly record struct CivInfo(string Name, int Home, double BornYear, Dictionary<string, double>? Stats = null)
+{
+    public Dictionary<string, double> Stats { get; init; } = Stats ?? new();
+}
 
 public sealed partial class World
 {
@@ -85,7 +89,7 @@ public sealed partial class World
     }
 
     // What the population can live on: the biosphere when there is enough of one; in the space age domes otherwise.
-    double CivRoom(int i) => Life[i] >= C.CivLifeMin / 5 ? Life[i] : Tech[i] >= MaxTechStage ? C.CivDome : 0;
+    double CivRoom(int i) => Life[i] >= C.CivLifeMin / 5 ? Life[i] : (TechStage(i) < Stages.Count && Stages[TechStage(i)].CanDome ? C.CivDome : 0);
 
     // Industry eats metal: `lived` = population summed over the stretch (people * years). The mass stays (waste rock).
     void UseMetal(int i, double lived)
@@ -163,7 +167,7 @@ public sealed partial class World
         int n = N; // ships made below are not worlds; no need to look at them
         for (int i = 0; i < n; i++)
         {
-            if (!Alive[i] || !IsWorld(i) || (uint)Civ[i] >= (uint)Civs.Count || Pop[i] < C.ShipPop || TechStage(i) < MaxTechStage) continue;
+            if (!Alive[i] || !IsWorld(i) || (uint)Civ[i] >= (uint)Civs.Count || Pop[i] < C.ShipPop || TechStage(i) >= Stages.Count || !Stages[TechStage(i)].CanLaunchShips) continue;
             int civ = Civ[i];
             if (!direct)
             {
@@ -251,6 +255,15 @@ public sealed partial class World
         {
             foreach (char ch in Civs[c].Name) mix(ch);
             mix((ulong)Civs[c].Home); number(Civs[c].BornYear); mix((ulong)(c < _civLaunches.Count ? _civLaunches[c] : 0));
+            if (Civs[c].Stats != null && Civs[c].Stats.Count > 0)
+            {
+                mix((ulong)Civs[c].Stats.Count);
+                foreach (var kv in Civs[c].Stats.OrderBy(k => k.Key, StringComparer.Ordinal))
+                {
+                    foreach (char ch in kv.Key) mix(ch);
+                    number(kv.Value);
+                }
+            }
         }
     }
 }
