@@ -7,6 +7,7 @@
 using System;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using Cosmos.Core;
 
 static class Audit
@@ -40,6 +41,7 @@ static class Audit
         SweptChecks();
         LayerChecks();
         DeferChecks();
+        R6Checks();
         TouchChecks();
         GodChecks();
         CivChecks();
@@ -140,10 +142,13 @@ static class Audit
         // RISK: AttractMass = 0 turns every rock into a puller
         var r0 = World.SolSystem(2_000, 1234);
         double t0 = PerStep(r0, 30);
-        r0.Do(new Command(CmdKind.SetConst, Name: "AttractMass", Amount: 0));
+        int rc0 = r0.Do(new Command(CmdKind.SetConst, Name: "AttractMass", Amount: 0));
         double t1 = PerStep(r0, 3);
-        Risk($"attractmass-0 (Commands.cs:75, World.cs:69): AttractMass 1e-7 -> 0 at 2000 rocks {t0:F3} -> {t1:F3} ms/step ({t1 / t0:F0}x) because every rock now pulls (kick loop O(N*na)); the same dial makes rock-rock merge possible");
-        Info($"  after that dial: {r0.Events.Count} event(s) in the log, {r0.Live} object(s) left");
+        if (r0.C.AttractMass > 0)
+            Ok($"attractmass-0 (Commands.cs:75 SetConst, Commands.cs:215-216 Validate): the value that makes every rock pull cannot be set — SetConst AttractMass 0 returns {rc0} and the dial stays {r0.C.AttractMass:E3}, so the {t0:F3} -> {t1:F3} ms/step ({t1 / t0:F1}x) is the same scene twice, not a slower one");
+        else
+            Risk($"attractmass-0 (Commands.cs:75, World.cs:69): AttractMass 1e-7 -> 0 at 2000 rocks {t0:F3} -> {t1:F3} ms/step ({t1 / t0:F0}x) because every rock now pulls (kick loop O(N*na)); the same dial makes rock-rock merge possible");
+        Info($"  after that dial: {r0.Events.Count} event(s) in the log, {r0.Live} object(s) left, AttractMass {r0.C.AttractMass:E3}");
     }
 
     /// Clean two-body swept test: a target of mass `tm` at rest and a 1e-9 probe fired dead centre from 3
@@ -347,7 +352,7 @@ static class Audit
         double h1 = w.Hill(moon), k1 = (int)w.KindOf(moon);
         w.Advance(H);
         Expect(h1 <= 3 * h0,
-            $"hill-orphan (World.cs:97-103 falls back to Heaviest()): Remove(Earth) moves the Moon's zone {h0:F4} -> {h1:F4} ({h1 / h0:F1}x) and Kind {k0} -> {k1} with no signal that the parent is gone; Hill() answers about the Sun while looking like the same call");
+            $"hill-orphan (master World.cs:97-103 falls back to Heaviest(); r6 calls Heaviest() from nowhere in the core and the ladder root Rails.cs:267 answers instead): Remove(Earth) moves the Moon's zone {h0:F4} -> {h1:F4} ({h1 / h0:F1}x) and Kind {k0} -> {k1} with no signal that the parent is gone; Hill() answers about the Sun while looking like the same call");
 
         // Merge re-parents the children to the survivor (World.cs:139) while Kill clears them (Commands.cs:137):
         // two different answers to the same event. Check the Merge half is coherent, in a scene with nothing
@@ -409,13 +414,15 @@ static class Audit
 
     static void RailChecks()
     {
-        // an unbound object rides a straight line; OffRails is reset per chunk (Rails.cs:118), not per jump
+        // an unbound object rides a straight line. OffRails answers the JUMP: distinct objects that left the
+        // rails, deduped by Gen (Rails.cs:28-30), the seen-set cleared once per Jump (Rails.cs:38-39).
+        // master 68b65f9 cleared the counter inside Ride (Rails.cs:118), so its value was the last chunk's.
         var w = World.SolSystem(0, 1234);
         w.Add(80, 0, 0, 4.0, 1e-9, RockMix, "escapee"); // escape speed at 80 is sqrt(2*50/80) = 1.12
         w.Do(new Command(CmdKind.FastForward, Amount: 1e6));
         int chunks = (int)Math.Clamp(Math.Ceiling(1e6 / 1.0), 1, Math.Max(1, w.C.JumpSamples));
-        Expect(w.OffRails >= chunks,
-            $"rails-offrails-per-chunk (Rails.cs:118 resets OffRails inside Ride): a 1e6-year jump ran {chunks} chunk(s), the escapee was off rails in each, OffRails reports {w.OffRails}; the field answers 'the last chunk', not 'the jump'");
+        Expect(w.OffRails == 1,
+            $"rails-offrails (Rails.cs:28-30 dedupes by Gen, Rails.cs:38-39 clears the seen-set once per jump; master Rails.cs:118 reset the counter inside Ride): a 1e6-year jump ran {chunks} chunk(s) and the one escapee was off rails in every one of them, so OffRails reports {w.OffRails} — 1 is the per-jump union of distinct objects, {chunks} a per-chunk count, 0 a dead field. No scene can tell the union from the last-chunk count while an escapee stays out; the two differ only when a later chunk is short of one, which is why this line is a contract, not a hunt for a number");
 
         // the jump must not lose an object that is bound, and must move it about one turn
         var s = World.SolSystem(0, 1234);
@@ -431,12 +438,30 @@ static class Audit
         int sun = 0, ea = 3;
         double rr = Math.Sqrt(Math.Pow(t.X[ea] - t.X[sun], 2) + Math.Pow(t.Y[ea] - t.Y[sun], 2));
         int twin = t.Add(t.X[sun] - (t.X[ea] - t.X[sun]), t.Y[sun] - (t.Y[ea] - t.Y[sun]), 0, 0, 1.5e-4, RockMix, "twin");
-        // give it Earth's velocity mirrored: same orbit, opposite side, same direction of travel
-        t.Vx[twin] = t.Vx[ea]; t.Vy[twin] = t.Vy[ea];
+        // give it Earth's velocity MIRRORED, which is what "same direction of travel" means at the antipode:
+        // a prograde twin 180 degrees ahead rides the same orbit and never closes in
+        t.Vx[twin] = -t.Vx[ea]; t.Vy[twin] = -t.Vy[ea];
         t.Do(new Command(CmdKind.FastForward, Amount: 5));
         double sep = Math.Sqrt(Math.Pow(t.X[twin] - t.X[ea], 2) + Math.Pow(t.Y[twin] - t.Y[ea], 2));
         Expect(sep < 4 * rr && t.Alive[twin],
             $"rails-coorbital: a twin on Earth's orbit, opposite side, after a 5-year jump sits {sep:F1} from Earth (orbit radius {rr:F1}, start {2 * rr:F1}) and is {(t.Alive[twin] ? "alive" : "gone")}");
+
+        // the SAME twin carrying Earth's velocity UNMIRRORED is retrograde, and so a real collision course:
+        // stepping at h merges it into Earth near 0.42 y and the merged 3e-4 body then falls into the Sun.
+        // A jump over the same five years must land on the same end state; it may not hide the collision.
+        World Retro()
+        {
+            var q = World.SolSystem(0, 1234);
+            int tw = q.Add(q.X[sun] - (q.X[ea] - q.X[sun]), q.Y[sun] - (q.Y[ea] - q.Y[sun]), 0, 0, 1.5e-4, RockMix, "retro");
+            q.Vx[tw] = q.Vx[ea]; q.Vy[tw] = q.Vy[ea];
+            return q;
+        }
+        var jw = Retro();
+        jw.Do(new Command(CmdKind.FastForward, Amount: 5));
+        var sw = Retro();
+        for (int i = 0; i < (int)Math.Round(5 * sw.C.YearTime / H); i++) sw.Advance(H);
+        Expect(jw.Live == sw.Live && Math.Abs(jw.M[0] - sw.M[0]) < 1e-4,
+            $"rails-jump-vs-steps (Rails.cs:106-182 Ride runs no pair test, so a jump cannot produce a collision): five years over an 11-body Sol with one retrograde twin added — {sw.Step} steps at h={H} end with Live {sw.Live}/{sw.N} and the Sun at {sw.M[0]:F4} (the twin is retrograde, so it meets Earth and the merged body falls in), one 5-year jump ends with Live {jw.Live}/{jw.N} and the Sun at {jw.M[0]:F4}");
 
         // Ride (Rails.cs:106-182) moves objects along orbits and straight lines and runs no pair test at all,
         // so a jump cannot produce a collision. Two bodies meeting head-on: stepping merges them, a jump does not.
@@ -507,6 +532,90 @@ static class Audit
     // and only the rock work differs.
     static void AddModRule(World w) => w.Rules.Add(new Rule("audit-noop", "M", "", 0.01, static _ => { }));
 
+    // The declaration a post-merge tree offers a rule that reads rock positions (Rule.NeedsRockPositions, Rules.cs:27).
+    // Read by reflection so this one file still compiles against a master that has no such property.
+    static readonly PropertyInfo? RockFlag = typeof(World).Assembly.GetType("Cosmos.Core.Rule")?.GetProperty("NeedsRockPositions");
+    static readonly MethodInfo? PrimaryM = typeof(World).GetMethod("PrimaryOf");
+    static readonly MethodInfo? RailsPrimaryM = typeof(World).GetMethod("RailsPrimary");
+
+    /// Adds one no-op rule; declares that it needs rock positions when the tree has a way to declare it.
+    static bool AddModRuleDeclares(World w)
+    {
+        var r = new Rule("audit-declared", "M,X,Y", "", 0.01, static _ => { });
+        if (RockFlag == null) { w.Rules.Add(r); return false; }
+        RockFlag.SetValue(r, true);
+        w.Rules.Add(r);
+        return true;
+    }
+
+    /// Round 7 (Claire): the two answers a caller can get about "who holds this object" must be one answer,
+    /// and the event log must not be flooded by dust falling into a planet.
+    static void R6Checks()
+    {
+        var w = World.SolSystem(2000, 1234);
+        if (PrimaryM == null || RailsPrimaryM == null)
+            Info($"primary-of-unified: this tree has {(PrimaryM == null ? "no World.PrimaryOf" : "World.PrimaryOf")} and {(RailsPrimaryM == null ? "no World.RailsPrimary" : "World.RailsPrimary")} — nothing to compare");
+        else
+        {
+            int mism = 0, firstI = -1, firstA = 0, firstB = 0;
+            for (int i = 0; i < w.N; i++)
+            {
+                if (!w.Alive[i]) continue;
+                int a = (int)PrimaryM.Invoke(w, new object[] { i })!, b = (int)RailsPrimaryM.Invoke(w, new object[] { i })!;
+                if (a != b) { mism++; if (firstI < 0) { firstI = i; firstA = a; firstB = b; } }
+            }
+            Expect(mism == 0,
+                $"primary-of-unified (World.cs:111-120 PrimaryOf against Rails.cs:270-275 RailsPrimary): over {w.Live} alive objects of SolSystem(2000) the two answers differ {mism} time(s)" +
+                (mism > 0 ? $"; first at i {firstI} m {w.M[firstI]:E3} PrimaryOf {firstA} RailsPrimary {firstB}" : "; a puller reads its stored parent, a rock asks the ladder, and both use one hierarchy") +
+                $"; {w.Groups.Count - 1} named group(s) are in the scene");
+        }
+
+        double dust = SwallowLog(1e-9), rock = SwallowLog(1e-6);
+        Expect(dust == 0 && rock >= 1,
+            $"merge-log-threshold (World.cs:182 logs contact/merge only when the eaten body has M >= AttractMass or Life or Pop): a 1e-9 body eaten by Earth adds {dust:F0} event(s) to the log, a 1e-6 body adds {rock:F0} — AttractMass {w.C.AttractMass:E0}, so a belt grain is silent and a world is not");
+
+        var one = RingMove(1);
+        var zero = RingMove(0);
+        if (one.ring == 0) Info($"ring-move-index1: this tree has no object in group 3 — there is no ring to move");
+        else
+            Expect(one.planet > 29 && one.shard < 1 && zero.shard > 29,
+                $"ring-move-index1 (Commands.cs:113 zone = Attracts(t) && c.Index != 1 ? Hill(t) : 0): the same 30-unit drag of the body that holds the {one.ring} ring object(s) moves it {one.planet:F3} units with Index 1 and its shard {one.shardId} {one.shard:F3} units, against {zero.shard:F3} units for Index 0 — the index alone decides whether the ring is left standing {one.rest:F3} units behind (Hill {one.hill:F4})");
+    }
+
+    /// Drags the body holding the ring 30 units with the given Move index; reports how far the body and its
+    /// first shard each went, the ring size, and how far the shard sat from its host before the drag.
+    static (double planet, double shard, int ring, int host, int shardId, double rest, double hill) RingMove(int index)
+    {
+        var w = World.SolSystem(2000, 1234);
+        int sh = -1, rn = 0;
+        for (int i = 0; i < w.N; i++) if (w.Alive[i] && w.Grp[i] == 3) { rn++; if (sh < 0) sh = i; }
+        if (sh < 0) return (0, 0, 0, -1, -1, 0, 0);
+        int h = -1; double best = double.MaxValue;
+        for (int i = 0; i < w.N; i++)
+        {
+            if (!w.Alive[i] || !w.Attracts(i) || w.Grp[i] != 0 || i == sh) continue;
+            double ax = w.X[i] - w.X[sh], ay = w.Y[i] - w.Y[sh], d2 = ax * ax + ay * ay;
+            if (d2 < best) { best = d2; h = i; }
+        }
+        if (h < 0) return (0, 0, rn, -1, sh, 0, 0);
+        double hx = w.X[h], hy = w.Y[h], sx = w.X[sh], sy = w.Y[sh];
+        w.Do(new Command(CmdKind.Move, Target: h, X: hx + 30, Y: hy, Vx: w.Vx[h], Vy: w.Vy[h], Index: index));
+        return (Math.Sqrt(Math.Pow(w.X[h] - hx, 2) + Math.Pow(w.Y[h] - hy, 2)),
+                Math.Sqrt(Math.Pow(w.X[sh] - sx, 2) + Math.Pow(w.Y[sh] - sy, 2)),
+                rn, h, sh, Math.Sqrt(best), w.Hill(h));
+    }
+
+    /// Adds one body of mass m exactly on Earth, steps once, and reports how many events the log gained.
+    static double SwallowLog(double m)
+    {
+        var w = World.SolSystem(0, 1234);
+        int earth = 3;
+        int b = w.Add(w.X[earth], w.Y[earth], w.Vx[earth], w.Vy[earth], m, new double[] { 0, 0, 1, 0, 0, 0 }, "eaten");
+        double before = w.Events.Count;
+        w.Advance(H);
+        return w.Events.Count - before;
+    }
+
     static double JumpMs(World w, double years)
     {
         var sw = Stopwatch.StartNew();
@@ -545,9 +654,11 @@ static class Audit
         var trim = World.SolSystem(n, 7);
         var full = World.SolSystem(n, 7);
         AddModRule(full);
-        double msT = JumpMs(trim, 1e6), msF = JumpMs(full, 1e6);
-        Expect(trim.Year > 0 && msT < msF,
-            $"defer-cost (Rails.cs:39-44 decides deferral, Rails.cs:122/164/181 leave rocks out of the chunks): one 1e6-year jump over {n} rocks costs {msT:F0} ms on the builtin rule table against {msF:F0} ms in the same scene once one extra no-op rule is added ({msF / Math.Max(msT, 1e-9):F1}x); same years, same chunk count, only the rock work differs");
+        var decl = World.SolSystem(n, 7);
+        bool canDeclare = AddModRuleDeclares(decl);
+        double msT = JumpMs(trim, 1e6), msF = JumpMs(full, 1e6), msD = JumpMs(decl, 1e6);
+        Expect(canDeclare && msF < msT * 1.5 && msD > msT * 2,
+            $"defer-cost (Rails.cs:39-44 decides deferral, Rules.cs:27 is the declaration a rule can make, Rails.cs:122/164/181 leave rocks out of the chunks): one 1e6-year jump over {n} rocks costs {msT:F0} ms on the builtin rule table, {msF:F0} ms with one extra no-op rule added ({msF / Math.Max(msT, 1e-9):F1}x) and {msD:F0} ms with one rule that declares Rule.NeedsRockPositions ({msD / Math.Max(msT, 1e-9):F1}x); on a tree that decides deferral by whether the rule table is still the builtin one (this tree can declare: {canDeclare}), any added rule pays the slow path whatever it reads");
 
         // rocks are left out of every rule tick inside the jump, but Rails.cs:60 clears the flag before the RunRules
         // that are meant to see them (every chunk once the table is not the builtin one), so the two must agree
