@@ -142,6 +142,8 @@ public sealed partial class World
         for (int e = 0; e < NElem; e++) Comp[k * NElem + e] += Comp[d * NElem + e];
         Impact(k, M[d] / M[k]);
         M[k] = m; SetRadius(k);
+        LogEvent(d, "contact", "merge", k, M[d], Gen[d]); // victim, survivor slot, swallowed mass, victim generation
+        EndSwallowedWorld(d);
         Alive[d] = false; M[d] = 0; _free.Push(d); Live--; Merges++;
         Gone(d, k);
     }
