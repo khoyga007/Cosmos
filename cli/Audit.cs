@@ -30,7 +30,7 @@ static class Audit
         _strict = Environment.GetEnvironmentVariable("COSMOS_AUDIT_STRICT") == "1";
         Head("audit P3: energy, momentum, swept collision, cost");
         Measure();
-        Head("audit P3: defect checks (core/World.cs, Commands.cs, Rules.cs, Rails.cs, Layers.cs)");
+        Head("audit P3: defect checks (core/World.cs, Commands.cs, Rules.cs, Rails.cs, Layers.cs, Civ.cs)");
         HashChecks();
         ConstChecks();
         AddChecks();
@@ -42,6 +42,7 @@ static class Audit
         DeferChecks();
         TouchChecks();
         GodChecks();
+        CivChecks();
         Console.WriteLine($"AUDIT: {_defects} defect line(s), {_risks} risk line(s); core not touched (P3)");
         if (_defects > 0 && _strict) { Console.WriteLine("AUDIT: STRICT -> the run FAILS"); return false; }
         if (_defects > 0) Console.WriteLine("AUDIT: not strict -> run stays green; set COSMOS_AUDIT_STRICT=1 to fail on these");
@@ -681,5 +682,158 @@ static class Audit
         double r = Math.Sqrt(dx * dx + dy * dy);
         Expect(!(mv.Par[moon] >= 0 && r > 10 * zone),
             $"move-par-stale (Commands.cs:95-100 re-derives nothing, Commands.cs:127 clears children only on Kill, World.cs:76 decides Kind from Par): Move(Earth) 30 units away leaves the Moon {r:F2} units out, {r / zone:F0}x outside its parent's Hill zone ({zone:F4}, World.cs:97-102), while Par still answers {mv.Par[moon]} and KindOf still answers {(int)mv.KindOf(moon)} (2 = Moon) — the rails drop it (primaryOf wants it inside the zone) and the panel keeps calling it a moon");
+    }
+
+    // ---- core/Civ.cs — a ship, its goal, the people it carries (round 5 hunt)
+
+    /// The core's own ShipMix (Civ.cs:44) is private; mirrored so a hand-made ship is the object
+    /// UpdateShips builds: all metal, C.ShipMass, with the ship cells pointed somewhere.
+    static readonly double[] ShipMix = { 0, 0, 0, 1, 0, 0 };
+
+    static int MakeShip(World w, int civ, int to, double tech, double x, double y, double vx, double vy)
+    {
+        int s = w.Add(x, y, vx, vy, w.C.ShipMass, ShipMix, "Tàu kiểm");
+        w.ShipCiv[s] = civ; w.ShipTo[s] = to; w.ShipFrom[s] = -1; w.ShipTech[s] = tech; w.ShipBorn[s] = w.Year;
+        return s;
+    }
+
+    static double Gap(World w, int a, int b)
+    {
+        double dx = w.X[a] - w.X[b], dy = w.Y[a] - w.Y[b];
+        return Math.Sqrt(dx * dx + dy * dy);
+    }
+
+    static void CivChecks()
+    {
+        Head("audit P3 round 3: core/Civ.cs — ship goals, colonies, the mass dial, the Chronicle");
+
+        // (1) the goal is a bare slot index: Ok() asks bounds and Alive, never "is it still the same object"
+        var w = new World(8, 1);
+        int goal = w.Add(0, 0, 0, 0, 3e-4, RockMix, "đích");
+        w.Add(80, 0, 0, 0, 1e-5, RockMix, "khác");
+        int ship = MakeShip(w, 0, goal, 2, 5, 0, -1, 0);
+        w.Do(new Command(CmdKind.Remove, Target: goal));
+        int fresh = w.Do(new Command(CmdKind.Create, X: -80, Y: 0, Amount: 3e-4, Mix: RockMix));
+        double away = Gap(w, ship, fresh);
+        w.Do(new Command(CmdKind.FastForward, Amount: 1));
+        Expect(w.Pop[fresh] == 0 && w.Civ[fresh] < 0,
+            $"ship-goal-slot-reuse (Commands.cs:48 Ok = 0 <= i < N && Alive, Civ.cs:124 LandShips calls Land(ShipTo[i])): the ship's goal was slot {goal}, Remove then Create reused it (fresh slot {fresh}, reused {fresh == goal}) for a different body {away:F1} units away, and one jump lands the colony on that stranger (Pop {w.Pop[fresh]:E2}, Civ {w.Civ[fresh]}, Chronicle {w.Chronicle.Count}) — the target is an index, so a recycled slot silently redirects a ship and its people to an object they were never sent to");
+
+        // (2) two peoples, one goal: Land() answers the second arrival with nothing at all
+        var t = new World(8, 1);
+        int land = t.Add(0, 0, 0, 0, 3e-4, RockMix, "đất");
+        MakeShip(t, 0, land, 2, 4, 0, -1, 0);
+        MakeShip(t, 1, land, 2, 5, 0, -1.2, 0);
+        t.Do(new Command(CmdKind.FastForward, Amount: 1));
+        int colonies = t.Chronicle.Count(e => e.Event.Change == "civ.colony");
+        int second = t.Chronicle.Count(e => e.Event.Change == "civ.colony" && e.Civ == 1);
+        Expect(colonies == 2 && second == 1,
+            $"ship-two-civs-one-goal (Civ.cs:104-109 Land falls out of `Pop > 0 && Civ != civ` with no else, Civ.cs:125 kills the ship either way): two ships of civ 0 and civ 1 sent to the same empty world, one jump — the world belongs to civ {t.Civ[land]} (Pop {t.Pop[land]:E2}) and the Chronicle holds {colonies} colony line(s), {second} of them for the second people: its ship, its tech and its people are gone with no event, so the story cannot say a colony failed");
+
+        // (3) ShipMass is a dial with no range, and the mass-derived predicates never ask IsShip
+        var m = new World(8, 1);
+        int home = m.Add(0, 0, 0, 0, 3e-4, RockMix, "nhà");
+        int rider = MakeShip(m, 1, -1, 2, 3, 0, -0.5, 0);
+        m.Do(new Command(CmdKind.SetConst, Name: "ShipMass", Amount: 1e-5));
+        int hull = MakeShip(m, 0, home, 2, 0.5, 0, 0, 0);
+        m.ShipTo[rider] = hull;
+        bool isWorld = m.IsWorld(hull), solid = m.IsSolid(hull), pulls = m.Attracts(hull);
+        m.Do(new Command(CmdKind.FastForward, Amount: 1));
+        int hullLines = m.Chronicle.Count(e => e.Event.Change == "civ.colony" && e.Event.ObjectSlot == hull);
+        Expect(!isWorld && !solid,
+            $"ship-mass-world (Civ.cs:18 ShipMass is a Const with no range, Layers.cs:70 IsWorld = AttractMass <= M < StarMass, Civ.cs:59 IsSolid = rock+metal share — neither asks IsShip): ShipMass 1e-12 -> 1e-5 (AttractMass is 1e-7) and the hull answers IsWorld {isWorld}, IsSolid {solid}, Attracts {pulls}, so the whole layer stack runs on a ship (Layers.cs:139 gates the civ rule on IsWorld alone, Civ.cs:135 lets ShipGoal pick any IsSolid body) and a second ship sent to it founds a colony on the hull ({hullLines} colony line(s) naming slot {hull})");
+
+        // (4) the same dial at StarMass turns a ship into a sun
+        var k = new World(4, 1);
+        k.Add(0, 0, 0, 0, k.C.StarMass, GasMix, "sao");
+        k.Do(new Command(CmdKind.SetConst, Name: "ShipMass", Amount: 4.0));
+        int big = MakeShip(k, 0, 0, 2, 20, 0, -0.5, 0);
+        k.Advance(H);
+        Expect(k.KindOf(big) != Kind.Star,
+            $"ship-mass-star (Civ.cs:18, World.cs:73 KindOf answers Star for M >= StarMass, Civ.cs:199 fills _starSlots with every M >= StarMass): ShipMass 4.0 = StarMass makes the ship itself a star — KindOf {k.KindOf(big)} (World.cs:22 Kind is {{ Star, Planet, Moon, Rock }}), radius {k.R[big]:F4} — so SteerShips now dodges any ship as if it were a sun (Civ.cs:205-215 keeps {k.R[big] * 1.5:F4} units clear) and the temperature rules treat it as a light source");
+
+        // (5) a ship in flight when a jump starts must not fly through it
+        var jw = new World(8, 1);
+        int jgoal = jw.Add(0, 0, 0, 0, 3e-4, RockMix, "đích");
+        MakeShip(jw, 0, jgoal, 2, 30, 0, -1, 0);
+        jw.Do(new Command(CmdKind.FastForward, Amount: 1));
+        bool flying = false;
+        for (int i = 0; i < jw.N; i++) if (jw.Alive[i] && jw.IsShip(i)) flying = true;
+        Expect(!flying && jw.Pop[jgoal] > 0,
+            $"ship-jump-lands (Civ.cs:30 LandShips is the first statement of Jump, Civ.cs:119-127 lands then kills): a ship in flight when a jump starts never survives it — a live ship after the jump: {flying}; the people are on the goal (Pop {jw.Pop[jgoal]:E2}, Civ {jw.Civ[jgoal]}, Chronicle {jw.Chronicle.Count})");
+
+        // (6) the star itself as the goal
+        var gs = new World(8, 1);
+        int sun = gs.Add(0, 0, 0, 0, 50, GasMix, "sao");
+        int fly = MakeShip(gs, 0, sun, 2, gs.R[sun] + 0.3, 0, -0.4, 0);
+        bool blew = false; string why = "none";
+        try { for (int s = 0; s < 200 && gs.Alive[fly]; s++) gs.Advance(H); }
+        catch (Exception e) { blew = true; why = e.GetType().Name; }
+        Expect(!blew && gs.Pop[sun] == 0 && !gs.Alive[fly],
+            $"ship-star-goal (Civ.cs:208 skips the star it targets, Civ.cs:113-117 ShipArrives -> Land -> Civ.cs:103 IsSolid refuses a star): a ship sent into the star it aims at — exception {why}, star Pop {gs.Pop[sun]}, ship alive {gs.Alive[fly]} after {gs.Year:F1} years; the ship is simply lost, which is the answer the code intends");
+
+        // (7) Commands on a ship must survive the journal, ship cells included
+        var a = new World(8, 1);
+        int ga = a.Add(0, 0, 0, 0, 3e-4, RockMix, "đích");
+        int sa = MakeShip(a, 0, ga, 2, 20, 0, -0.5, 0);
+        a.Do(new Command(CmdKind.Move, Target: sa, X: 25, Y: 1, Vx: 0, Vy: -0.5));
+        a.Do(new Command(CmdKind.Force, X: 25, Y: 1, Vx: 2, Amount: 0.05));
+        a.Do(new Command(CmdKind.Push, Target: sa, Vx: -0.1, Vy: 0));
+        Run(a, 20);
+        var b = new World(8, 1);
+        b.Add(0, 0, 0, 0, 3e-4, RockMix, "đích");
+        MakeShip(b, 0, 0, 2, 20, 0, -0.5, 0);
+        int next = 0;
+        for (int s = 0; s < 20; s++) { b.Replay(a.Journal, ref next); b.Advance(H); }
+        Expect(a.Hash() == b.Hash(),
+            $"ship-replay (World.cs:239-246 mixes X/Y/Vx/Vy/M/Par per slot, Civ.cs:229-230 adds Civ/ShipCiv/ShipTo/ShipFrom/ShipTech/ShipBorn when ShipCiv >= 0, Commands.cs:43-46 Replay keys on Step): a journal of {a.Journal.Count} rows holding Move, Force and Push on a ship replays to hash {b.Hash():X16} against the live {a.Hash():X16}, {next} rows consumed — a ship's own cells are inside the hash");
+
+        // (8) a ship that dies leaves no line behind
+        var lw = new World(8, 1);
+        int keeper = lw.Add(0, 0, 0, 0, 3e-4, RockMix, "đích");
+        int doomed = lw.Add(40, 0, 0, 0, 3e-4, RockMix, "đích cũ");
+        int lostShip = MakeShip(lw, 0, doomed, 2, 4, 0, -0.1, 0);
+        int staleShip = MakeShip(lw, 0, keeper, 2, 6, 0, -0.1, 0);
+        lw.ShipBorn[staleShip] = -40; // 40 years in flight, C.ShipLifeYears is 30
+        lw.Do(new Command(CmdKind.Remove, Target: doomed));
+        Run(lw, 1100);
+        Risk($"ship-lost-silent (Civ.cs:153 kills a ship whose ShipTo is dead or older than ShipLifeYears ({lw.C.ShipLifeYears:F0} yr), Civ.cs:69-74 CivEvent is the only writer to the Chronicle and no kill path calls it): after {lw.Year:F2} years the ship sent to a removed world is alive {lw.Alive[lostShip]} and the ship that outlived its own life is alive {lw.Alive[staleShip]}, with {lw.Chronicle.Count} Chronicle line(s) for two lost ships — an expired ship, a stranded ship and a ship the hand removes all leave the story without a word");
+
+        // (9) the launch path indexes a civ list that nothing guarantees
+        var ci = new World(8, 1);
+        ci.Add(0, 0, 0, 0, 3e-4, RockMix, "dân");
+        ci.Add(9, 0, 0, 0, 3e-4, RockMix, "đích");
+        ci.Pop[0] = 1; ci.Tech[0] = 3; ci.Civ[0] = 0;
+        bool crash = false; string cw = "none";
+        try { Run(ci, 2); } catch (Exception e) { crash = true; cw = e.GetType().Name; }
+        Expect(!crash,
+            $"civ-launch-index (Civ.cs:168 _civLaunches[civ]++ walks a private list only NewCiv grows (Civ.cs:83), while Civ[]/ShipCiv[] are public cells (Civ.cs:38-41) that no path validates): a world where Pop[0] = 1, Tech[0] = 3, Civ[0] = 0 but Civs is empty throws {cw} straight out of Advance on the first rule run — input is a hand-written civ cell (a tool or a loaded save), not a command, and the whole window dies with it");
+        Info("[chưa kiểm: dàn dựng] Civ.cs:168 writes the civ.ship.first line and bumps _civLaunches BEFORE Civ.cs:180 Add and Civ.cs:181 `if (ship < 0) continue`, and World.cs:111 returns -1 only when _free is empty and N == X.Length — so at full capacity the Chronicle records a first ship that was never built. Staging needs a real civ (NewCiv is private, CivRiseYears = " + ci.C.CivRiseYears + " years, Layers.cs:144), which this audit did not reach headless.");
+
+        // (10) the three ship dials: 0 and negative are absorbed, a negative thrust is not
+        var z = new World(8, 1);
+        int zg = z.Add(0, 0, 0, 0, 3e-4, RockMix, "đích");
+        int zs = MakeShip(z, 0, zg, 2, 30, 0, -0.2, 0);
+        z.Do(new Command(CmdKind.SetConst, Name: "ShipThrust", Amount: 0));
+        z.Do(new Command(CmdKind.SetConst, Name: "ShipSpeed", Amount: -5));
+        Run(z, 4);
+        string absorbed = $"thrust 0 with speed -5 leaves the ship finite ({double.IsFinite(z.X[zs])}, Vx {z.Vx[zs]:E2}, X {z.X[zs]:F2})";
+        var th = new World(8, 1);
+        int tgoal = th.Add(0, 0, 0, 0, 3e-4, RockMix, "đích");
+        int ts = MakeShip(th, 0, tgoal, 2, 30, 0, -0.2, 0);
+        th.Do(new Command(CmdKind.SetConst, Name: "ShipThrust", Amount: -1));
+        Run(th, 4);
+        bool poisoned = !double.IsFinite(th.Vx[ts]) || !double.IsFinite(th.X[ts]) || !double.IsFinite(th.Y[ts]);
+        Expect(!poisoned,
+            $"ship-thrust-negative (Civ.cs:22 ShipThrust, Civ.cs:203 closing = Math.Clamp(Math.Sqrt(0.5 * C.ShipThrust * d), 0.02, Math.Max(0.02, C.ShipSpeed)), Civ.cs:219 Vx[i] += wx, Commands.cs:144-146 Consts.Set rejects only a non-finite INPUT): SetConst ShipThrust -1 is accepted, 0.5 * thrust * d is negative, Math.Sqrt turns it into NaN and Math.Clamp passes NaN through (every comparison with NaN is false), so Civ.cs:204/216/219 write NaN into the ship's own cells — Vx {th.Vx[ts]}, X {th.X[ts]}, Y {th.Y[ts]} after 4 steps while the goal keeps Vx {th.Vx[tgoal]}; the ship is then skipped by Civ.cs:201 (!(d > 0) is true for NaN) and can never touch, land or die again — {absorbed}, so only the negative branch escapes");
+
+        // (11) 30 years of flight is the only clock a ship has
+        var yv = new World(8, 1);
+        int ygoal = yv.Add(0, 0, 0, 0, 3e-4, RockMix, "đích");
+        int yfar = MakeShip(yv, 0, ygoal, 2, 3e7, 0, 0, 0);
+        int ysteps = (int)Math.Ceiling(31 * yv.C.YearTime / H);
+        Run(yv, ysteps);
+        Expect(!yv.Alive[yfar] && yv.Pop[ygoal] == 0 && yv.Year > yv.C.ShipLifeYears,
+            $"ship-life-clock (Civ.cs:23 ShipLifeYears, Civ.cs:153 kills a ship older than it, Civ.cs:203 caps the closing speed at ShipSpeed = {yv.C.ShipSpeed:F2}): a ship sent to a goal {Gap(yv, yfar, ygoal):E1} units away is dead at {yv.Year:F1} years with the goal Pop {yv.Pop[ygoal]} ({ysteps} steps at h = {H}) — at that cap a ship covers at most {yv.C.ShipSpeed * yv.C.ShipLifeYears * yv.C.YearTime:E1} units in its whole {yv.C.ShipLifeYears:F0}-year life, so any order further than that is a guaranteed loss of the ship and its people, and no line is written to say so");
     }
 }
