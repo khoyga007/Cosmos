@@ -152,3 +152,17 @@ Not in scope: Roche breakup (Claire), drawing.
 
 ### Claire
 `game/`: class names, star colours, comet tails, remnants; jump buttons past 1e6 yr; Roche breakup; fixes from Selica's table; merge.
+
+## ROADMAP (Yang approved 2026-10-06)
+| # | Phase | Contents | State |
+|---|---|---|---|
+| 1 | Physics base | gravity, contact, rails jump, temperature, water, life, star evolution, god tools | DONE |
+| 2 | Extensible base | three tables: matter groups, civ stages + named stats, star events | round 7, in progress |
+| 3 | Cosmic events | supernova, hypernova, kilonova, gamma ray burst; ejecta = real matter; fictional elements born there | waits Yang: element list |
+| 4 | Civ on one planet | stats, eras, uses all six groups, ethics 4 axes + Gestalt, abstract history + wars, awareness | design in progress (NEXT.md) |
+| 5 | Many star systems + FTL | several systems in one world, FTL, empires meet, first contact | not started |
+| 6 | Empire relations | opinion, wars, alliances, revolt, culture/religion spread, god tools on relations, reactions to god | not started |
+| — | ALPHA | = end of phase 6: every system runs end to end on placeholder visuals | |
+| 7 | Visual | whole VISUAL backlog (NEXT.md), textures, effects, sound | after Alpha only |
+
+3 and 4 may run in parallel (different owners); 5 needs both.
