@@ -53,6 +53,24 @@ static class LayerChecks
         Check(Math.Abs(ten.Life[earth] - sol.Life[earth]) < 0.02 && Math.Abs(ten.Pop[earth] - sol.Pop[earth]) < 0.02 && ten.TechStage(earth) == sol.TechStage(earth),
             $"ten jumps of 1e5: life {ten.Life[earth]:F3} pop {ten.Pop[earth]:F3} tech {ten.Tech[earth]:F1}; story: {Story(ten, earth)}");
 
+        // a jump is cut into at most JumpSamples chunks, so the chunk length is a sampling choice, not history:
+        // one command and a thousand must date every milestone of the civilisation the same, to 1/200 (the S1 bar).
+        {
+            var fine = World.SolSystem(0, 1234);
+            for (int k = 0; k < 1000; k++) Jump(fine, 1e3);
+            var Dates = (World w) => w.Chronicle.Where(c => c.Event.ObjectSlot == earth && c.Event.Change.StartsWith("civ."))
+                .Select(c => (c.Event.Year, c.Event.Change)).OrderBy(t => t.Year).ThenBy(t => t.Change).ToArray();
+            var coarseDates = Dates(sol); var fineDates = Dates(fine);
+            double worst = 0; string at = "none";
+            for (int k = 0; k < coarseDates.Length && k < fineDates.Length; k++)
+            {
+                double err = Math.Abs(coarseDates[k].Year - fineDates[k].Year) / Math.Max(1, fineDates[k].Year);
+                if (err > worst) { worst = err; at = coarseDates[k].Change; }
+            }
+            Check(coarseDates.Length == fineDates.Length && coarseDates.Length > 4 && worst <= 1.0 / 200,
+                $"milestone years, 1 jump of 1e6 vs 1000 jumps of 1e3: {coarseDates.Length} milestones, worst {worst * 100:F4}% (bar {100.0 / 200:F1}%), at {at}");
+        }
+
         // the god throws Earth outward: water freezes, life dies; a space-age people lives on under domes
         double dx = sol.X[earth] - sol.X[0], dy = sol.Y[earth] - sol.Y[0], d = Math.Sqrt(dx * dx + dy * dy);
         sol.Do(new Command(CmdKind.Push, Target: earth, Vx: -dy / d * 0.25, Vy: dx / d * 0.25));
