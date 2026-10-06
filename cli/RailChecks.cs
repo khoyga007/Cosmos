@@ -93,6 +93,19 @@ static class RailChecks
             w.Do(new Command(CmdKind.Move, Target: ea, X: w.X[ea] + 30, Y: w.Y[ea] - 7, Vx: 0.1, Vy: 0.2));
             Check(Math.Abs(w.X[mo] - w.X[ea] - rx) < 1e-12 && Math.Abs(w.Y[mo] - w.Y[ea] - ry) < 1e-12 && Math.Abs(w.Vx[mo] - w.Vx[ea] - rvx) < 1e-12 && w.X[0] == sunX && w.X[4] == marsX,
                 $"Move(Earth): Moon still {Math.Sqrt(rx * rx + ry * ry):F3} away, Sun and Mars stay");
+            // Saturn's ring is real: it stays a ring through steps and a jump, and goes along when Saturn is moved
+            {
+                var rw = World.SolSystem(400, 1234); int sat = 6, n0 = 0, kept = 0, moved = 0;
+                bool ring(int i) => rw.Alive[i] && rw.Grp[i] == 3;
+                double off(int i) { double dx = rw.X[i] - rw.X[sat], dy = rw.Y[i] - rw.Y[sat]; return Math.Sqrt(dx * dx + dy * dy) / rw.R[sat]; }
+                for (int i = 0; i < rw.N; i++) if (ring(i)) n0++;
+                for (int i = 0; i < 4000; i++) rw.Advance(.5);
+                rw.Do(new Command(CmdKind.FastForward, Amount: 1e5));
+                for (int i = 0; i < rw.N; i++) if (ring(i) && off(i) > 1.2 && off(i) < 2.7) kept++;
+                rw.Do(new Command(CmdKind.Move, Target: sat, X: rw.X[sat] + 40, Y: rw.Y[sat] + 40, Vx: rw.Vx[sat], Vy: rw.Vy[sat]));
+                for (int i = 0; i < rw.N; i++) if (ring(i) && off(i) > 1.2 && off(i) < 2.7) moved++;
+                Check(n0 == 200 && kept >= n0 * 95 / 100 && moved == kept, $"Saturn's ring: {n0} objects, {kept} still in the ring after 4000 steps + 1e5-year jump, {moved} after moving Saturn");
+            }
             // the Sun: with what it holds (default) or alone (Index 1)
             var s1 = World.SolSystem(0, 1234); var s2 = World.SolSystem(0, 1234); double ex = s1.X[ea], nx = s1.X[8];
             s1.Do(new Command(CmdKind.Move, Target: 0, X: 500, Y: 0)); s2.Do(new Command(CmdKind.Move, Target: 0, X: 500, Y: 0, Index: 1));

@@ -151,10 +151,11 @@ public sealed partial class World
     // Distances are squeezed (d = 45 * AU^0.62) so all eight planets fit one screen; order and mass ratios are real.
     public static double SolDist(double au) => 45 * Math.Pow(au, 0.62);
 
-    /// Our own system: Sun, eight planets, the Moon, and `rocks` small objects in two belts (40% asteroid, 60% Kuiper).
+    /// Our own system: Sun, eight planets, the Moon, and `rocks` small objects in two belts (40% asteroid, 60% Kuiper),
+    /// plus Saturn's ring: min(240, rocks / 2) more, real objects like any other.
     public static World SolSystem(int rocks, ulong seed)
     {
-        var w = new World(rocks + 256, seed);
+        var w = new World(rocks + 512, seed);
         int sun = w.Add(0, 0, 0, 0, 50, new double[] { 1, 0, 0, 0, 0, 0 }, "Mặt Trời", 0xFFDB8C);
         int planet(string name, double au, double earths, uint col, params double[] mix)
         {
@@ -167,12 +168,12 @@ public sealed partial class World
         int earth = planet("Trái Đất", 1.0, 1.0, 0x4F8FE8, 0, 0.01, 0.66, 0.32, 0.005, 0.005);
         planet("Sao Hỏa", 1.524, 0.107, 0xD0603A, 0, 0.01, 0.73, 0.25, 0.005, 0.005);
         planet("Sao Mộc", 5.203, 317.8, 0xD9B48A, 0.90, 0.05, 0.03, 0.015, 0.005, 0);
-        planet("Sao Thổ", 9.537, 95.2, 0xE6D29A, 0.85, 0.08, 0.045, 0.02, 0.005, 0);
+        int saturn = planet("Sao Thổ", 9.537, 95.2, 0xE6D29A, 0.85, 0.08, 0.045, 0.02, 0.005, 0);
         planet("Sao Thiên Vương", 19.19, 14.5, 0x9FE3E8, 0.15, 0.65, 0.15, 0.04, 0.01, 0);
         planet("Sao Hải Vương", 30.07, 17.1, 0x4466E0, 0.12, 0.66, 0.16, 0.05, 0.01, 0);
         w.AddOrbiting(earth, w.X[earth] + 0.12, w.Y[earth], 0.0123 * EarthMass, new[] { 0, 0.01, 0.72, 0.26, 0.005, 0.005 }, "Mặt Trăng", 0xC8C8C8);
 
-        w.Groups.Add("Vành đai tiểu hành tinh"); w.Groups.Add("Vành đai Kuiper");
+        w.Groups.Add("Vành đai tiểu hành tinh"); w.Groups.Add("Vành đai Kuiper"); w.Groups.Add("Vành Sao Thổ");
         double[] belt = { 0, 0.05, 0.60, 0.20, 0.14, 0.01 }, kuiper = { 0.03, 0.72, 0.15, 0.02, 0.08, 0 };
         var mix = new double[NElem];
         for (int i = 0; i < rocks; i++)
@@ -187,6 +188,14 @@ public sealed partial class World
             double q = w.Next(), m = 1e-10 * (1 + 200 * q * q * q); // up to 2e-8: all below AttractMass
             w.AddOrbiting(sun, Math.Cos(a) * d, Math.Sin(a) * d, m, mix, null, 0, inner ? 1 : 2, 0.99 + 0.02 * w.Next());
             w.Par[w.N - 1] = -1; // rocks get no orbit line
+        }
+        // drawn after the belts, so the belts are the same with and without it
+        double[] ringMix = { 0, 0.9, 0.1, 0, 0, 0 };
+        for (int i = Math.Min(240, rocks / 2); i > 0; i--)
+        {
+            double d = w.R[saturn] * (1.4 + 1.0 * w.Next()), a = w.Next() * Math.Tau;
+            w.AddOrbiting(saturn, w.X[saturn] + Math.Cos(a) * d, w.Y[saturn] + Math.Sin(a) * d, 1e-10, ringMix, null, 0, 3);
+            w.Par[w.N - 1] = -1;
         }
         w.RunRules();
         return w;

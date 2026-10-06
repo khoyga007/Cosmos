@@ -199,6 +199,42 @@ public partial class Main : Node2D
 
     string NameOf(int i) => _w.Name[i] ?? $"{(_w.Grp[i] > 0 ? _w.Groups[_w.Grp[i]] : "Vật thể")} #{i}";
 
+    // How many small objects each planet or moon holds close by (within 4 of its radii), and how far the furthest is.
+    const int RingMin = 30;
+    int[] _ringCount = System.Array.Empty<int>();
+    double[] _ringFar = System.Array.Empty<double>();
+    readonly System.Collections.Generic.List<int> _ringHosts = new();
+
+    void CountRings()
+    {
+        if (_ringCount.Length < _w.N) { _ringCount = new int[_w.X.Length]; _ringFar = new double[_w.X.Length]; }
+        _ringHosts.Clear();
+        for (int i = 0; i < _w.N; i++)
+        {
+            _ringCount[i] = 0; _ringFar[i] = 0;
+            if (_w.Alive[i] && _w.Attracts(i) && _w.KindOf(i) != Kind.Star) _ringHosts.Add(i);
+        }
+        for (int i = 0; i < _w.N; i++)
+        {
+            if (!_w.Alive[i] || _w.Attracts(i) || _w.IsShip(i)) continue;
+            foreach (int h in _ringHosts)
+            {
+                double dx = _w.X[i] - _w.X[h], dy = _w.Y[i] - _w.Y[h], d2 = dx * dx + dy * dy, reach = _w.R[h] * 4;
+                if (d2 >= reach * reach) continue;
+                _ringCount[h]++; if (d2 > _ringFar[h]) _ringFar[h] = d2;
+                break;
+            }
+        }
+    }
+
+    public void RingSelected()
+    {
+        if (!Live(_sel)) return;
+        int made = GodTools.MakeRing(_w, _sel, 200, (ulong)_w.Step * 31 + (ulong)_sel);
+        Toast(made > 0 ? $"Đã tạo vành đai {made} mảnh băng quanh {NameOf(_sel)}" : made == 0 ? "Thế giới đã đầy, không tạo thêm được" : "Vật này không giữ được vành đai");
+        _ui.RefreshSelection();
+    }
+
     // PLACEHOLDER LOOK. Everything an object looks like goes through BodyCol + DrawBody, so that textures
     // can replace these two later without touching what is shown or where.
     Color BodyCol(int i)
@@ -492,6 +528,8 @@ public partial class Main : Node2D
         }
         DrawSetTransform(Vector2.Zero);
 
+        CountRings();
+
         // a moon's labels are dropped while it sits on top of its planet on screen
         bool far(int i, Vector2 p) => !(_w.Par[i] >= 0 && _w.Par[i] < _w.N && _w.Alive[_w.Par[i]]) || Screen(_w.Par[i]).DistanceTo(p) > 30;
 
@@ -501,7 +539,8 @@ public partial class Main : Node2D
             Vector2 p = Screen(i);
             float r = Px(i);
             Kind kind = _w.KindOf(i);
-            if (_w.Name[i] == "Sao Thổ")
+            // PLACEHOLDER: a ring too small on screen to show its own rocks is drawn as one band
+            if (_ringCount[i] >= RingMin && Math.Sqrt(_ringFar[i]) * _zoom < r * 3)
             {
                 DrawSetTransform(p, 0, new Vector2(1, _tilt));
                 DrawArc(Vector2.Zero, r * 2.1f, 0, MathF.Tau, 48, new Color(0.9f, 0.82f, 0.6f, 0.7f), MathF.Max(1.5f, r * 0.45f));

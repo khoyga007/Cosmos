@@ -238,6 +238,32 @@ public static class GodTools
     }
 
     /// <summary>
+    /// A ring of `count` small icy objects on circular orbits around the target, between 1.4 and 2.4 of its radii
+    /// (kept inside its zone). Each one is an ordinary Create command. Returns how many were made, -1 = cannot.
+    /// </summary>
+    public static int MakeRing(World w, int target, int count, ulong seed)
+    {
+        if (target < 0 || target >= w.N || !w.Alive[target] || !w.Attracts(target)) return -1;
+        double inner = w.R[target] * 1.4, outer = Math.Min(w.R[target] * 2.4, w.Hill(target) * 0.4);
+        if (!(outer > inner)) return -1;
+        var rng = new Random(unchecked((int)seed));
+        double[] mix = { 0, 0.9, 0.1, 0, 0, 0 };
+        double m = Math.Min(1e-10, w.C.AttractMass / 10);
+        int made = 0;
+        for (int k = 0; k < count; k++)
+        {
+            double d = inner + (outer - inner) * rng.NextDouble(), a = rng.NextDouble() * Math.Tau, v = Math.Sqrt(w.C.G * (w.M[target] + m) / d);
+            double cx = Math.Cos(a), cy = Math.Sin(a);
+            int before = w.Live;
+            w.Do(new Command(CmdKind.Create, X: w.X[target] + cx * d, Y: w.Y[target] + cy * d,
+                Vx: w.Vx[target] - cy * v, Vy: w.Vy[target] + cx * v, Amount: m, Mix: mix));
+            if (w.Live == before) break; // world is full
+            made++;
+        }
+        return made;
+    }
+
+    /// <summary>
     /// Put the target at (x, y). circular = it lands on a circular orbit around whatever rules that spot (at rest
     /// when nothing heavier is there); otherwise it keeps the velocity it had. alone = what it holds in orbit stays behind.
     /// </summary>
