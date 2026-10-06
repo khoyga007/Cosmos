@@ -39,3 +39,11 @@ READ `SPEC.md` FIRST (game, model, engine decisions, round-1 work packages). Thi
 - A check that reads a rule's output right after `SetConst` must run past that rule's rhythm (water = 1 yr ≈ 536 steps).
 - Reflection on private fields (`_prim`, `_hill`) from a throwaway cli file = fast way to see what a jump decided; delete the file after.
 - Long markdown with quotes/backticks inside a bash heredoc fails to parse → Write a .py to the scratchpad, run it.
+
+## Yang decisions 2026-10-06 (late)
+- Star lifetimes: REAL, billions of years. `StarLifeScale` stays 1. No compression.
+- Move: toggle. `Command.Index == 1` = alone; default carries what target holds. Window checkbox "kéo theo những gì nó đang giữ" (fb58b89).
+- First contact (two peoples meet): Yang will design it "tý nữa". WAIT, his concept. No build.
+- Cosmic events Yang listed: supernova, hypernova, kilonova, gamma ray burst, "..." (list open). Core has only `star.giant`, `star.nova` today. WAIT for his go + scope.
+- Code-drawn visuals = PLACEHOLDER; textures later. Look lives in `Main.BodyCol` + `Main.DrawBody` only (199464e).
+- OPEN defect (Celine, bridge 741111ba): red giant R=826 swallows whole system to Neptune (Sun R inflated ~40x vs orbit scale); bodies swallowed in jump leave no events. Repro `cli -- jump-bench 1e10 0 v`.
