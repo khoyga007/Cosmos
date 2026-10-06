@@ -69,3 +69,12 @@ READ `SPEC.md` FIRST (game, model, engine decisions, round-1 work packages). Thi
 ## Round 7 — foundation only (sent bridge da35f5cc, base 236b4db)
 - A Celine `celine/elements`: element table replaces `NElem = 6`. B Ariel `ariel/civtable`: stage table + named civ stats slot. C Celine: star event table + single `Eject()`. Selica: hard-code sweep, "edits outside table = 0" audits, review.
 - Old hashes must stay bit-equal. Claire merges A -> B -> C, re-runs herself. Claire writes no code this round (Yang: save quota).
+
+## VISUAL backlog — LAST, only after the game reaches Alpha (Yang 2026-10-06). Do NOT start earlier; code-drawn placeholders stay until then.
+Wiring: core event (place, year, size) -> window plays the effect; event/element/stage tables carry a visual id.
+- Data already in core, not drawn / crude: temperature (glow hot, frost cold); water state (ocean, ice caps, vapour clouds); biosphere 0..1 (greening/withering); population + stage (night-side city lights); six-group composition (surface types, gas bands); star phase/class (boiling surface, corona, pulsing giant, remnants); star light on planets (day/night side); habitable zone + snow line bands moving as the star ages; Hill zone; ships (engine trail, path); domes; object classes from Ariel's kinds (comet tail away from star, longer near it); planet rings (gaps, shadow).
+- Happens in core with no picture: impact/merge (flash, debris, hot scar); star -> giant / nova / remnant; planet swallowed by star; biosphere death; civ rise/fall, colony, first ship; god's hand force.
+- Cosmic events (when built): supernova/hypernova (flash, shock ring, GPU-particle debris), kilonova (inspiral, flash, lensing ripple shader), gamma ray burst (two narrow jets sweeping the system), black hole (lensing shader, accretion disc); glow/bloom, shake, sound.
+- Not in core yet, so not drawable: Roche breakup, ejecta clouds as real matter, everything from the civ design (wars, borders, ethics).
+- OPEN for Yang: events inside a time jump — log only / stop the jump at big events / replay after. Lasting traces (nebula) want ejecta as real objects.
+- Shaders + particles = keepable; surfaces/nebulae need real textures.
