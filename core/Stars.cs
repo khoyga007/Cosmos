@@ -39,12 +39,12 @@ public sealed partial class Consts
     public double StarWhiteSlope = 0.109;         // [P] empirical initial-final mass fit (solar units)
     public double StarWhiteIntercept = 0.394;     // [P] empirical IFMR intercept, solar masses
     public double StarWhiteRadius = 0.00916;      // [P] Earth radius / Sun radius
-    public double StarWhiteLight = 0.01;          // [P] young WD cooling normalization
-    public double StarWhiteCoolYears = 1e9;       // [P] WDs cool on Gyr scales
+    public double StarWhiteLight = 0.00916 * 0.00916 * Math.Pow(200000.0 / 5772, 4); // [P] hot WD birth, reference radius, Stefan-Boltzmann
+    public double StarWhiteCoolYears = 1.05e8 / 14; // [P] Mestel coefficient for a C/O core (mean ion mass 14)
     public double StarNeutronMass = 1.4;          // [P] typical neutron star mass ~1.4 Suns
     public double StarNeutronRadius = 20.0 / 696340; // [P] NS radius ~10..20 km
-    public double StarNeutronLight = 0.02;         // [P] young NS thermal cooling normalization
-    public double StarNeutronCoolYears = 1e6;     // [P] young NS thermal cooling, Myr normalization
+    public double StarNeutronLight = Math.Pow(20.0 / 696340, 2) * Math.Pow(2e6 / 5772, 4) * Math.Pow(2, 1.3); // [P] 2 MK at 330 yr, Cas A-like thermal normalization
+    public double StarNeutronCoolYears = 330;     // [P] finite hot origin; effective cooling fit, not universal NS microphysics
     public double StarBlackFraction = 0.25;       // [P] retained mass strongly depends on progenitor/winds
     public double StarBlackMin = 3;              // [P] stellar BH typically >=~3 solar masses
     public double StarSchwarzschild = 2.953 / 696340; // [P] 2GM/c^2: ~2.953 km per solar mass
@@ -126,12 +126,67 @@ public sealed partial class World
         StarPhase.RedGiant => GiantLight(M[i]),
         StarPhase.BrownDwarf => C.StarBrownLight * Math.Pow(M[i] / (C.StarSolarMass * C.StarBrownReference), 2)
             * Cool(StarAge[i], C.StarBrownCoolYears),
-        StarPhase.WhiteDwarf => C.StarWhiteLight * Cool(StarCoolingAge[i], C.StarWhiteCoolYears),
-        StarPhase.NeutronStar => C.StarNeutronLight * Cool(StarCoolingAge[i], C.StarNeutronCoolYears),
+        StarPhase.WhiteDwarf or StarPhase.NeutronStar => RemnantLight(i, StarCoolingAge[i]),
         _ => 0
     };
 
     double Cool(double age, double scale) => scale > 0 ? Math.Pow(1 + Math.Max(0, age) / scale, -C.StarCoolingPower) : 0;
+
+    // Pols 2011 sec.12.3: tau=(1.05e8/Aion)*(L/M)^(-5/7). Shift its age origin to a finite hot birth.
+    // https://inpp.ohio.edu/~meisel/ASTR4201/file/StellarStructureAndEvolution_OnnoPols2011.pdf
+    // NS normalization: https://chandra.cfa.harvard.edu/photo/2009/cassio/index.html
+    // Its effective power-law is a macro fit; envelopes, neutrino processes and superfluidity vary between NSs.
+    double RemnantLight(int i, double age)
+    {
+        if (StarPhaseOf(i) == StarPhase.NeutronStar) return C.StarNeutronLight * Cool(age, C.StarNeutronCoolYears);
+        double birth = C.StarWhiteLight * Math.Pow(C.StarWhiteIntercept * C.StarSolarMass / M[i], 2.0 / 3);
+        if (!(birth > 0) || !(C.StarWhiteCoolYears > 0)) return 0;
+        double origin = C.StarWhiteCoolYears * Math.Pow(birth / (M[i] / C.StarSolarMass), -5.0 / 7);
+        return birth * Math.Pow(1 + Math.Max(0, age) / origin, -7.0 / 5);
+    }
+
+    // During a jump only cooling remnants vary continuously. Find the next heat/water edge
+    // using the same orbit-average geometry as UpdateTemperature; no invented warm plateau.
+    double NextCoolingBoundary(double target)
+    {
+        if (!StarsEnabled || !Rules.Exists(r => r.Enabled && r.Id == "temperature")) return double.PositiveInfinity;
+        bool cooling = false;
+        for (int s = 0; s < N && !cooling; s++) cooling = Alive[s] && StarPhaseOf(s) is StarPhase.WhiteDwarf or StarPhase.NeutronStar;
+        if (!cooling) return double.PositiveInfinity;
+        double next = double.PositiveInfinity;
+        foreach (double edge in new[] { C.ScorchedEdge, C.FrozenEdge, C.WaterBoil, C.WaterFreeze })
+        {
+            if (!(edge > C.CosmicBackground) || !(C.TemperatureScale > 0)) continue;
+            double need = Math.Pow(edge / C.TemperatureScale, 4);
+            for (int i = 0; i < N; i++)
+            {
+                if (!Alive[i] || !IsWorld(i)) continue;
+                int host = RailStar(i, out double mean);
+                double Flux(double at)
+                {
+                    double flux = 0;
+                    for (int s = 0; s < N; s++)
+                    {
+                        if (!Alive[s] || s == i) continue;
+                        double light = StarPhaseOf(s) is StarPhase.WhiteDwarf or StarPhase.NeutronStar
+                            ? RemnantLight(s, StarCoolingAge[s] + Math.Max(0, at - _starUpdated[s])) : StarLuminosity(s);
+                        if (!(light > 0)) continue;
+                        double dx = X[i] - X[s], dy = Y[i] - Y[s], d2 = dx * dx + dy * dy;
+                        if (s == host) flux += light * 45 * 45 * mean;
+                        else if (d2 > 0) flux += light * 45 * 45 / d2;
+                    }
+                    return flux;
+                }
+                double hi = Math.Min(target, next), lo = Year;
+                if (Flux(lo) <= need || Flux(hi) >= need) continue;
+                for (int k = 0; k < 64; k++) { double mid = lo + (hi - lo) / 2; if (Flux(mid) > need) lo = mid; else hi = mid; }
+                // A single ULP in year need not change the rounded fourth-root temperature.
+                double crossed = Math.BitIncrement(Math.BitIncrement(Math.BitIncrement(Math.BitIncrement(hi))));
+                next = Math.Min(next, Math.Max(crossed, hi + 1e-6));
+            }
+        }
+        return next;
+    }
 
     double GiantRadiusFactor(int i) => Math.Max(Math.Pow(M[i] / C.StarSolarMass, C.StarRadiusPower) * C.StarGiantRadius,
         Math.Sqrt(GiantLight(M[i])) * Math.Pow(C.StarSolarTemperature / C.StarGiantTemperature, 2));

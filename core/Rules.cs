@@ -117,18 +117,61 @@ public sealed partial class World
         _events.Add(new RuleEvent(double.IsNaN(year) ? Year : year, objectSlot, ruleId, change, a, b, c));
     }
 
-    void RunRules()
+    void RunRules(bool coolingBoundary = false)
     {
+        _lifeCurveReady = false;
+        double target = Year, boundary;
+        while ((boundary = NextStarBoundary()) <= target)
+        {
+            Year = boundary;
+            // Settle the old luminous era before its discontinuity. A late clock must not apply
+            // the new temperature to years before the giant/nova. SetRadius (metal use) must
+            // not evolve a star in the middle of this settlement.
+            _updatingStars = true;
+            try
+            {
+                _lifeCurveReady = false;
+                foreach (var rule in Rules)
+                    if (rule.Enabled && rule.Id is "temperature" or "water" or "life" or "civ") ApplyRule(rule);
+            }
+            finally { _updatingStars = false; }
+            ApplyRule(_starRule);
+            // Temperature/water change at the boundary; growth/decay starts after it.
+            foreach (var rule in Rules)
+                if (rule.Enabled && rule.Id is "temperature" or "water") ApplyRule(rule);
+            Year = target;
+        }
+        if (coolingBoundary)
+        {
+            // The old water state holds up to its analytic cooling edge, even if no rhythm is due.
+            _updatingStars = true;
+            try
+            {
+                _lifeCurveReady = false;
+                foreach (var rule in Rules)
+                    if (rule.Enabled && rule.Id is "water" or "life" or "civ") ApplyRule(rule);
+            }
+            finally { _updatingStars = false; }
+            ApplyRule(_starRule);
+            foreach (var rule in Rules)
+                if (rule.Enabled && rule.Id is "temperature" or "water") ApplyRule(rule);
+        }
+        _lifeCurveReady = false;
         foreach (var rule in Rules)
         {
             if (!rule.Enabled || Year < rule.NextYear) continue;
-            RuleYears = Year - rule.LastYear;
-            rule.Apply(this);
-            rule.LastYear = Year;
-            // No historical physics states exist: skipped ticks coalesce at the current year.
-            rule.NextYear = (Math.Floor(Year / rule.RhythmYears) + 1) * rule.RhythmYears;
-            if (ReferenceEquals(rule, _starRule)) rule.NextYear = Math.Min(rule.NextYear, NextStarBoundary());
+            ApplyRule(rule);
         }
+    }
+
+    void ApplyRule(Rule rule)
+    {
+        RuleYears = Year - rule.LastYear;
+        rule.Apply(this);
+        rule.LastYear = Year;
+        // No historical physics states exist: skipped ticks coalesce at the current year.
+        rule.NextYear = (Math.Floor(Year / rule.RhythmYears) + 1) * rule.RhythmYears;
+        if (ReferenceEquals(rule, _starRule)) rule.NextYear = Math.Min(rule.NextYear, NextStarBoundary());
     }
 
     void HashRules(Action<ulong> mix)
