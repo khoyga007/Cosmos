@@ -2,6 +2,24 @@
 
 READ `SPEC.md` FIRST (game, model, engine decisions, round-1 work packages). This file = what is running now.
 
+## Scale design — Yang 2026-10-06, IDEA ONLY, no code until he says go (phase 5)
+- galaxy map = one continuous real-time space, no per-system scene; inter-system distance = REAL (45 u ≈ 1 AU → nearest star ≈ 1.2e7 u). Systems gravitationally isolated (neighbour pull ~1e-11) → per-system chunks/threads, per-system local coords, camera-relative draw.
+- system count = symbolic, player picks at map gen (Stellaris slider); core takes it as parameter, cap from measurement.
+- universe = procedural from seed, galaxies drawn as dots (only cells in view); a galaxy generates on click, at current universe age.
+- opened galaxy lives in the save: state + last-computed year, catch-up by rails on return. Untouched rocks regen from seed.
+- OPEN: catch-up for civs; snapshot save format (unchecked whether one exists); rock budget (200 systems × 5240 rocks ≈ 460 ms/step extrapolated); stars orbit galactic centre (real physics, Claire decides).
+
+## Out on bridge 2026-10-06 night (base 3ebe7cc) — all need Yang's prompt, all have step-0 checkpoint
+- C5 Celine `celine/cosmic-events` (claimed): mass ledger (sublimation debt) + SN ejecta Mix + hypernova + kilonova (merger trigger) + GRB record only. Yang: no fictional elements yet. GRB = random axis, harms OTHER systems only (phase 5), home system gets the blast; falloff 1/d², dose-based.
+- A2 Ariel `ariel/civ-stats`: 5 civ stats, era table (replaces 4 stages), tech ceiling, resources per era (6 groups), dome conditions. Yang said go for DECIDED parts only; ethics/awareness/relations still no code.
+- P5 Selica `selica/civ-dates`: civ milestones dated independent of jump size.
+- Candidates Yang has not picked: SN Ia, superflare, Roche breakup → rings.
+
+## Perf state (master 3ebe7cc)
+- 363b81e run.bat builds core Release; 3ebe7cc selica/rocks-parallel (P4): rock pass + drift in fixed chunks clamp(N/512,1,16), bit-exact at any thread count (Selica: 4 scenes × 6 thread levels, cli 322 OK). `World.Threads` is a FIELD.
+- Yang's window: 40 → 58 (NVIDIA WhisperMode/Max Frame Rate off) → 146-150 fps at ×1, 5250 objects (before P4). Ceiling at 5250 = draw, not Advance (0.96 ms). SIMD not worth it now.
+- Not re-run by Claire after 3ebe7cc merge. OPEN: Parallel.For overhead T_s ~0.76 ms unmeasured split; tab row overflows with 5 tabs ("Nhật ký" pushed off) → Ariel.
+
 ## Team pass 2026-10-06 late (master 58e1c79) — RESUME HERE
 - Merged by diff review only (Claire ran nothing, quota): S2 selica/audit-gaps (132defe, cli only, `cli -- conserve` 37 checks) + S1 celine/nova-stamps (a928acb). Celine's numbers on rebased tree: cli 315 OK exit 0, audit 4D/3R, selftest C430139B76C6A372, uitest B6EC767CF72CE186. Report + sources: S1-NOVA-STAMPS.md.
 - S1: RunRules settles old luminous era before each star boundary; life.end/civ.end dated analytically, cut 1/200 equal; WD born 200 kK, Mestel cooling, NS 2 MK @ 330 yr (macro fit); jump cut at cooling edges -> real warm interval scorched->temperate->frozen. 4 Const defaults changed (StarWhiteLight, StarWhiteCoolYears, StarNeutronLight, StarNeutronCoolYears), all hashes re-captured.
