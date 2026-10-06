@@ -236,4 +236,35 @@ public static class GodTools
         }
         return n;
     }
+
+    /// <summary>
+    /// Put the target at (x, y). circular = it lands on a circular orbit around whatever rules that spot (at rest
+    /// when nothing heavier is there); otherwise it keeps the velocity it had.
+    /// </summary>
+    public static int Move(World w, int target, double x, double y, bool circular)
+    {
+        if (target < 0 || target >= w.N || !w.Alive[target]) return -1;
+        double vx = w.Vx[target], vy = w.Vy[target];
+        if (circular)
+        {
+            int p = PrimaryAt(w, x, y, w.M[target], target);
+            vx = vy = 0;
+            if (p >= 0)
+            {
+                double dx = x - w.X[p], dy = y - w.Y[p], d = Math.Sqrt(dx * dx + dy * dy);
+                if (!(d > 0)) return -1;
+                double v = Math.Sqrt(w.C.G * (w.M[p] + w.M[target]) / d);
+                vx = w.Vx[p] - dy / d * v; vy = w.Vy[p] + dx / d * v;
+            }
+        }
+        return w.Do(new Command(CmdKind.Move, Target: target, X: x, Y: y, Vx: vx, Vy: vy));
+    }
+
+    /// <summary>
+    /// The hand: pull (amount > 0) or shove away (amount < 0) everything within radius of (x, y).
+    /// </summary>
+    public static bool Force(World w, double x, double y, double radius, double amount)
+    {
+        return w.Do(new Command(CmdKind.Force, X: x, Y: y, Vx: radius, Amount: amount)) != -1;
+    }
 }

@@ -6,9 +6,11 @@
 //   wheel = zoom at the pointer · drag with right / middle button, or left on empty space = move the view
 //   left click = select (bodies before rocks) · double click = select and follow · right click = drop tool / selection
 //   left drag starting on the selected object = push it (the line shows the orbit it would get)
+//   tools (bar at the bottom, or keys): V vector = press an object and drag, the arrow IS its new velocity;
+//   M move = drag an object to a new place; A pull / R push away = hold the button, everything inside the ring feels it
 //   tool "create" (C): the pointer carries the new object; click = circular orbit around whatever rules that
 //   spot, press and drag = launch it with that velocity
-// Keys: Space pause · 1..7 speed · C create · F follow · Delete remove · Esc cancel · H whole system · Tab panel · T tilt · [ ] G
+// Keys: Space pause · 1..7 speed · C create · V vector · M move · A pull · R push away · F follow · Delete remove · Esc cancel · H whole system · Tab panel · T tilt · [ ] G
 using System;
 using Godot;
 using Cosmos.Core;
@@ -29,12 +31,16 @@ public partial class Main : Node2D
 
     double _cx, _cy;
     float _zoom = 0.75f, _tilt = 1f;
-    bool _paused, _creating;
+    bool _paused;
+    public enum Tool { Select, Create, Vector, Move, Pull, Shove }
+    Tool _tool;
+    bool _creating => _tool == Tool.Create;
+    int _grab = -1; // object held by the vector or move tool
     int _timeWarp = 1;
     double _toastLeft;
 
     // one mouse gesture at a time
-    enum Drag { None, Maybe, Pan, Push, Place }
+    enum Drag { None, Maybe, Pan, Push, Place, Aim, Carry, Hand }
     Drag _drag;
     MouseButton _dragBtn;
     Vector2 _downPos, _mouse;
@@ -47,6 +53,7 @@ public partial class Main : Node2D
     double _stepMs, _fillMs;
     int _bench; double _benchT; int _benchFrames;
     bool _selftest, _uitest;
+    int _rocks;
     const int Stride = 12;
 
     static readonly Color[] ElemCol = { new(0.72f, 0.78f, 1f), new(0.3f, 0.9f, 1f), new(0.9f, 0.5f, 0.25f), new(1f, 0.85f, 0.4f), new(0.75f, 0.4f, 0.95f), new(0.4f, 1f, 0.3f) };
@@ -72,7 +79,7 @@ public partial class Main : Node2D
             return;
         }
 
-        _w = World.SolSystem(rocks, 1234);
+        _w = World.SolSystem(rocks, 1234); _rocks = rocks;
 
         int cap = _w.X.Length;
         _mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform2D, UseColors = true, Mesh = new QuadMesh { Size = new Vector2(2.5f, 2.5f) }, InstanceCount = cap };
@@ -84,7 +91,7 @@ public partial class Main : Node2D
         _hud = new Label { Position = new Vector2(12, 8), MouseFilter = Control.MouseFilterEnum.Ignore }; layer.AddChild(_hud);
         _panel = new RichTextLabel { Position = new Vector2(12, 36), Size = new Vector2(420, 420), BbcodeEnabled = true, ScrollActive = false, MouseFilter = Control.MouseFilterEnum.Ignore };
         layer.AddChild(_panel);
-        _toast = new Label { MouseFilter = Control.MouseFilterEnum.Ignore, AnchorTop = 1, AnchorBottom = 1, OffsetLeft = 14, OffsetTop = -96, OffsetBottom = -68, Modulate = new Color(1, 1, 1, 0) };
+        _toast = new Label { MouseFilter = Control.MouseFilterEnum.Ignore, AnchorTop = 1, AnchorBottom = 1, OffsetLeft = 14, OffsetTop = -146, OffsetBottom = -118, Modulate = new Color(1, 1, 1, 0) };
         _toast.AddThemeColorOverride("font_color", new Color(1f, 0.92f, 0.5f));
         layer.AddChild(_toast);
 
@@ -113,11 +120,24 @@ public partial class Main : Node2D
     public void TogglePause() { _paused = !_paused; _ui?.UpdatePaused(_paused); }
 
     public bool Creating => _creating;
-    public void SetCreating(bool on)
+    public void SetCreating(bool on) => SetTool(on ? Tool.Create : Tool.Select);
+
+    public Tool CurrentTool => _tool;
+    public void SetTool(Tool tool)
     {
-        _creating = on; _drag = Drag.None;
-        _ui?.UpdateCreating(on);
-        if (on) Toast("Đặt vật thể: bấm = quỹ đạo tròn, giữ và kéo = phóng đi. Chuột phải hoặc Esc để thôi.");
+        _tool = tool; _drag = Drag.None; _grab = -1;
+        _ui?.UpdateCreating(_creating);
+        _ui?.UpdateTool(tool);
+        string? say = tool switch
+        {
+            Tool.Create => "Đặt vật thể: bấm = quỹ đạo tròn, giữ và kéo = phóng đi.",
+            Tool.Vector => "Vector: giữ chuột trên một vật thể rồi kéo — mũi tên chính là vận tốc mới của nó.",
+            Tool.Move => "Di dời: giữ chuột trên một vật thể, kéo tới chỗ mới rồi thả.",
+            Tool.Pull => "Hút: giữ chuột trái, mọi thứ trong vòng tròn bị kéo về con trỏ.",
+            Tool.Shove => "Đẩy ra: giữ chuột trái, mọi thứ trong vòng tròn bị hất khỏi con trỏ.",
+            _ => null
+        };
+        if (say != null) Toast(say + " Chuột phải hoặc Esc để thôi.");
     }
 
     public void Toast(string text) { if (_toast != null) { _toast.Text = text; _toastLeft = 4; } }
@@ -211,6 +231,7 @@ public partial class Main : Node2D
         if (_w == null) return;
         if (_uitest && _frame == 3) { _frame++; RunUiTest(); return; }
         long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+        if (_drag == Drag.Hand) UseHand(delta);
         if (!_paused)
         {
             for (int step = 0; step < _timeWarp; step++)
@@ -327,6 +348,24 @@ public partial class Main : Node2D
         return sb.ToString();
     }
 
+    // Pull / push away: once a frame while the button is down. Strength is counted in orbit speeds per second of
+    // holding, at the pointer; the ring is a size on screen, so the hand is as big as it looks at any zoom.
+    void UseHand(double seconds)
+    {
+        ToWorld(_mouse, out double x, out double y);
+        int p = GodTools.PrimaryAt(_w, x, y, 0);
+        double amount = _ui.HandStrength * GodTools.OrbitSpeed(_w, p, x, y) * Math.Min(seconds, 0.1);
+        GodTools.Force(_w, x, y, _ui.HandRadiusPx / _zoom, _tool == Tool.Shove ? -amount : amount);
+    }
+
+    // velocity of object i as its primary sees it, and that primary
+    int RelVelocity(int i, out double ux, out double uy)
+    {
+        int p = GodTools.PrimaryAt(_w, _w.X[i], _w.Y[i], _w.M[i], i);
+        ux = _w.Vx[i] - (p >= 0 ? _w.Vx[p] : 0); uy = _w.Vy[i] - (p >= 0 ? _w.Vy[p] : 0);
+        return p;
+    }
+
     // drag on screen -> velocity seen from the primary: DragPerOrbitSpeed pixels = one circular-orbit speed there
     void DragVelocity(Vector2 drag, int primary, double x, double y, out double vx, out double vy, out double share)
     {
@@ -425,6 +464,61 @@ public partial class Main : Node2D
             DrawString(font, _mouse + new Vector2(14, 18), $"đẩy {share:F2}× tốc độ quỹ đạo", HorizontalAlignment.Left, -1, 13, AimCol);
         }
 
+        // Vector tool: the selected object's velocity as an arrow (same scale as a drag); while aiming, the new one
+        if (_tool == Tool.Vector)
+        {
+            int i = _drag == Drag.Aim ? _grab : _sel;
+            if (Live(i))
+            {
+                int p = RelVelocity(i, out double ux, out double uy);
+                double v = GodTools.OrbitSpeed(_w, p, _w.X[i], _w.Y[i]);
+                Vector2 now = new((float)(ux / v * DragPerOrbitSpeed), (float)(uy / v * DragPerOrbitSpeed * _tilt));
+                if (_drag == Drag.Aim)
+                {
+                    DrawLine(Screen(i), Screen(i) + now, new Color(1, 1, 1, 0.35f), 1.5f);
+                    DragVelocity(_mouse - Screen(i), p, _w.X[i], _w.Y[i], out double nvx, out double nvy, out double share);
+                    DrawArrow(Screen(i), _mouse);
+                    if (p >= 0) DrawPath(p, _w.M[i], _w.X[i] - _w.X[p], _w.Y[i] - _w.Y[p], nvx, nvy);
+                    DrawString(font, _mouse + new Vector2(14, 18), $"vận tốc mới {share:F2}× tốc độ quỹ đạo{(p >= 0 ? $" quanh {NameOf(p)}" : "")}", HorizontalAlignment.Left, -1, 13, AimCol);
+                }
+                else DrawArrow(Screen(i), Screen(i) + now);
+            }
+        }
+
+        // Move tool: the object's shadow under the pointer and the orbit it would land on
+        if (_drag == Drag.Carry && Live(_grab))
+        {
+            ToWorld(_mouse, out double x, out double y);
+            int p = GodTools.PrimaryAt(_w, x, y, _w.M[_grab], _grab);
+            DrawLine(Screen(_grab), _mouse, new Color(1, 1, 1, 0.3f), 1);
+            string say = "giữ vận tốc cũ";
+            if (_ui.MoveCircular)
+            {
+                say = p >= 0 ? $"quỹ đạo tròn quanh {NameOf(p)}" : "đứng yên";
+                if (p >= 0)
+                {
+                    double dx = x - _w.X[p], dy = y - _w.Y[p];
+                    DrawSetTransform(Screen(p), 0, new Vector2(1, _tilt));
+                    DrawArc(Vector2.Zero, (float)(Math.Sqrt(dx * dx + dy * dy) * _zoom), 0, MathF.Tau, 128, new Color(1f, 0.9f, 0.2f, 0.45f), 1.5f);
+                    DrawSetTransform(Vector2.Zero);
+                }
+            }
+            Color shade = MixCol(_grab); shade.A = 0.7f;
+            DrawCircle(_mouse, Px(_grab), shade);
+            DrawArc(_mouse, Px(_grab) + 3, 0, MathF.Tau, 24, new Color(1, 1, 1, 0.6f), 1);
+            DrawString(font, _mouse + new Vector2(Px(_grab) + 12, 18), $"{NameOf(_grab)} — {say}", HorizontalAlignment.Left, -1, 13, AimCol);
+        }
+
+        // Pull / push away: the ring is the reach of the hand
+        if (_tool == Tool.Pull || _tool == Tool.Shove)
+        {
+            bool on = _drag == Drag.Hand;
+            Color ring = _tool == Tool.Pull ? new Color(0.4f, 0.8f, 1f, on ? 0.9f : 0.45f) : new Color(1f, 0.5f, 0.3f, on ? 0.9f : 0.45f);
+            DrawArc(_mouse, _ui.HandRadiusPx, 0, MathF.Tau, 64, ring, on ? 2.5f : 1.5f);
+            if (on) DrawCircle(_mouse, _ui.HandRadiusPx, new Color(ring.R, ring.G, ring.B, 0.08f));
+            if (on && _paused) DrawString(font, _mouse + new Vector2(_ui.HandRadiusPx + 8, 4), "đang tạm dừng: vận tốc đã đổi, chạy tiếp mới thấy", HorizontalAlignment.Left, -1, 13, AimCol);
+        }
+
         // Create: the pointer carries the new object and shows what it will do
         if (_creating && _ui != null)
         {
@@ -507,6 +601,10 @@ public partial class Main : Node2D
             if (k.Keycode == Key.T) _tilt = _tilt < 1 ? 1f : 0.5f;
             if (k.Keycode == Key.Space) TogglePause();
             if (k.Keycode == Key.C) SetCreating(!_creating);
+            if (k.Keycode == Key.V) SetTool(_tool == Tool.Vector ? Tool.Select : Tool.Vector);
+            if (k.Keycode == Key.M) SetTool(_tool == Tool.Move ? Tool.Select : Tool.Move);
+            if (k.Keycode == Key.A) SetTool(_tool == Tool.Pull ? Tool.Select : Tool.Pull);
+            if (k.Keycode == Key.R) SetTool(_tool == Tool.Shove ? Tool.Select : Tool.Shove);
             if (k.Keycode == Key.F) FollowSelected();
             if (k.Keycode == Key.H) Home();
             if (k.Keycode == Key.Delete) RemoveSelected();
@@ -514,7 +612,7 @@ public partial class Main : Node2D
             if (k.Keycode == Key.Escape)
             {
                 if (_drag != Drag.None) _drag = Drag.None;
-                else if (_creating) SetCreating(false);
+                else if (_tool != Tool.Select) SetTool(Tool.Select);
                 else if (_follow >= 0) _follow = -1;
                 else Select(-1);
             }
@@ -550,6 +648,12 @@ public partial class Main : Node2D
             {
                 _drag = Drag.Place; ToWorld(m.Position, out _placeX, out _placeY);
             }
+            else if (m.ButtonIndex == MouseButton.Left && (_tool == Tool.Pull || _tool == Tool.Shove)) _drag = Drag.Hand;
+            else if (m.ButtonIndex == MouseButton.Left && (_tool == Tool.Vector || _tool == Tool.Move) && Pick(m.Position) is int held and >= 0)
+            {
+                _grab = held; Select(held);
+                _drag = _tool == Tool.Vector ? Drag.Aim : Drag.Carry;
+            }
             else if (m.ButtonIndex == MouseButton.Left && m.DoubleClick)
             {
                 int hit = Pick(m.Position);
@@ -566,6 +670,29 @@ public partial class Main : Node2D
         if (m.ButtonIndex != _dragBtn || _drag == Drag.None) return;
         Drag was = _drag; _drag = Drag.None;
         if (was == Drag.Place) PlaceObject();
+        else if (was == Drag.Hand) _ui?.RefreshSelection();
+        else if (was == Drag.Aim && Live(_grab))
+        {
+            int i = _grab;
+            if ((_mouse - _downPos).Length() > DragStart) // a plain click only selects
+            {
+                int p = RelVelocity(i, out double ux, out double uy);
+                DragVelocity(_mouse - Screen(i), p, _w.X[i], _w.Y[i], out double nvx, out double nvy, out double share);
+                GodTools.Push(_w, i, nvx - ux, nvy - uy);
+                Toast($"{NameOf(i)}: vận tốc mới {share:F2}× tốc độ quỹ đạo");
+                _ui?.RefreshSelection();
+            }
+        }
+        else if (was == Drag.Carry && Live(_grab))
+        {
+            int i = _grab;
+            if ((_mouse - _downPos).Length() > DragStart)
+            {
+                ToWorld(_mouse, out double x, out double y);
+                Toast(GodTools.Move(_w, i, x, y, _ui.MoveCircular) >= 0 ? $"Đã dời {NameOf(i)}" : "Không dời được tới đó");
+                _ui?.RefreshSelection();
+            }
+        }
         else if (was == Drag.Push && Live(_sel))
         {
             int i = _sel;
@@ -578,7 +705,7 @@ public partial class Main : Node2D
         else if (was == Drag.Maybe)
         {
             if (m.ButtonIndex == MouseButton.Left) Select(Pick(m.Position));
-            else if (m.ButtonIndex == MouseButton.Right) { if (_creating) SetCreating(false); else Select(-1); }
+            else if (m.ButtonIndex == MouseButton.Right) { if (_tool != Tool.Select) SetTool(Tool.Select); else Select(-1); }
         }
     }
 
@@ -677,8 +804,45 @@ public partial class Main : Node2D
         Key(Godot.Key.Key5);
         Say(_timeWarp == 16, "key 5 = 16x");
 
+        // vector tool: the arrow is the new velocity, whatever it was before
+        Home(); _zoom = 200; _cx = _w.X[earth]; _cy = _w.Y[earth];
+        Key(Godot.Key.V);
+        DragTo(Screen(shot), Screen(shot) + new Vector2(0, 120), MouseButton.Left);
+        int sp = RelVelocity(shot, out double sux, out double suy);
+        Say(_tool == Tool.Vector && _sel == shot && sp == earth && Math.Abs(Share(shot, earth) - 1) < 0.01 && Math.Abs(sux) < 1e-9 && suy > 0, $"vector drag 120 px down: {Share(shot, earth):F3}x orbit speed, straight down");
+
+        // move tool: dropped next to Earth on the other side, on a circular orbit
+        Key(Godot.Key.M);
+        Vector2 drop = Screen(earth) + new Vector2(0.15f * _zoom, 0.1f * _zoom);
+        ToWorld(drop, out double dropX, out double dropY);
+        DragTo(Screen(shot), drop, MouseButton.Left);
+        Say(_tool == Tool.Move && Math.Abs(_w.X[shot] - dropX) < 1e-9 && Math.Abs(_w.Y[shot] - dropY) < 1e-9 && Math.Abs(Share(shot, earth) - 1) < 0.01, $"move: dropped where the pointer was, {Share(shot, earth):F3}x orbit speed around Earth");
+        _ui.SetMoveCircular(false);
+        double keepVx = _w.Vx[shot];
+        DragTo(Screen(shot), Screen(shot) + new Vector2(30, 0), MouseButton.Left);
+        Say(_w.Vx[shot] == keepVx, "move with 'keep velocity': velocity untouched");
+
+        // pull and push away: a rock inside the ring gains speed toward / away from the pointer, one outside does not
+        Home();
+        int rockIn = -1, rockOut = -1; Vector2 hand = Vector2.Zero;
+        for (int i = 0; i < _w.N && rockIn < 0; i++) if (_w.Alive[i] && !_w.Attracts(i)) { rockIn = i; hand = Screen(i) + new Vector2(20, 0); }
+        for (int i = 0; i < _w.N; i++) if (_w.Alive[i] && !_w.Attracts(i) && Screen(i).DistanceTo(hand) > _ui.HandRadiusPx * 2) { rockOut = i; break; }
+        if (rockIn >= 0 && rockOut >= 0)
+        {
+            double ivx = _w.Vx[rockIn], ovx = _w.Vx[rockOut];
+            Key(Godot.Key.A);
+            Button(hand, MouseButton.Left, true); UseHand(0.1); UseHand(0.1); Button(hand, MouseButton.Left, false);
+            double pulled = _w.Vx[rockIn] - ivx;
+            Key(Godot.Key.R);
+            Button(hand, MouseButton.Left, true); UseHand(0.1); UseHand(0.1); UseHand(0.1); UseHand(0.1); Button(hand, MouseButton.Left, false);
+            Say(pulled > 0 && _w.Vx[rockIn] < ivx && _w.Vx[rockOut] == ovx && _drag == Drag.None, $"hand: pull gave the rock {pulled:E2} toward the pointer, push away took {ivx + pulled - _w.Vx[rockIn]:E2}; rock outside the ring untouched");
+        }
+        else Say(false, "hand: no rocks to try on (run with --rocks)");
+        Key(Godot.Key.Escape);
+        Say(_tool == Tool.Select, "Esc drops the tool");
+
         // everything above went through the journal
-        var fresh = World.SolSystem(_w.N > 5000 ? 5000 : 0, 1234); int next = 0;
+        var fresh = World.SolSystem(_rocks, 1234); int next = 0;
         while (fresh.Step < _w.Step) { fresh.Replay(_w.Journal, ref next); fresh.Advance(0.5); }
         fresh.Replay(_w.Journal, ref next);
         Say(fresh.Hash() == _w.Hash(), $"replay of {_w.Journal.Count} commands: {fresh.Hash():X16} vs {_w.Hash():X16}");

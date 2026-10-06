@@ -17,6 +17,9 @@ public enum CmdKind
     Remove,          // Target is taken out of the world
     SetRule,         // rule Name ("temperature", ...) switched on (Amount != 0) or off (0)
     SeedLife,        // Target (a planet or moon) gets life at level Amount (0..1); 0 wipes it. Whether it lasts is up to the rules
+    Move,            // Target is put at (X, Y) with velocity (Vx, Vy)
+    Force,           // the god's hand: every object within radius Vx of (X, Y) gets velocity toward that point, Amount at
+                     // the centre fading to 0 at the edge; negative Amount = away. Mass does not matter
     FastForward,     // every object rides its present orbit for Amount years (closed formula: no pull between siblings, no collisions)
 }
 
@@ -89,6 +92,27 @@ public sealed partial class World
                 if (!double.IsFinite(c.Amount) || c.Amount <= 0) return -1;
                 Jump(c.Amount * C.YearTime);
                 return -2;
+            case CmdKind.Move:
+            {
+                int t = c.Target;
+                if (!Ok(t) || !double.IsFinite(c.X + c.Y + c.Vx + c.Vy)) return -1;
+                X[t] = c.X; Y[t] = c.Y; Vx[t] = c.Vx; Vy[t] = c.Vy;
+                return t;
+            }
+            case CmdKind.Force:
+            {
+                double rad = c.Vx;
+                if (!double.IsFinite(c.X + c.Y + c.Amount) || !(rad > 0) || !double.IsFinite(rad)) return -1;
+                for (int i = 0; i < N; i++)
+                {
+                    if (!Alive[i]) continue;
+                    double dx = c.X - X[i], dy = c.Y - Y[i], d2 = dx * dx + dy * dy;
+                    if (d2 >= rad * rad || d2 == 0) continue;
+                    double d = Math.Sqrt(d2), k = c.Amount * (1 - d / rad) / d;
+                    Vx[i] += dx * k; Vy[i] += dy * k;
+                }
+                return -2;
+            }
             case CmdKind.Remove:
                 if (!Ok(c.Target)) return -1;
                 Kill(c.Target);

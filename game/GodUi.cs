@@ -35,6 +35,16 @@ public partial class GodUi : CanvasLayer
     Button _btnSeed = null!, _btnWipe = null!;
     Label _lblLife = null!;
 
+    // tools
+    readonly Button[] _toolButtons = new Button[6];
+    HBoxContainer _handOptions = null!;
+    HSlider _handRadius = null!, _handStrength = null!;
+    CheckBox _moveCircular = null!;
+    public float HandRadiusPx => (float)_handRadius.Value;
+    public double HandStrength => _handStrength.Value;
+    public bool MoveCircular => _moveCircular.ButtonPressed;
+    public void SetMoveCircular(bool on) => _moveCircular.SetPressedNoSignal(on);
+
     // time
     Button _btnPause = null!;
     readonly Button[] _warpButtons = new Button[7];
@@ -133,6 +143,40 @@ public partial class GodUi : CanvasLayer
 
     void BuildTimeBar()
     {
+        // tools sit right above the time bar
+        var tools = new PanelContainer { MouseFilter = Control.MouseFilterEnum.Stop };
+        tools.AnchorLeft = 0; tools.AnchorRight = 0; tools.AnchorTop = 1; tools.AnchorBottom = 1;
+        tools.OffsetLeft = 10; tools.OffsetBottom = -62; tools.OffsetTop = -62;
+        tools.GrowVertical = Control.GrowDirection.Begin; tools.GrowHorizontal = Control.GrowDirection.End;
+        AddChild(tools);
+        var toolPad = new MarginContainer();
+        foreach (string m in new[] { "margin_left", "margin_right" }) toolPad.AddThemeConstantOverride(m, 8);
+        foreach (string m in new[] { "margin_top", "margin_bottom" }) toolPad.AddThemeConstantOverride(m, 5);
+        tools.AddChild(toolPad);
+        var toolRow = new HBoxContainer();
+        toolRow.AddThemeConstantOverride("separation", 4);
+        toolPad.AddChild(toolRow);
+        var names = new[] { "Chọn (Esc)", "Tạo (C)", "Vector (V)", "Di dời (M)", "Hút (A)", "Đẩy ra (R)" };
+        for (int i = 0; i < names.Length; i++)
+        {
+            var tool = (Main.Tool)i;
+            var b = Btn(names[i], () => _main.SetTool(tool));
+            b.ToggleMode = true;
+            _toolButtons[i] = b;
+            toolRow.AddChild(b);
+        }
+        _moveCircular = new CheckBox { Text = "thả ra là vào quỹ đạo tròn", ButtonPressed = true, FocusMode = Control.FocusModeEnum.None, Visible = false };
+        toolRow.AddChild(_moveCircular);
+        _handOptions = new HBoxContainer { Visible = false };
+        _handOptions.AddChild(new Label { Text = "  Tầm" });
+        _handRadius = new HSlider { MinValue = 20, MaxValue = 400, Step = 5, Value = 90, FocusMode = Control.FocusModeEnum.None, CustomMinimumSize = new Vector2(110, 0), SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
+        _handOptions.AddChild(_handRadius);
+        _handOptions.AddChild(new Label { Text = "  Lực" });
+        _handStrength = new HSlider { MinValue = 0.05, MaxValue = 5, Step = 0.05, Value = 0.5, FocusMode = Control.FocusModeEnum.None, CustomMinimumSize = new Vector2(110, 0), SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
+        _handOptions.AddChild(_handStrength);
+        toolRow.AddChild(_handOptions);
+        UpdateTool(Main.Tool.Select);
+
         var bar = new PanelContainer { MouseFilter = Control.MouseFilterEnum.Stop };
         bar.AnchorLeft = 0; bar.AnchorRight = 0; bar.AnchorTop = 1; bar.AnchorBottom = 1;
         bar.OffsetLeft = 10; bar.OffsetBottom = -10; bar.OffsetTop = -10;
@@ -171,6 +215,13 @@ public partial class GodUi : CanvasLayer
                 RefreshEvents();
             }));
         }
+    }
+
+    public void UpdateTool(Main.Tool tool)
+    {
+        for (int i = 0; i < _toolButtons.Length; i++) _toolButtons[i]?.SetPressedNoSignal(i == (int)tool);
+        if (_handOptions != null) _handOptions.Visible = tool == Main.Tool.Pull || tool == Main.Tool.Shove;
+        if (_moveCircular != null) _moveCircular.Visible = tool == Main.Tool.Move;
     }
 
     public void UpdateTimeWarp(int currentWarp)
