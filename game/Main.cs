@@ -1041,11 +1041,11 @@ public partial class Main : Node2D
         double sdx = w.X[shot] - w.X[shotPrim], sdy = w.Y[shot] - w.Y[shotPrim], sux = w.Vx[shot] - w.Vx[shotPrim], suy = w.Vy[shot] - w.Vy[shotPrim];
         double sd = Math.Sqrt(sdx * sdx + sdy * sdy), speedShare = Math.Sqrt(sux * sux + suy * suy) / Math.Sqrt(w.C.G * (w.M[shotPrim] + w.M[shot]) / sd);
         double radial = (sdx * sux + sdy * suy) / sd;
-        int liveBeforeRemove = w.Live;
-        int removeRes = GodTools.Remove(w, slotRest);
-        if (circRes < 0 || Math.Abs(speedShare - 1) > 1e-9 || Math.Abs(radial) > 1e-9 || pathN < 2 || removeRes < 0 || w.Alive[slotRest] || w.Live != liveBeforeRemove - 1)
+        int liveBeforeRemove = w.Live; // the object made at rest earlier fell into the Sun during the 500-year jump (jumps collide now)
+        int removeRes = GodTools.Remove(w, shot);
+        if (circRes < 0 || Math.Abs(speedShare - 1) > 1e-9 || Math.Abs(radial) > 1e-9 || pathN < 2 || removeRes < 0 || w.Alive[shot] || w.Live != liveBeforeRemove - 1)
         { GD.PrintErr($"FAIL: Circularize/Predict/Remove share={speedShare} radial={radial} path={pathN} remove={removeRes}"); GetTree().Quit(1); return; }
-        GD.Print($"TOOL Mouse: primary near Earth={w.Name[primNear]}, nothing heavier for a 2-sun mass; launched slot={shot} around {w.Name[shotPrim]}, path {pathN} points hits={pathHits}; circularized to {speedShare:F6}x orbit speed; removed slot={slotRest} live {liveBeforeRemove} -> {w.Live}");
+        GD.Print($"TOOL Mouse: primary near Earth={w.Name[primNear]}, nothing heavier for a 2-sun mass; launched slot={shot} around {w.Name[shotPrim]}, path {pathN} points hits={pathHits}; circularized to {speedShare:F6}x orbit speed; removed slot={shot} live {liveBeforeRemove} -> {w.Live}");
 
         // Additional Advance steps with interleaved Push to test mixed journal
         for (int i = 0; i < 20; i++) w.Advance(0.5);
