@@ -59,6 +59,36 @@ public partial class GodUi : CanvasLayer
 
     public static readonly string[] ElemVi = { "Khí nhẹ", "Băng", "Đá", "Kim loại", "Carbon", "Phóng xạ" };
     public static readonly string[] KindVi = { "Sao", "Hành tinh", "Vệ tinh", "Tiểu hành tinh" };
+    public static readonly string[] StarPhaseVi = { "", "Sao lùn nâu", "Sao dãy chính", "Sao khổng lồ đỏ", "Sao lùn trắng", "Sao neutron", "Lỗ đen" };
+
+    /// What the object is called in the panel: the star's stage when it is or was a star, else its kind.
+    public static string KindName(World w, int i)
+    {
+        StarPhase ph = w.StarPhaseOf(i);
+        if (ph == StarPhase.None) return KindVi[(int)w.KindOf(i)];
+        StarSpectrum sp = w.StarSpectralClass(i);
+        return ph == StarPhase.MainSequence && sp != StarSpectrum.None ? $"{StarPhaseVi[(int)ph]} loại {sp}" : StarPhaseVi[(int)ph];
+    }
+
+    /// Panel lines for a star or what is left of one; empty for anything else.
+    public static string StarLines(World w, int i)
+    {
+        StarPhase ph = w.StarPhaseOf(i);
+        if (ph == StarPhase.None) return "";
+        var sb = new System.Text.StringBuilder();
+        double t = w.StarSurfaceTemperature(i), light = w.StarLuminosity(i);
+        if (ph == StarPhase.BlackHole) sb.Append("không phát sáng\n");
+        else sb.Append($"bề mặt {t:N0} K   độ sáng {light:G3} Mặt Trời\n");
+        sb.Append($"tuổi {Years(w.StarAge[i])}");
+        if (ph == StarPhase.MainSequence)
+            sb.Append($"   đã đốt {Math.Clamp(w.StarFuel[i], 0, 1) * 100:F1}% nhiên liệu (cả đời khoảng {Years(w.StarLifetime(w.M[i]))})");
+        else if (ph == StarPhase.RedGiant) sb.Append("   lõi đã cạn hydro, đang phình to và thổi vật chất ra ngoài");
+        else if (ph is StarPhase.WhiteDwarf or StarPhase.NeutronStar) sb.Append($"   tàn dư, nguội dần đã {Years(w.StarCoolingAge[i])}");
+        else if (ph == StarPhase.BrownDwarf) sb.Append("   quá nhẹ để đốt hydro");
+        return sb.Append('\n').ToString();
+    }
+
+    public static string Years(double y) => !double.IsFinite(y) ? "vô hạn" : y >= 1e9 ? $"{y / 1e9:G3} tỉ năm" : y >= 1e6 ? $"{y / 1e6:G3} triệu năm" : $"{y:N0} năm";
     public static readonly string[] WaterVi = { "Không có", "Băng tuyết", "Nước lỏng", "Hơi nước" };
     public static readonly string[] LifeStageVi = { "Chưa có", "Vi sinh vật", "Đa bào phức tạp", "Sinh quyển trù phú" };
     public static readonly string[] TechStageVi = { "Chưa phát triển", "Thời kỳ Nông nghiệp", "Thời kỳ Công nghiệp", "Kỷ nguyên Không gian" };
@@ -202,7 +232,7 @@ public partial class GodUi : CanvasLayer
         }
         row.AddChild(new VSeparator());
         row.AddChild(new Label { Text = "Nhảy tới" });
-        foreach (var (text, years) in new[] { ("+1 năm", 1.0), ("+100 năm", 100.0), ("+1 vạn năm", 1e4), ("+1 triệu năm", 1e6) })
+        foreach (var (text, years) in new[] { ("+1 năm", 1.0), ("+100 năm", 100.0), ("+1 vạn năm", 1e4), ("+1 triệu năm", 1e6), ("+100 triệu năm", 1e8), ("+1 tỉ năm", 1e9) })
         {
             double y = years; string t = text;
             row.AddChild(Btn(text, () =>

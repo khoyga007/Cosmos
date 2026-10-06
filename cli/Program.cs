@@ -9,6 +9,17 @@ if (args.Length > 0 && args[0] == "layers") return LayerChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "stars") return StarChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "contact") return ContactChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "contact-bench") { ContactChecks.Bench(); return 0; }
+if (args.Length > 1 && args[0] == "jump-bench")
+{
+    // cost of one god jump of args[1] years on the stock scene, and what the Sun is afterwards
+    var jw = World.SolSystem(args.Length > 2 ? int.Parse(args[2]) : 500, 1234);
+    var jt = Stopwatch.StartNew();
+    jw.Do(new Command(CmdKind.FastForward, Amount: double.Parse(args[1], System.Globalization.CultureInfo.InvariantCulture)));
+    Console.WriteLine($"jump {args[1]} yr: {jt.Elapsed.TotalMilliseconds:F0} ms, live {jw.Live}, Sun {jw.StarPhaseOf(0)} {jw.StarSpectralClass(0)}, events {jw.Events.Count}");
+    Console.WriteLine($"  Sun R {jw.R[0]:G4} StarRadius {jw.StarRadius(0):G4} M {jw.M[0]/World.EarthMass:G5} RadiusScale {jw.C.RadiusScale}");
+    if (args.Length > 3) foreach (var e in jw.Events) Console.WriteLine($"  {e.Year:G6} #{e.ObjectSlot} {jw.Name[e.ObjectSlot]} {e.RuleId} {e.Change} {e.A:G4} {e.B:G4} {e.C:G4}");
+    return 0;
+}
 bool allOk = true;
 void Check(bool ok, string line) { allOk &= ok; Console.WriteLine($"{(ok ? "OK    " : "FAILED")} {line}"); }
 

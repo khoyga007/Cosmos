@@ -199,6 +199,31 @@ public partial class Main : Node2D
 
     string NameOf(int i) => _w.Name[i] ?? $"{(_w.Grp[i] > 0 ? _w.Groups[_w.Grp[i]] : "Vật thể")} #{i}";
 
+    // PLACEHOLDER LOOK. Everything an object looks like goes through BodyCol + DrawBody, so that textures
+    // can replace these two later without touching what is shown or where.
+    Color BodyCol(int i)
+    {
+        uint star = _w.StarColour(i);
+        if (star != 0) return new Color((star << 8) | 0xFF);
+        return _w.StarPhaseOf(i) switch
+        {
+            StarPhase.BlackHole => new Color(0.02f, 0.02f, 0.03f),
+            StarPhase.BrownDwarf => new Color(0.42f, 0.2f, 0.14f),
+            StarPhase.WhiteDwarf or StarPhase.NeutronStar => new Color(0.45f, 0.47f, 0.55f), // cooled down
+            _ => _w.Col[i] != 0 ? new Color((_w.Col[i] << 8) | 0xFF) : MixCol(i)
+        };
+    }
+
+    void DrawBody(int i, Vector2 p, float r)
+    {
+        StarPhase phase = _w.StarPhaseOf(i);
+        Color col = BodyCol(i);
+        if (phase is StarPhase.MainSequence or StarPhase.RedGiant) DrawCircle(p, r * 1.35f, new Color(col.R, col.G, col.B, 0.18f));
+        DrawCircle(p, r, col);
+        if (phase == StarPhase.BlackHole) DrawArc(p, r + 2, 0, MathF.Tau, 32, new Color(1f, 0.7f, 0.3f, 0.9f), 1.5f);
+        if (phase == StarPhase.NeutronStar) DrawArc(p, r + 3, 0, MathF.Tau, 24, new Color(0.7f, 0.85f, 1f, 0.8f), 1f);
+    }
+
     Color MixCol(int i)
     {
         Color col = new(0, 0, 0);
@@ -328,7 +353,7 @@ public partial class Main : Node2D
             return sb.ToString();
         }
         int i = _sel; double m = _w.M[i];
-        sb.Append($"[b]{NameOf(i)}[/b]   {(_w.IsShip(i) ? "Tàu vũ trụ" : GodUi.KindVi[(int)_w.KindOf(i)])}{(_follow == i ? "   [color=#9aa4c0](đang bám theo)[/color]" : "")}\n");
+        sb.Append($"[b]{NameOf(i)}[/b]   {(_w.IsShip(i) ? "Tàu vũ trụ" : GodUi.KindName(_w, i))}{(_follow == i ? "   [color=#9aa4c0](đang bám theo)[/color]" : "")}\n");
         sb.Append($"khối lượng {m / World.EarthMass:G4} Trái Đất   bán kính {_w.R[i]:G3}\n");
         if (_w.IsShip(i))
         {
@@ -344,6 +369,7 @@ public partial class Main : Node2D
             sb.Append("[color=#9aa4c0]Tàu tự lái bằng động cơ. Anh vẫn đẩy, hút, di dời, xoá nó được.[/color]\n");
             return sb.ToString();
         }
+        sb.Append(GodUi.StarLines(_w, i));
         int p = GodTools.PrimaryAt(_w, _w.X[i], _w.Y[i], m, i);
         if (p >= 0)
         {
@@ -481,7 +507,7 @@ public partial class Main : Node2D
                 DrawArc(Vector2.Zero, r * 2.1f, 0, MathF.Tau, 48, new Color(0.9f, 0.82f, 0.6f, 0.7f), MathF.Max(1.5f, r * 0.45f));
                 DrawSetTransform(Vector2.Zero);
             }
-            DrawCircle(p, r, _w.Col[i] != 0 ? new Color((_w.Col[i] << 8) | 0xFF) : MixCol(i));
+            DrawBody(i, p, r);
 
             // Visual marks on bodies that carry life or civilisation (SPEC 7 Round 2)
             if (_w.IsWorld(i))
