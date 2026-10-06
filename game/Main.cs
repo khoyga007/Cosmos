@@ -55,6 +55,15 @@ public partial class Main : Node2D
     int _bench; double _benchT; int _benchFrames;
     bool _selftest, _uitest;
     int _rocks;
+    // SPEC P1 (Selica) probe only — frame-time split. Never into master.
+    double _drawMs, _orbitMs, _bodyMs, _gpuMs, _uiMs, _uiHitMs;
+    int _orbitArcs, _orbitSegs, _shipN, _draws;
+    bool _noOrbit, _noUi, _pausedAtStart;
+#if DEBUG
+    const string BuildKind = "debug";
+#else
+    const string BuildKind = "release";
+#endif
     const int Stride = 12;
 
     static readonly Color[] ElemCol = Array.ConvertAll(ElementCatalog.Colours, c => new Color(((c >> 16) & 255) / 255f, ((c >> 8) & 255) / 255f, (c & 255) / 255f));
@@ -71,7 +80,18 @@ public partial class Main : Node2D
             if (a == "--uitest") _uitest = true;
             if (a.StartsWith("--rocks=")) rocks = int.Parse(a[8..]);
             if (a.StartsWith("--bench=")) _bench = int.Parse(a[8..]);
+            if (a == "--norbit") _noOrbit = true;      // SPEC P1 switch: no orbit lines
+            if (a == "--noui") _noUi = true;           // SPEC P1 switch: hide HUD, panel and GodUi
+            if (a == "--zones") _zones = true;         // SPEC P1 switch: Hill zones ON (default off)
+            if (a == "--paused") _pausedAtStart = true;
+            if (a.StartsWith("--size="))
+            {
+                string[] wh = a[7..].Split('x');
+                DisplayServer.WindowSetMode(DisplayServer.WindowMode.Windowed);
+                DisplayServer.WindowSetSize(new Vector2I(int.Parse(wh[0]), int.Parse(wh[1])));
+            }
         }
+        if (_pausedAtStart) TogglePause();
 
         if (_selftest)
         {
@@ -99,6 +119,7 @@ public partial class Main : Node2D
         _ui = new GodUi(this, _w);
         AddChild(_ui);
         _ui.UpdateTimeWarp(_timeWarp); // AddChild has run its _Ready already
+        if (_noUi) { layer.Visible = false; _ui.Visible = false; }   // SPEC P1 switch
     }
 
     // ---- what the panels call ----
@@ -402,9 +423,12 @@ public partial class Main : Node2D
         _hud.Text = $"Năm {_w.Year:N1}   {(_paused ? "TẠM DỪNG" : $"tốc độ {_timeWarp}×")}   {_w.Live} vật thể ({attract} có lực hút)   va chạm {_w.Merges}   {Engine.GetFramesPerSecond():F0} fps";
         if (_frame++ % 15 == 0)
         {
+            long u0 = System.Diagnostics.Stopwatch.GetTimestamp();   // SPEC P1: cost of the panel refresh
             _panel.Text = PanelText();
             _ui?.RefreshEvents();
             _ui?.RefreshLive();
+            double hit = (System.Diagnostics.Stopwatch.GetTimestamp() - u0) * f;
+            _uiHitMs = hit; _uiMs += (hit / 15.0 - _uiMs) * 0.05;
         }
         if (_toastLeft > 0)
         {
@@ -428,6 +452,7 @@ public partial class Main : Node2D
                 _sel = testSlot;
                 GD.Print(PanelText());
                 GD.Print($"BENCH objects={_w.Live} fps={_benchFrames / _benchT:F1} step_ms={_stepMs:F2} fill_ms={_fillMs:F2} renderer={RenderingServer.GetVideoAdapterName()}");
+                GD.Print($"BENCH2 build={BuildKind} paused={_pausedAtStart} warp={_timeWarp} draw_ms={_drawMs:F2} orbit_ms={_orbitMs:F2} body_ms={_bodyMs:F2} ui_ms={_uiMs:F3} ui_hit_ms={_uiHitMs:F2} leftover_ms={_gpuMs:F2} arcs={_orbitArcs} segs={_orbitSegs} ships={_shipN} draws={_draws} win={DisplayServer.WindowGetSize().X}x{DisplayServer.WindowGetSize().Y} vsync={(int)DisplayServer.WindowGetVsyncMode()} maxfps={Engine.MaxFps} norbit={_noOrbit} noui={_noUi} zones={_zones}");
                 GetTree().Quit(0);
             }
         }
@@ -567,11 +592,16 @@ public partial class Main : Node2D
     {
         if (_w == null) return;
         Font font = ThemeDB.FallbackFont;
+        long d0 = System.Diagnostics.Stopwatch.GetTimestamp();
+        _draws++;
 
         if (_grid) DrawGrid(font);
         if (_zones) DrawZones();
+        long d1 = System.Diagnostics.Stopwatch.GetTimestamp();
 
         // Orbit lines
+        _orbitArcs = 0; _orbitSegs = 0;
+        if (!_noOrbit)
         for (int i = 0; i < _w.N; i++)
         {
             int par = _w.Par[i];
@@ -581,6 +611,7 @@ public partial class Main : Node2D
             if (rad < 6) continue;
             DrawSetTransform(Screen(par), 0, new Vector2(1, _tilt));
             DrawArc(Vector2.Zero, rad, 0, MathF.Tau, 128, new Color(1, 1, 1, 0.10f), 1);
+            _orbitArcs++; _orbitSegs += 128;
         }
         if (Live(_sel) && _w.Attracts(_sel) && _w.KindOf(_sel) != Kind.Star)
         {
@@ -588,6 +619,8 @@ public partial class Main : Node2D
             DrawArc(Vector2.Zero, (float)(_w.Hill(_sel) * _zoom), 0, MathF.Tau, 96, new Color(0.5f, 1f, 0.6f, 0.35f), 1);
         }
         DrawSetTransform(Vector2.Zero);
+        long d2 = System.Diagnostics.Stopwatch.GetTimestamp();
+        _orbitMs += ((d2 - d1) * (1000.0 / System.Diagnostics.Stopwatch.Frequency) - _orbitMs) * 0.05;
 
         CountRings();
 
@@ -632,13 +665,17 @@ public partial class Main : Node2D
         }
 
         // Ships: a small diamond, and for the selected one a line to where it is going
+        _shipN = 0;
         for (int i = 0; i < _w.N; i++)
         {
             if (!_w.Alive[i] || !_w.IsShip(i)) continue;
+            _shipN++;
             Vector2 p = Screen(i);
             DrawColoredPolygon(new[] { p + new Vector2(0, -5), p + new Vector2(4, 0), p + new Vector2(0, 5), p + new Vector2(-4, 0) }, ShipCol);
             if (i == _sel && Live(_w.ShipTo[i])) DrawDashedLine(p, Screen(_w.ShipTo[i]), new Color(ShipCol.R, ShipCol.G, ShipCol.B, 0.5f), 1, 6);
         }
+        long d3 = System.Diagnostics.Stopwatch.GetTimestamp();
+        _bodyMs += ((d3 - d2) * (1000.0 / System.Diagnostics.Stopwatch.Frequency) - _bodyMs) * 0.05;
 
         // Selection ring
         if (Live(_sel)) DrawArc(Screen(_sel), Px(_sel) + 5, 0, MathF.Tau, 32, Colors.White, 1.5f);
@@ -747,6 +784,10 @@ public partial class Main : Node2D
             DrawArc(at, gr + 3, 0, MathF.Tau, 24, new Color(1, 1, 1, 0.6f), 1);
             DrawString(font, (placing ? _mouse : at) + new Vector2(gr + 12, 18), $"{_ui.CreateRemnantName ?? GodUi.KindVi[(int)kind]} — {say}", HorizontalAlignment.Left, -1, 13, AimCol);
         }
+        long d4 = System.Diagnostics.Stopwatch.GetTimestamp();
+        double dm = 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+        _drawMs += ((d4 - d0) * dm - _drawMs) * 0.05;
+        _gpuMs = 1000.0 / Math.Max(1.0, Engine.GetFramesPerSecond()) - _stepMs - _fillMs - _drawMs - _uiMs;
     }
 
     void ZoomAt(Vector2 at, float factor)
