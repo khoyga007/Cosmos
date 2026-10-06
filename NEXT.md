@@ -47,3 +47,10 @@ READ `SPEC.md` FIRST (game, model, engine decisions, round-1 work packages). Thi
 - Cosmic events Yang listed: supernova, hypernova, kilonova, gamma ray burst, "..." (list open). Core has only `star.giant`, `star.nova` today. WAIT for his go + scope.
 - Code-drawn visuals = PLACEHOLDER; textures later. Look lives in `Main.BodyCol` + `Main.DrawBody` only (199464e).
 - OPEN defect (Celine, bridge 741111ba): red giant R=826 swallows whole system to Neptune (Sun R inflated ~40x vs orbit scale); bodies swallowed in jump leave no events. Repro `cli -- jump-bench 1e10 0 v`.
+
+## Civ design — Yang dictating 2026-10-06, IN PROGRESS, NO CODE until he says go
+- Stats per civ: interaction with its world, world population, energy-harnessing level, tech level, development era (prehistoric, stone, bronze, iron, ... Renaissance, industrial, pre-space age, ...; list open).
+- Awareness = how much a civ senses the god. Drives different reactions. Depends on ethic + tech base: faith/spiritual civs high, pure physical-tech civs low.
+- Reference: Stellaris. Take ALL 4 ethic axes (Materialist-Spiritualist, Militarist-Pacifist, Xenophile-Xenophobe, Authoritarian-Egalitarian) + Gestalt.
+- Undecided by Yang: fanatic levels / point budget, ethic fixed vs drifting, civics, how ethic is picked at birth, what each reaction is, first contact content, "lộ diện".
+- Core today: Pop = 0..1 fill, one Tech number, 4 stages, all civs identical except name; only interaction = industry eats metal.
