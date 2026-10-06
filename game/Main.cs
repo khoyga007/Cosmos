@@ -222,8 +222,8 @@ public partial class Main : Node2D
         }
     }
 
-    /// A jump with the view riding along: the whole system drifts through space over the ages (it has net
-    /// momentum), and after a long jump it would be far outside a view left where it was.
+    /// A jump with the view riding along: a system can drift through space over the ages (the stock scene has no
+    /// net momentum, but anything the god adds or throws gives it some), and after a long jump it would be far outside a view left where it was.
     public void JumpKeepingView(double years)
     {
         int h = _w.Heaviest();

@@ -250,6 +250,11 @@ public sealed partial class World
             w.AddOrbiting(saturn, w.X[saturn] + Math.Cos(a) * d, w.Y[saturn] + Math.Sin(a) * d, 1e-10, ringMix, null, 0, 3);
             w.Par[w.N - 1] = -1;
         }
+        // the Sun was put down at rest with everything circling one way, so the whole system carried momentum and
+        // crept across space; take the common motion out of every object (velocities relative to each other stay)
+        double mass = 0, px = 0, py = 0;
+        for (int i = 0; i < w.N; i++) { mass += w.M[i]; px += w.M[i] * w.Vx[i]; py += w.M[i] * w.Vy[i]; }
+        for (int i = 0; i < w.N; i++) { w.Vx[i] -= px / mass; w.Vy[i] -= py / mass; }
         w.RunRules();
         return w;
     }

@@ -89,10 +89,10 @@ static class KindChecks
             double d1Au = World.SolDist(1.0);
             double vCirc = Math.Sqrt(w1.C.G * w1.M[0] / d1Au);
             // Place 180 degrees opposite Earth so Earth's Hill sphere doesn't perturb the comet orbit
-            double earthAngle = Math.Atan2(w1.Y[3], w1.X[3]);
+            double earthAngle = Math.Atan2(w1.Y[3] - w1.Y[0], w1.X[3] - w1.X[0]);
             double cometAngle = earthAngle + Math.PI;
-            double cx = Math.Cos(cometAngle) * d1Au, cy = Math.Sin(cometAngle) * d1Au;
-            double cvx = -Math.Sin(cometAngle) * vCirc, cvy = Math.Cos(cometAngle) * vCirc;
+            double cx = w1.X[0] + Math.Cos(cometAngle) * d1Au, cy = w1.Y[0] + Math.Sin(cometAngle) * d1Au; // around the Sun, which moves
+            double cvx = w1.Vx[0] - Math.Sin(cometAngle) * vCirc, cvy = w1.Vy[0] + Math.Cos(cometAngle) * vCirc;
 
             w1.Do(new Command(CmdKind.Move, Target: cometSlot, X: cx, Y: cy, Vx: cvx, Vy: cvy));
             w2.Do(new Command(CmdKind.Move, Target: cometSlot, X: cx, Y: cy, Vx: cvx, Vy: cvy));

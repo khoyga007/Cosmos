@@ -9,15 +9,15 @@ using Cosmos.Core;
 static class ElementChecks
 {
     // Captured from 236b4db before replacing the material layout; includes real stepping, layers, edits and remnants.
-    static readonly ulong[] Legacy = { 0x9DFC777F8CCAEA04, 0x35531E6F5664F122, 0x57EA6A0657B7F907, 0x8FDE181374B6C573,
-        0x00AE033ED64FEDF4, 0x6AB6416FED83AB48, 0x08A7FE7086C25A1C, 0xB812A74856695F03, 0x6C866F3AA02536AC,
+    static readonly ulong[] Legacy = { 0xE914BDC4B7FB0F4B, 0x63B5C44B467131D2, 0xE6AF00AE612FD0F1, 0x27291AD7151463EB,
+        0xF119D94EA5D83720, 0xE97790037CF3B6BC, 0x5FB9F47D0BB39F04, 0xB812A74856695F03, 0x6C866F3AA02536AC,
         0x461923819FDE010D, 0x8D7EC8B03F5BE4C2 };
 
     public static bool Run()
     {
         bool ok = true;
         void Check(bool pass, string line) { ok &= pass; Console.WriteLine($"{(pass ? "OK    " : "FAILED")} elements: {line}"); }
-        Check(Probe().Values.SequenceEqual(Legacy), "all eleven default-table hashes remain bit-identical to 236b4db");
+        Check(Probe().Values.SequenceEqual(Legacy), "all eleven default-table hashes remain bit-identical (stars: 236b4db; Sol: since the scene lost its net momentum)");
         var source = ElementCatalog.Elements.ToList();
         source.Add(new Element("test", "Test", 4, 0x123456, ElementRole.None));
         var table = source.ToArray(); var w = new World(16, 5, source); source.Clear();
