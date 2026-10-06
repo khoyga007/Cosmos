@@ -22,12 +22,12 @@ public sealed partial class World
     double[]? _mean, _hill, _sm, _bx, _by, _bvx, _bvy, _cx, _cy, _cvx, _cvy;
     Comparer<int>? _heavyFirst;
     bool _deferRocks;
-    bool[]? _offRailSeen;
-    readonly List<(int Body, int Primary, double At)> _rockContacts = new();
+    int[]? _offRailSeen, _rockGeneration;
+    readonly List<(int Body, int Primary, int BodyGen, int PrimaryGen, double At)> _rockContacts = new();
 
     void MarkOffRail(int i)
     {
-        if (!_offRailSeen![i]) { _offRailSeen[i] = true; OffRails++; }
+        if (_offRailSeen![i] != Gen[i]) { _offRailSeen[i] = Gen[i]; OffRails++; }
     }
 
     // A long jump is cut into chunks and the rule table runs after each, so water, life and civilisation see the
@@ -35,7 +35,7 @@ public sealed partial class World
     // JumpSamples (the cost of a jump is chunks * objects).
     void Jump(double t)
     {
-        _offRailSeen ??= new bool[X.Length];
+        _offRailSeen ??= new int[X.Length];
         Array.Clear(_offRailSeen); OffRails = 0;
         LandShips(); // a trip is short next to a jump: whoever is flying arrives
         double fastest = double.MaxValue;
@@ -80,6 +80,11 @@ public sealed partial class World
                         if (defer) { StartRockOrbits(); began = Year; PlanRockContacts((jumpBegan + years - Year) * C.YearTime); }
                     }
                     RunRules();
+                    // A position-reading extension can remove/create objects; reused slots get new origins too.
+                    if (defer && shown && RockOriginsChanged())
+                    {
+                        StartRockOrbits(); began = Year; PlanRockContacts((jumpBegan + years - Year) * C.YearTime);
+                    }
                 }
                 else
                 {
@@ -105,12 +110,20 @@ public sealed partial class World
 
     void StartRockOrbits()
     {
+        _rockGeneration ??= new int[X.Length];
+        for (int i = 0; i < N; i++) _rockGeneration[i] = Alive[i] ? Gen[i] : 0;
         _deferRocks = false;
         Ride(0);
         for (int i = 0; i < N; i++) if (Alive[i] && !Attracts(i))
         {
             _cx![i] = X[i]; _cy![i] = Y[i]; _cvx![i] = Vx[i]; _cvy![i] = Vy[i];
         }
+    }
+
+    bool RockOriginsChanged()
+    {
+        for (int i = 0; i < N; i++) if (_rockGeneration![i] != (Alive[i] ? Gen[i] : 0)) return true;
+        return false;
     }
 
     // One analytic test per rock origin, not one Kepler solve per rock per chunk. Rebuilt after mass/primary changes.
@@ -123,7 +136,7 @@ public sealed partial class World
             int p = _prim![i];
             if (p < 0 || !Alive[p]) continue;
             double at = PrimaryContactTime(_bx![i], _by![i], _bvx![i], _bvy![i], C.G * (M[i] + M[p]), R[i] + R[p]);
-            if (at <= remaining) _rockContacts.Add((i, p, at));
+            if (at <= remaining) _rockContacts.Add((i, p, Gen[i], Gen[p], at));
         }
     }
 
@@ -137,8 +150,10 @@ public sealed partial class World
             double x = X[i] - X[j], y = Y[i] - Y[j], r = R[i] + R[j];
             if (x * x + y * y <= r * r) _hits.Add((i, j));
         }
-        foreach (var (i, p, at) in _rockContacts)
-            if (at <= elapsed && Alive[i] && Alive[p]) _hits.Add((i, p));
+        foreach (var (i, p, gi, gp, at) in _rockContacts)
+            if (at <= elapsed && Alive[i] && Alive[p] && Gen[i] == gi && Gen[p] == gp
+                && PrimaryContactTime(_bx![i], _by![i], _bvx![i], _bvy![i], C.G * (M[i] + M[p]), R[i] + R[p]) <= elapsed)
+                _hits.Add((i, p));
         return _hits.Count > 0;
     }
 

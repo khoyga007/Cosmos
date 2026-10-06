@@ -97,18 +97,20 @@ static class StarChecks
         giant.Advance(0);
         Check(!giant.Alive[planet] && giant.StarPhaseOf(0) == StarPhase.RedGiant, "normal collision swallows inner planet without rejuvenating exhausted core");
 
-        var nova = Single(10); int world = nova.Do(new Command(CmdKind.Create, X: 100, Amount: World.EarthMass,
+        // Keep this biosphere outside the giant's envelope; isolate nova damage from the contact check above.
+        var nova = Single(10); Set(nova, "StarNovaRange", 40000);
+        int world = nova.Do(new Command(CmdKind.CreateOrbiting, Target: 0, X: 20000, Amount: World.EarthMass,
             Mix: new double[] { 0, .01, .66, .32, .005, .005 }));
         nova.Do(new Command(CmdKind.SeedLife, Target: world, Amount: .8));
         nova.Do(new Command(CmdKind.SetRule, Name: "life", Amount: 0));
         nova.Do(new Command(CmdKind.SetRule, Name: "civ", Amount: 0));
         Jump(nova, 3e7);
-        Check(nova.Life[world] < .8 && nova.Events.Any(e => e.RuleId == "impact" && e.ObjectSlot == world),
+        Check(nova.Alive[world] && nova.Life[world] < .8 && nova.Events.Any(e => e.RuleId == "impact" && e.ObjectSlot == world),
             $"nova damages nearby biosphere: life .8 -> {nova.Life[world]:E3}");
 
         var merged = new World(8, 1); Set(merged, "G", 0);
-        int x = merged.Do(new Command(CmdKind.Create, X: -1e6, Amount: 50, Mix: Gas, Vx: .01));
-        int y = merged.Do(new Command(CmdKind.Create, X: 1e6, Amount: 100, Mix: Gas, Vx: -.01));
+        int x = merged.Do(new Command(CmdKind.Create, X: -1e6, Amount: 50, Mix: Gas, Vx: -.01));
+        int y = merged.Do(new Command(CmdKind.Create, X: 1e6, Amount: 100, Mix: Gas, Vx: .01));
         Jump(merged, 1e8);
         double fuel = (merged.StarFuel[x] * 50 + merged.StarFuel[y] * 100) / 150, momentum = Px(merged);
         merged.Do(new Command(CmdKind.Move, Target: x, X: merged.X[y], Y: merged.Y[y], Vx: merged.Vx[x], Vy: merged.Vy[x]));

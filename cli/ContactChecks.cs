@@ -13,7 +13,7 @@ static class ContactChecks
         void Check(bool pass, string line) { ok &= pass; Console.WriteLine($"{(pass ? "OK    " : "FAILED")} contact: {line}"); }
         foreach (double projectileMass in new[] { .0123 * World.EarthMass, 1e-9 })
         {
-            int hits = 0, misses = 0;
+            int hits = 0, misses = 0; bool conserved = true;
             for (int n = 0; n < 40; n++)
             {
                 double a = n * Math.Tau / 40, speed = 40 + n * 11, ux = Math.Cos(a), uy = Math.Sin(a);
@@ -27,11 +27,17 @@ static class ContactChecks
                     w.Advance(.5);
                     return w;
                 }
-                if (Shot(0).Live == 1) hits++;
+                var hit = Shot(0);
+                if (hit.Live == 1) hits++;
+                if (projectileMass > 1e-7)
+                    conserved &= Math.Abs(hit.M[0] - World.EarthMass - projectileMass) < 1e-18
+                        && Math.Abs(hit.M[0] * hit.Vx[0] - (3 * World.EarthMass + (3 + ux * speed) * projectileMass)) < 1e-15
+                        && Math.Abs(hit.M[0] * hit.Vy[0] - (-2 * World.EarthMass + (-2 + uy * speed) * projectileMass)) < 1e-15;
                 if (Shot(3).Live == 2) misses++;
             }
             Check(hits == 40, $"swept {(projectileMass > 1e-7 ? "Moon" : "rock")}: {hits}/40 centre hits at h=.5, moving target");
             Check(misses == 40, $"swept near misses: {misses}/40 survive");
+            if (projectileMass > 1e-7) Check(conserved, "swept pulling pair keeps mass and both momentum components");
         }
 
         foreach (double mass in new[] { World.EarthMass, 1e-9 })
@@ -61,6 +67,20 @@ static class ContactChecks
         {
             var w = new World(8, 1);
             w.Add(0, 0, 0, 0, 50, new double[] { 1, 0, 0, 0, 0, 0 });
+            w.Add(45, 0, 0, .2, World.EarthMass, Rock);
+            Jump(w, 1);
+            Check(w.Live == 2, "future periapsis contact waits until the jump reaches it");
+        }
+        {
+            var w = new World(8, 1);
+            w.Add(0, 0, 0, 0, 50, new double[] { 1, 0, 0, 0, 0, 0 });
+            w.Add(45, 0, -100, 0, 1e-9, Rock);
+            Jump(w, 1);
+            Check(w.Live == 1, "straight unbound rock hits its primary during a jump");
+        }
+        {
+            var w = new World(8, 1);
+            w.Add(0, 0, 0, 0, 50, new double[] { 1, 0, 0, 0, 0, 0 });
             int p = w.Add(45, 0, 0, 2, World.EarthMass, Rock);
             w.Rules.Clear();
             w.Rules.Add(new Rule("capture", "", "", 1, x =>
@@ -77,6 +97,22 @@ static class ContactChecks
             w.Rules.Add(new Rule("observer", "", "", 1, _ => { }));
             Jump(w, 5 * w.C.YearTime);
             Check(w.OffRails == 2, $"OffRails counts each free rock once: {w.OffRails}");
+        }
+        {
+            var w = new World(8, 1);
+            w.Add(0, 0, 0, 0, 50, new double[] { 1, 0, 0, 0, 0, 0 });
+            w.Add(1000, 0, 0, .001, 1e-9, Rock);
+            bool replaced = false;
+            w.Rules.Clear();
+            w.Rules.Add(new Rule("replace", "", "", 1, x =>
+            {
+                if (replaced) return;
+                x.Do(new Command(CmdKind.Remove, Target: 1));
+                x.Do(new Command(CmdKind.CreateOrbiting, Target: 0, X: 5000, Amount: 1e-9, Mix: Rock));
+                replaced = true;
+            }));
+            Jump(w, 30 * w.C.YearTime);
+            Check(w.Live == 2 && w.Gen[1] == 2, $"old contact deadline cannot hit a reused slot: {w.Live} live, generation {w.Gen[1]}");
         }
         {
             var w = World.SolSystem(100, 7);
