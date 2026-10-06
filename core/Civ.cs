@@ -106,8 +106,16 @@ public sealed partial class World
         if (C.CivDome <= 0 || double.IsNaN(Temp[i]) || !IsSolid(i)) return 0;
         double heat = C.CivDomeTempRange > 0 ? 1 - Math.Abs(Temp[i] - C.CivDomeTemp) / C.CivDomeTempRange : 1;
         if (!(heat > 0)) return 0;
-        if (Share(i, ElementRole.Ice) < C.WaterIceMin && !Fed(civ)) return 0;
-        return C.CivDome * Math.Min(1, heat);
+        double scale = 1.0;
+        if (Share(i, ElementRole.Ice) < C.WaterIceMin)
+        {
+            if ((uint)civ >= (uint)Civs.Count) return 0;
+            int home = Civs[civ].Home;
+            if (home < 0 || !Alive[home] || Civ[home] != civ || Pop[home] <= 0 || !Fed(civ)) return 0;
+            // Dry dome depends on supply from home world; capacity scales with home world population
+            scale = Math.Clamp(Pop[home], 0, 1);
+        }
+        return C.CivDome * Math.Min(1, heat) * scale;
     }
 
     // does this people have a world that feeds itself? Looked up at the head of each run of the civ and ship rules
@@ -120,15 +128,43 @@ public sealed partial class World
             if (Alive[j] && Pop[j] > 0 && (uint)Civ[j] < (uint)_fed.Count && Life[j] >= C.CivLifeMin / 5) _fed[Civ[j]] = true;
     }
 
-    // Industry eats metal: `lived` = population summed over the stretch (people * years). The mass stays (waste rock).
-    void UseMetal(int i, double lived)
+    void ConsumeResources(int i, double lived, int stage)
     {
-        int o = i * ElementCount, rock = Elem(ElementRole.Rock);
-        if (rock < 0) return;
-        double used = Math.Min(Matter(i, ElementRole.Metal), C.CivMetalUse * lived * M[i]);
-        if (!(used > 0)) return;
-        LoseMatter(i, ElementRole.Metal, used); Comp[o + rock] += used;
-        SetRadius(i);
+        if (stage < 0 || stage >= Stages.Count || !(lived > 0)) return;
+        var needs = Stages[stage].Needs;
+        int rock = Elem(ElementRole.Rock);
+        if (rock < 0 || needs == null) return;
+        int o = i * ElementCount;
+        double totalUsed = 0;
+        bool massChanged = false;
+
+        for (int k = 0; k < needs.Count; k++)
+        {
+            var need = needs[k];
+            if (!(need.ConsumeRate > 0) || need.Element == ElementRole.None) continue;
+            double avail = Matter(i, need.Element);
+            double want = need.ConsumeRate * lived * M[i];
+            double used = Math.Min(avail, want);
+            if (used > 0)
+            {
+                // Physical element transformation:
+                // Only Metal -> waste rock (metallurgical slag) and Radio -> rock (fission products / nuclear waste).
+                // Carbon combustion remains atmospheric gas, water remains in the hydrological cycle, etc.
+                if (need.Element == ElementRole.Metal || need.Element == ElementRole.Radio)
+                {
+                    LoseMatter(i, need.Element, used);
+                    Comp[o + rock] += used;
+                    massChanged = true;
+                }
+                totalUsed += used;
+            }
+        }
+
+        if (totalUsed > 0)
+        {
+            if (massChanged) SetRadius(i);
+            ConsumedMatter[i] += totalUsed;
+        }
     }
 
     // The people of a ship step out on world k.

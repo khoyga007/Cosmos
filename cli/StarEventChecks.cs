@@ -9,11 +9,10 @@ static class StarEventChecks
     {
         bool ok = true;
         void Check(bool pass, string line) { ok &= pass; Console.WriteLine($"{(pass ? "OK    " : "FAILED")} star-events: {line}"); }
-        // S1 re-capture 2026-10-06: hot WD/NS light and cooling defaults (four existing hashed constants),
-        // plus phase-boundary layer settlement. Arbitrary births and exact remnant boundaries still expose rounding drift.
+        // S1 re-capture 2026-10-06; A2 re-capture 2026-10-07: new Consts fields hashed by reflection.
         double[] births = { 1.23, 2.0000000000000004, 7.999999999, 8.0, 20.0, 20.0000001, 31.123 };
-        ulong[] legacy = { 0xFAB1ADE4CB92D41B, 0xF99207B78726AB3C, 0xBE474B6F9BB4F4BF, 0xEB98090A01E3DC26,
-            0x2BFF4A58B97715DC, 0x788049705809C355, 0x221E2AB0E70619BA };
+        ulong[] legacy = { 0x52EA80A55D0C831A, 0xE87B79406531FBA9, 0x1339DC5060019F02, 0x883E846FE359D0EB,
+            0xCCCF36A065EA2D69, 0x341E24191DE54BFC, 0x3F23FDCB7A13699B };
         bool exact = true; var got = new List<string>();
         for (int n = 0; n < births.Length; n++)
         {

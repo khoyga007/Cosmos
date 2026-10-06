@@ -36,6 +36,7 @@ if (args.Length > 0 && args[0] == "advance-bench") { AdvanceBench.Run(args); ret
 if (args.Length > 0 && args[0] == "kinds") return KindChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "guards") return GuardChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "civtable") return CivTableChecks.Run() ? 0 : 1;
+if (args.Length > 0 && args[0] == "civstats") return CivStatsChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "ships") return ShipChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "conserve") return ConserveChecks.Run() ? 0 : 1;
 bool allOk = true;
@@ -134,6 +135,7 @@ allOk &= ElementChecks.Run();
 allOk &= KindChecks.Run();
 allOk &= GuardChecks.Run();
 allOk &= CivTableChecks.Run();
+allOk &= CivStatsChecks.Run();
 allOk &= ShipChecks.Run();
 allOk &= ConserveChecks.Run();
 allOk &= Audit.Run();
