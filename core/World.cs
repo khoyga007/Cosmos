@@ -74,9 +74,9 @@ public sealed partial class World
 
     public Kind KindOf(int i)
     {
+        if (!Alive[i] || !Attracts(i)) return Kind.Rock;
         if (M[i] >= C.StarMass) return Kind.Star;
-        if (!Attracts(i)) return Kind.Rock;
-        int p = Par[i];
+        int p = PrimaryOf(i);
         return p >= 0 && Alive[p] && M[p] < C.StarMass ? Kind.Moon : Kind.Planet;
     }
 
@@ -99,24 +99,51 @@ public sealed partial class World
         return k;
     }
 
-    /// Radius inside which object i, not its primary (parent, else the heaviest object), rules small things.
+    /// Radius inside which object i, not its parent (else the heaviest object), rules small things.
     public double Hill(int i)
     {
-        int p = Par[i] >= 0 && Alive[Par[i]] ? Par[i] : Heaviest();
-        if (p == i || p < 0) return double.MaxValue;
-        double dx = X[i] - X[p], dy = Y[i] - Y[p];
-        return Math.Sqrt(dx * dx + dy * dy) * Math.Cbrt(M[i] / (3 * M[p]));
+        if (!Alive[i] || !Attracts(i)) return 0;
+        BuildPullingHierarchy();
+        return _hill![i];
     }
+
+    /// Finds the real primary for object i: unified directly with the Rails pulling hierarchy.
+    public int PrimaryOf(int i)
+    {
+        if (!Alive[i]) return -1;
+        BuildPullingHierarchy();
+        int na = _naPulling;
+        if (na == 0) return -1;
+        if (i == _ord![0]) return -1;
+        if (Attracts(i)) return _prim![i];
+        return FindPrimaryInHierarchy(i, na);
+    }
+
+    public int FindPrimary(int i) => PrimaryOf(i);
 
     // ---- making objects
 
-    /// Returns the slot, or -1 when the world is full.
+    /// Returns the slot, or -1 when the world is full or parameters are invalid.
     public int Add(double x, double y, double vx, double vy, double m, double[] mix, string? name = null, uint col = 0, int par = -1, int grp = 0)
     {
+        if (!double.IsFinite(x) || !double.IsFinite(y) || !double.IsFinite(vx) || !double.IsFinite(vy)) return -1;
+        if (!double.IsFinite(m) || m <= 0) return -1;
+        if (mix == null || mix.Length != NElem) return -1;
+        double sumMix = 0;
+        for (int e = 0; e < NElem; e++)
+        {
+            if (!double.IsFinite(mix[e]) || mix[e] < 0) return -1;
+            sumMix += mix[e];
+        }
+        if (sumMix <= 0) return -1;
+        if (par != -1 && (par < 0 || par >= N || !Alive[par])) return -1;
+        if (grp < 0 || grp >= Groups.Count) return -1;
+
         int i;
         if (_free.Count > 0) i = _free.Pop(); else if (N < X.Length) i = N++; else return -1;
         X[i] = x; Y[i] = y; Vx[i] = vx; Vy[i] = vy; M[i] = m; Alive[i] = true; Name[i] = name; Col[i] = col; Par[i] = par; Grp[i] = grp; Gen[i]++;
-        for (int e = 0; e < NElem; e++) Comp[i * NElem + e] = m * mix[e];
+        bool norm = Math.Abs(sumMix - 1.0) > 1e-11;
+        for (int e = 0; e < NElem; e++) Comp[i * NElem + e] = m * (norm ? mix[e] / sumMix : mix[e]);
         ResetTemperature(i); ResetLayers(i);
         ResetStars(i); SetRadius(i); Live++;
         return i;
@@ -125,8 +152,16 @@ public sealed partial class World
     /// New object at (x, y) on a circular orbit around `parent`, same turning sense as the planets.
     public int AddOrbiting(int parent, double x, double y, double m, double[] mix, string? name = null, uint col = 0, int grp = 0, double speedFactor = 1)
     {
+        if (parent < 0 || parent >= N || !Alive[parent]) return -1;
+        if (!double.IsFinite(x) || !double.IsFinite(y) || (x == X[parent] && y == Y[parent])) return -1;
+        if (!double.IsFinite(m) || m <= 0) return -1;
+        if (!double.IsFinite(speedFactor) || speedFactor < 0) return -1;
         double dx = x - X[parent], dy = y - Y[parent], r = Math.Sqrt(dx * dx + dy * dy);
-        double v = Math.Sqrt(C.G * (M[parent] + m) / r) * speedFactor;
+        if (r <= 0 || !double.IsFinite(r)) return -1;
+        double gm = C.G * (M[parent] + m);
+        if (gm < 0) return -1;
+        double v = Math.Sqrt(gm / r) * speedFactor;
+        if (!double.IsFinite(v)) return -1;
         return Add(x, y, Vx[parent] - dy / r * v, Vy[parent] + dx / r * v, m, mix, name, col, parent, grp);
     }
 

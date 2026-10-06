@@ -46,8 +46,8 @@ public sealed partial class World
         // around the primary they have then, taken over the time gone by since the start. The built-in rules do not
         // read a rock's place, so it is worked out once, at the end; with any other rule in the table it is worked
         // out after every chunk as well. Same numbers at the end either way.
-        bool defer = false, shown = Rules.Count != _builtinRules.Length;
-        for (int i = 0; !shown && i < Rules.Count; i++) shown = !ReferenceEquals(Rules[i], _builtinRules[i]);
+        bool defer = false, shown = false;
+        for (int i = 0; !shown && i < Rules.Count; i++) shown = Rules[i].NeedsRockPositions;
         for (int i = 0; i < N; i++) if (Alive[i] && !Attracts(i)) { defer = true; break; }
         if (defer)
         {
@@ -224,7 +224,9 @@ public sealed partial class World
         return -1;
     }
 
-    void Ride(double t)
+    int _naPulling;
+
+    public void BuildPullingHierarchy()
     {
         int cap = X.Length;
         if (_prim == null)
@@ -234,38 +236,56 @@ public sealed partial class World
             _cx = new double[cap]; _cy = new double[cap]; _cvx = new double[cap]; _cvy = new double[cap];
             _heavyFirst = Comparer<int>.Create((a, b) => M[a] != M[b] ? M[b].CompareTo(M[a]) : a.CompareTo(b));
         }
-        int[] prim = _prim, ord = _ord!;
-        double[] mean = _mean!, hill = _hill!, sm = _sm!, bx = _bx!, by = _by!, bvx = _bvx!, bvy = _bvy!, cx = _cx!, cy = _cy!, cvx = _cvx!, cvy = _cvy!;
-
         int na = 0;
-        for (int i = 0; i < N; i++) if (Alive[i] && Attracts(i)) ord[na++] = i;
+        for (int i = 0; i < N; i++) if (Alive[i] && Attracts(i)) _ord![na++] = i;
+        _naPulling = na;
         _na = na;
-        Array.Copy(ord, _att, na);
-        if (na == 0) { for (int i = 0; i < N; i++) if (Alive[i] && !_deferRocks) { X[i] += Vx[i] * t; Y[i] += Vy[i] * t; prim[i] = -1; MarkOffRail(i); } return; }
-        Array.Sort(ord, 0, na, _heavyFirst); // a primary is always heavier than what it holds: it comes first
+        if (na == 0) return;
+        Array.Copy(_ord!, _att, na);
+        Array.Sort(_ord!, 0, na, _heavyFirst);
 
-        // who rides around whom. `upTo` = how many of the pulling objects (heaviest first) may be the primary.
-        int primaryOf(int i, int upTo)
-        {
-            for (int k = upTo - 1; k > 0; k--)
-            {
-                int j = ord[k];
-                double dx = X[i] - X[j], dy = Y[i] - Y[j], d2 = dx * dx + dy * dy;
-                if (d2 >= hill[j] * hill[j]) continue;
-                // only passing through the zone (too fast to be held) = still rides around the one further up;
-                // otherwise a fly-by caught at this instant would be carried off on a straight line for the whole jump
-                double ux = Vx[i] - Vx[j], uy = Vy[i] - Vy[j];
-                if (ux * ux + uy * uy < 2 * C.G * (M[i] + M[j]) / Math.Sqrt(d2)) return j;
-            }
-            return ord[0];
-        }
-        int root = ord[0];
-        prim[root] = -1; hill[root] = double.MaxValue;
+        int root = _ord![0];
+        _prim![root] = -1; _hill![root] = double.MaxValue;
         for (int k = 1; k < na; k++)
         {
-            int i = ord[k], p = primaryOf(i, k);
+            int i = _ord[k], p = FindPrimaryInHierarchy(i, k);
             double dx = X[i] - X[p], dy = Y[i] - Y[p];
-            prim[i] = p; hill[i] = Math.Sqrt(dx * dx + dy * dy) * Math.Cbrt(M[i] / (3 * M[p]));
+            _prim[i] = p; _hill[i] = Math.Sqrt(dx * dx + dy * dy) * Math.Cbrt(M[i] / (3 * M[p]));
+        }
+    }
+
+    public int FindPrimaryInHierarchy(int i, int upTo)
+    {
+        for (int k = upTo - 1; k > 0; k--)
+        {
+            int j = _ord![k];
+            double dx = X[i] - X[j], dy = Y[i] - Y[j], d2 = dx * dx + dy * dy;
+            if (d2 >= _hill![j] * _hill[j]) continue;
+            double ux = Vx[i] - Vx[j], uy = Vy[i] - Vy[j];
+            if (ux * ux + uy * uy < 2 * C.G * (M[i] + M[j]) / Math.Sqrt(d2)) return j;
+        }
+        return _ord![0];
+    }
+
+    public int RailsPrimary(int i)
+    {
+        if (!Alive[i] || _prim == null) return -1;
+        if (i == _ord![0]) return -1;
+        return Attracts(i) ? _prim[i] : FindPrimaryInHierarchy(i, _naPulling);
+    }
+
+    void Ride(double t)
+    {
+        BuildPullingHierarchy();
+        int na = _naPulling;
+        int[] prim = _prim!, ord = _ord!;
+        double[] mean = _mean!, hill = _hill!, sm = _sm!, bx = _bx!, by = _by!, bvx = _bvx!, bvy = _bvy!, cx = _cx!, cy = _cy!, cvx = _cvx!, cvy = _cvy!;
+        if (na == 0) { for (int i = 0; i < N; i++) if (Alive[i] && !_deferRocks) { X[i] += Vx[i] * t; Y[i] += Vy[i] * t; prim[i] = -1; MarkOffRail(i); } return; }
+
+        for (int k = 1; k < na; k++)
+        {
+            int i = ord[k], p = prim[i];
+            double dx = X[i] - X[p], dy = Y[i] - Y[p];
             if (PrimaryContactTime(dx, dy, Vx[i] - Vx[p], Vy[i] - Vy[p], C.G * (M[i] + M[p]), R[i] + R[p]) <= t)
                 _hits.Add((i, p));
         }
@@ -278,7 +298,7 @@ public sealed partial class World
             cx[i] = cy[i] = cvx[i] = cvy[i] = 0;
         }
         void into(int i, int p) { sm[p] += sm[i]; bx[p] += bx[i]; by[p] += by[i]; bvx[p] += bvx[i]; bvy[p] += bvy[i]; }
-        for (int i = 0; !_deferRocks && i < N; i++) if (Alive[i] && !Attracts(i)) { prim[i] = primaryOf(i, na); into(i, prim[i]); }
+        for (int i = 0; !_deferRocks && i < N; i++) if (Alive[i] && !Attracts(i)) { prim[i] = FindPrimaryInHierarchy(i, na); into(i, prim[i]); }
         for (int k = na - 1; k > 0; k--) into(ord[k], prim[ord[k]]); // lightest first: a lump is whole before it is added on
         for (int i = 0; i < N; i++) if (Alive[i] && (!_deferRocks || Attracts(i))) { bx[i] /= sm[i]; by[i] /= sm[i]; bvx[i] /= sm[i]; bvy[i] /= sm[i]; }
 

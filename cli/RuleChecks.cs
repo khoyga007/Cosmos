@@ -125,7 +125,7 @@ static class RuleChecks
     // Round 2: force the original chunk path with a disabled observer that cannot affect the world.
     static Rule ReferencePath(World w)
     {
-        var observer = new Rule("jump.reference", "", "", 1, _ => { }) { Enabled = false };
+        var observer = new Rule("jump.reference", "", "", 1, _ => { }) { Enabled = false, NeedsRockPositions = true };
         w.Rules.Add(observer); return observer;
     }
 
@@ -166,7 +166,7 @@ static class RuleChecks
         var watched = new World(4, 1); watched.Add(0, 0, 1, 0, 1e-9, rock);
         watched.Do(new Command(CmdKind.SetConst, Name: "JumpSamples", Amount: 2));
         var positions = new System.Collections.Generic.List<double>();
-        watched.Rules.Add(new Rule("observer", "X", "check", 1, w => positions.Add(w.X[0])));
+        watched.Rules.Add(new Rule("observer", "X", "check", 1, w => positions.Add(w.X[0])) { NeedsRockPositions = true });
         watched.Do(new Command(CmdKind.FastForward, Amount: 100));
         Check(positions.Count == 2 && Math.Abs(positions[0] - 50 * watched.C.YearTime) < 1e-8
             && Math.Abs(positions[1] - 100 * watched.C.YearTime) < 1e-8, "custom rule sees rock positions every chunk through fallback");

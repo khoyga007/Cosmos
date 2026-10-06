@@ -24,6 +24,7 @@ public sealed class Rule
     public string Reads { get; }
     public string Writes { get; }
     public bool Enabled = true;
+    public bool NeedsRockPositions { get; init; }
     public Action<World> Apply { get; }
     public double NextYear { get; internal set; }
     public double LastYear { get; internal set; } // year of its last run; World.RuleYears = years since then
@@ -58,7 +59,6 @@ public sealed partial class World
     readonly int[] _temperatureBands, _starSlots;
     readonly double[] _starLight;
     public readonly List<Rule> Rules = new();
-    Rule[] _builtinRules = null!; // only this table is known not to read rock positions between jump chunks
     public const int EventCapacity = 1024; // PLACEHOLDER [P], not a content decision by Yang
     readonly List<RuleEvent> _events = new();
     public IReadOnlyList<RuleEvent> Events => _events;
@@ -70,7 +70,7 @@ public sealed partial class World
         Rules.Add(new Rule("temperature", "M,X,Y,StarMass,LuminosityExponent,TemperatureScale,FrozenEdge,ScorchedEdge", "Temp,temperature.band", 0.01,
             w => w.UpdateTemperature()));
         InitLayerRules();
-        _builtinRules = Rules.ToArray();
+        InitKindRules();
     }
 
     void ResetTemperature(int i) { Temp[i] = double.NaN; _temperatureBands[i] = -1; }

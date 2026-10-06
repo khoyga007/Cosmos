@@ -35,7 +35,7 @@ public sealed partial class World
     public int Do(in Command c)
     {
         int r = Apply(c);
-        if (r >= 0 || r == -2) { Journal.Add((Step, c)); return Math.Max(r, 0); }
+        if (r >= 0 || r == -2) { Journal.Add((Step, c)); return r; }
         return -1;
     }
 
@@ -75,12 +75,24 @@ public sealed partial class World
             case CmdKind.SetConst:
                 if (c.Name == null || !C.Set(c.Name, c.Amount)) return -1;
                 RecalcRadii();
+                for (int i = 0; i < N; i++)
+                {
+                    if (Alive[i] && (!double.IsFinite(R[i]) || R[i] <= 0 || !double.IsFinite(M[i]) || M[i] <= 0))
+                        return -1;
+                }
                 return -2; // applied, no object involved
             case CmdKind.SetRule:
             {
                 string? id = c.Name; Rule? rule = Rules.Find(x => x.Id == id);
                 if (rule == null) return -1;
-                rule.Enabled = c.Amount != 0;
+                bool enable = c.Amount != 0;
+                if (enable && !rule.Enabled)
+                {
+                    rule.LastYear = Year;
+                    rule.NextYear = (Math.Floor(Year / rule.RhythmYears) + 1) * rule.RhythmYears;
+                    if (ReferenceEquals(rule, _starRule)) rule.NextYear = Math.Min(rule.NextYear, NextStarBoundary());
+                }
+                rule.Enabled = enable;
                 return -2;
             }
             case CmdKind.SeedLife:
@@ -164,15 +176,59 @@ public sealed partial class Consts
         }
     }
 
-    /// False when there is no such constant or the value is not a finite number.
+    /// False when there is no such constant, value is not finite, or fails physical range checks.
     public bool Set(string name, double value)
     {
         if (!double.IsFinite(value)) return false;
         int b = name.IndexOf('[');
-        FieldInfo? f = typeof(Consts).GetField(b < 0 ? name : name[..b], BindingFlags.Public | BindingFlags.Instance);
+        string field = b < 0 ? name : name[..b];
+        FieldInfo? f = typeof(Consts).GetField(field, BindingFlags.Public | BindingFlags.Instance);
         if (f == null) return false;
-        if (b < 0) { if (f.FieldType != typeof(double)) return false; f.SetValue(this, value); return true; }
+        if (b < 0)
+        {
+            if (f.FieldType != typeof(double)) return false;
+            if (!Validate(field, value)) return false;
+            f.SetValue(this, value);
+            return true;
+        }
         if (f.GetValue(this) is not double[] a || !int.TryParse(name[(b + 1)..^1], out int i) || i < 0 || i >= a.Length) return false;
-        a[i] = value; return true;
+        if (!ValidateArray(field, i, value)) return false;
+        a[i] = value;
+        return true;
+    }
+
+    bool Validate(string name, double v)
+    {
+        if (v < 0) return false;
+        if (name.StartsWith("Star"))
+        {
+            if (name == "StarWhiteSlope") return v >= 0 && (v > 0 || StarWhiteIntercept > 0);
+            if (name == "StarWhiteIntercept") return v > 0;
+            return v > 0;
+        }
+        switch (name)
+        {
+            case "YearTime":
+            case "RadiusScale":
+                return v > 0;
+
+            case "AttractMass":
+                return v > 0 && v > ShipMass;
+
+            case "ShipMass":
+                return v > 0 && v < AttractMass;
+
+            case "JumpSamples":
+                return v >= 1;
+
+            default:
+                return true;
+        }
+    }
+
+    bool ValidateArray(string name, int idx, double v)
+    {
+        if (name == "Density") return v > 0;
+        return v >= 0;
     }
 }
