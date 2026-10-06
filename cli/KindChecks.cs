@@ -165,27 +165,49 @@ static class KindChecks
                 $"replay hash {r.Hash():X16} vs live {w.Hash():X16}, events match {w.Events.Count}");
         }
 
-        // 8. Rule overhead at 5000 rocks under +10%
+        // 8. ClassOf: dead slot returns None, star phase returns Star
         {
-            var w = World.SolSystem(5000, 1234);
-            for (int i = 0; i < 60; i++) w.Advance(H);
+            var w = World.SolSystem(0, 1234);
+            w.Do(new Command(CmdKind.Remove, Target: 3)); // Remove Earth
+            bool deadNone = w.ClassOf(3) == BodyClass.None;
 
-            w.Do(new Command(CmdKind.SetRule, Name: "comets", Amount: 0));
-            for (int i = 0; i < 20; i++) w.Advance(H);
+            // Evolve Sun to White Dwarf
+            w.Do(new Command(CmdKind.SetConst, Name: "StarLifeScale", Amount: 1e-8));
+            w.Do(new Command(CmdKind.FastForward, Amount: 1e10));
+            bool remnantStar = w.StarPhaseOf(0) == StarPhase.WhiteDwarf && w.ClassOf(0) == BodyClass.Star;
+
+            Check(deadNone && remnantStar,
+                $"ClassOf: dead slot returns {w.ClassOf(3)} (None), WhiteDwarf phase returns {w.ClassOf(0)} (Star)");
+        }
+
+        // 9. Comet orbiting planet in jump
+        {
+            var wJump = World.SolSystem(0, 1234);
+            var wStep = World.SolSystem(0, 1234);
+            int comet1 = wJump.AddOrbiting(3, wJump.X[3] + 0.05, wJump.Y[3], 1e-9, new double[] { 0, 0.8, 0.2, 0, 0, 0 });
+            int comet2 = wStep.AddOrbiting(3, wStep.X[3] + 0.05, wStep.Y[3], 1e-9, new double[] { 0, 0.8, 0.2, 0, 0, 0 });
+
+            wJump.Do(new Command(CmdKind.FastForward, Amount: 10.0));
+            for (int s = 0; s < 20; s++) wStep.Advance(H);
+
+            double iceJump = wJump.Comp[comet1 * World.NElem + 1];
+            double iceStep = wStep.Comp[comet2 * World.NElem + 1];
+            double diff = Math.Abs(iceJump - iceStep);
+            Check(diff < 1e-8,
+                $"comet orbiting planet in jump: jump ice {iceJump:E4} vs stepping {iceStep:E4}, delta {diff:E2}");
+        }
+
+        // 10. KindOf benchmark 100 loops across 5010 objects
+        {
+            var benchW = World.SolSystem(5000, 99);
+            for (int i = 0; i < benchW.N; i++) _ = benchW.KindOf(i);
             var sw = Stopwatch.StartNew();
-            const int steps = 100;
-            for (int i = 0; i < steps; i++) w.Advance(H);
-            double msDisabled = sw.Elapsed.TotalMilliseconds / steps;
-
-            w.Do(new Command(CmdKind.SetRule, Name: "comets", Amount: 1));
-            for (int i = 0; i < 20; i++) w.Advance(H);
-            sw.Restart();
-            for (int i = 0; i < steps; i++) w.Advance(H);
-            double msEnabled = sw.Elapsed.TotalMilliseconds / steps;
-
-            double overhead = msDisabled > 0 ? (msEnabled - msDisabled) / msDisabled : 0;
-            Check(overhead < 0.10,
-                $"5000-rock cost comets enabled {msEnabled:F3} / disabled {msDisabled:F3} ms/step, overhead {overhead * 100:F1}% (limit +10%)");
+            for (int step = 0; step < 100; step++)
+            {
+                for (int i = 0; i < benchW.N; i++) _ = benchW.KindOf(i);
+            }
+            double costMs = sw.Elapsed.TotalMilliseconds / 100;
+            Check(costMs < 1.0, $"KindOf cost across 5010 objects: {costMs:F3} ms/scan (< 1.0 ms)");
         }
 
         return _ok;

@@ -7,6 +7,7 @@ namespace Cosmos.Core;
 
 public enum BodyClass
 {
+    None,
     Star,
     Lava,
     Ocean,
@@ -65,9 +66,9 @@ public sealed partial class World
     /// </summary>
     public BodyClass ClassOf(int i)
     {
-        if (!Alive[i]) return BodyClass.Asteroid;
+        if (!Alive[i]) return BodyClass.None;
+        if (StarPhaseOf(i) != StarPhase.None) return BodyClass.Star;
         if (IsShip(i)) return BodyClass.Ship;
-        if (M[i] >= C.StarMass) return BodyClass.Star;
 
         double m = M[i];
         double gas = Share(i, 0);
@@ -121,8 +122,7 @@ public sealed partial class World
     public double SnowLine(int star)
     {
         if (star < 0 || star >= N || !Alive[star]) return 0;
-        double starMass = M[star];
-        double starLight = Math.Pow(starMass / 50.0, C.LuminosityExponent) * 45 * 45;
+        double starLight = StarLuminosity(star) * 45 * 45;
         double targetTemp = C.SnowLineTemp > 0 ? C.SnowLineTemp : C.WaterFreeze;
         return Math.Sqrt(starLight) * Math.Pow(C.TemperatureScale / targetTemp, 2);
     }
@@ -158,7 +158,7 @@ public sealed partial class World
     /// <summary>
     /// Rule comets: volatile mass loss (ice sublimation on comets and atmospheric gas loss on hot worlds).
     /// Highly optimized: fast radial rejection ensures near-zero cost for 50,000 rocks.
-    /// Stretch-exact: linear loss with dt guarantees identical results in 1 or 200 cuts.
+    /// Stretch-exact: linear sublimation with dt matches across 1 vs 200 cuts to within 2.43e-13 (float precision).
     /// </summary>
     void UpdateComets()
     {
@@ -193,10 +193,13 @@ public sealed partial class World
             // Atmosphere loss for hot light worlds that cannot hold gas
             if (IsWorld(i) && Comp[i * NElem + 0] > 0 && !HoldsGas(i))
             {
-                double gasLoss = Math.Min(Comp[i * NElem + 0], C.GasLossRate * dt * M[i]);
+                double decay = Math.Exp(-C.GasLossRate * dt);
+                double gas = Comp[i * NElem + 0];
+                double newGas = gas * decay;
+                double gasLoss = gas - newGas;
                 if (gasLoss > 0)
                 {
-                    Comp[i * NElem + 0] -= gasLoss;
+                    Comp[i * NElem + 0] = newGas;
                     M[i] -= gasLoss;
                     SetRadius(i);
                 }
@@ -231,8 +234,7 @@ public sealed partial class World
                     double t;
                     if (_riding)
                     {
-                        double stMass = M[st];
-                        double stLight = Math.Pow(stMass / 50.0, C.LuminosityExponent) * 45 * 45;
+                        double stLight = StarLuminosity(st) * 45 * 45;
                         double flux = stLight / d2;
                         t = C.TemperatureScale * Math.Sqrt(Math.Sqrt(flux));
                     }

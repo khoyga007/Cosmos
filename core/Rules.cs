@@ -24,6 +24,7 @@ public sealed class Rule
     public string Reads { get; }
     public string Writes { get; }
     public bool Enabled = true;
+    public bool NeedsRockPositions { get; init; }
     public Action<World> Apply { get; }
     public double NextYear { get; internal set; }
     public double LastYear { get; internal set; } // year of its last run; World.RuleYears = years since then

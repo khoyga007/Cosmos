@@ -46,8 +46,8 @@ public sealed partial class World
         // around the primary they have then, taken over the time gone by since the start. The built-in rules do not
         // read a rock's place, so it is worked out once, at the end; with any other rule in the table it is worked
         // out after every chunk as well. Same numbers at the end either way.
-        bool defer = false, shown = Rules.Count != _builtinRules.Length;
-        for (int i = 0; !shown && i < Rules.Count; i++) shown = !ReferenceEquals(Rules[i], _builtinRules[i]);
+        bool defer = false, shown = false;
+        for (int i = 0; !shown && i < Rules.Count; i++) shown = Rules[i].NeedsRockPositions;
         for (int i = 0; i < N; i++) if (Alive[i] && !Attracts(i)) { defer = true; break; }
         if (defer)
         {
