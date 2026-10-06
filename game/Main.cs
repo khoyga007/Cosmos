@@ -201,6 +201,7 @@ public partial class Main : Node2D
 
     // How many small objects each planet or moon holds close by (within 4 of its radii), and how far the furthest is.
     const int RingMin = 30;
+    const float RingBandPx = 14; // the ring spans fewer pixels than this = its rocks cannot be told apart
     int[] _ringCount = System.Array.Empty<int>();
     double[] _ringFar = System.Array.Empty<double>();
     readonly System.Collections.Generic.List<int> _ringHosts = new();
@@ -540,7 +541,7 @@ public partial class Main : Node2D
             float r = Px(i);
             Kind kind = _w.KindOf(i);
             // PLACEHOLDER: a ring too small on screen to show its own rocks is drawn as one band
-            if (_ringCount[i] >= RingMin && Math.Sqrt(_ringFar[i]) * _zoom < r * 3)
+            if (_ringCount[i] >= RingMin && Math.Sqrt(_ringFar[i]) * _zoom < RingBandPx)
             {
                 DrawSetTransform(p, 0, new Vector2(1, _tilt));
                 DrawArc(Vector2.Zero, r * 2.1f, 0, MathF.Tau, 48, new Color(0.9f, 0.82f, 0.6f, 0.7f), MathF.Max(1.5f, r * 0.45f));
