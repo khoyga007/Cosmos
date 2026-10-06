@@ -61,7 +61,7 @@ public sealed partial class World
     const int MaxRockChunks = 16, MinRocksPerChunk = 512;
     readonly int[][] _chunkNear;
     readonly List<(int, int)>[] _chunkHits;
-    readonly Action<int> _kickChunk;
+    readonly Action<int> _kickChunk, _driftChunk;
     int _chunks;
     double _subHs, _subMaxAttSpeed, _subMaxKickDrift;
     /// <summary>Threads for the rock pass; 0 = one per processor.</summary>
@@ -88,6 +88,7 @@ public sealed partial class World
         _chunkNear = new int[MaxRockChunks][]; _chunkHits = new List<(int, int)>[MaxRockChunks];
         for (int c = 0; c < MaxRockChunks; c++) { _chunkNear[c] = new int[capacity]; _chunkHits[c] = new List<(int, int)>(); }
         _kickChunk = KickChunk;
+        _driftChunk = DriftChunk;
         Temp = new double[capacity]; _temperatureBands = new int[capacity]; _starSlots = new int[capacity]; _starLight = new double[capacity];
         InitLayers(capacity);
         InitStars(capacity);
@@ -330,7 +331,11 @@ public sealed partial class World
                 if (chunk.Count == 0) continue;
                 _hits.AddRange(chunk); chunk.Clear();
             }
-            for (int i = 0; i < N; i++) if (Alive[i]) { X[i] += Vx[i] * hs; Y[i] += Vy[i] * hs; }
+            // Position drift is independent per object too, but it may only run once EVERY chunk has finished
+            // reading the pullers' X/Vx for its sweep, so it needs a barrier of its own: it cannot be folded into
+            // the rock chunks. This costs one more Parallel.For per sub-step, so it is measured, not assumed.
+            if (_chunks == 1) _driftChunk(0);
+            else Parallel.For(0, _chunks, new ParallelOptions { MaxDegreeOfParallelism = Threads > 0 ? Threads : Environment.ProcessorCount }, _driftChunk);
 
             if (_hits.Count > 0)
             {
@@ -372,6 +377,14 @@ public sealed partial class World
         var hits = _chunkHits[c];
         for (int i = lo; i < hi; i++)
             if (Alive[i] && !Attracts(i)) KickRock(i, _subHs, _subMaxAttSpeed, _subMaxKickDrift, near, hits);
+    }
+
+    // One index chunk of the position drift. Only this object's own X/Y and Vx/Vy are touched, so there is no
+    // sum to reorder and the chunks are bit-identical to the sequential loop.
+    void DriftChunk(int c)
+    {
+        int lo = (int)((long)c * N / _chunks), hi = (int)((long)(c + 1) * N / _chunks);
+        for (int i = lo; i < hi; i++) if (Alive[i]) { X[i] += Vx[i] * _subHs; Y[i] += Vy[i] * _subHs; }
     }
 
     void KickRock(int i, double hs, double maxAttSpeed, double maxKickDrift, int[] nearBuf, List<(int, int)> hits)
