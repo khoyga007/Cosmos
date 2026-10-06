@@ -7,6 +7,9 @@ using System;
 
 namespace Cosmos.Core;
 
+// ProgenitorMass uses world mass units (50 = one Sun); both ages use years. Fuel is the burnt fraction, 0..GiantEnd.
+public readonly record struct StellarState(double AgeYears, double Fuel, double ProgenitorMass, double CoolingAgeYears = 0);
+
 public sealed partial class Consts
 {
     public double StarSolarMass = 50;             // [P] units: 1 solar mass
@@ -219,6 +222,35 @@ public sealed partial class World
             next = Math.Min(next, _starUpdated[i] + (mark - StarFuel[i]) / _starRate[i]);
         }
         return next;
+    }
+
+    bool SetStellarState(int i, StellarState state)
+    {
+        if (IsShip(i) || StarPhaseOf(i) == StarPhase.None
+            || !double.IsFinite(state.AgeYears) || state.AgeYears < 0
+            || !double.IsFinite(state.Fuel) || state.Fuel < 0 || state.Fuel > GiantEnd
+            || !double.IsFinite(state.ProgenitorMass) || state.ProgenitorMass < M[i]
+            || !double.IsFinite(state.CoolingAgeYears) || state.CoolingAgeYears < 0 || state.CoolingAgeYears > state.AgeYears
+            || state.Fuel < GiantEnd && state.CoolingAgeYears != 0
+            || state.Fuel < 1 && state.ProgenitorMass != M[i]
+            || state.Fuel > 0 && state.ProgenitorMass < C.StarMass
+            || state.Fuel < GiantEnd && state.Fuel > 0 && M[i] < C.StarMass) return false;
+        double rate = M[i] >= C.StarMass && state.Fuel < GiantEnd ? 1 / StarLifetime(M[i]) : 0;
+        if (!double.IsFinite(rate)) return false;
+        var before = (StarAge[i], StarFuel[i], StarInitialMass[i], StarCoolingAge[i]);
+        StarAge[i] = state.AgeYears; StarFuel[i] = state.Fuel;
+        StarInitialMass[i] = state.ProgenitorMass; StarCoolingAge[i] = state.CoolingAgeYears;
+        double radius = StarRadius(i);
+        if (!double.IsFinite(radius) || radius < 0)
+        {
+            (StarAge[i], StarFuel[i], StarInitialMass[i], StarCoolingAge[i]) = before;
+            return false;
+        }
+        // This is a snapshot, not a historical jump: mass, matter, velocity and the ejecta ledger stay as supplied.
+        R[i] = radius; _starUpdated[i] = Year; _starRate[i] = rate;
+        if (StarsEnabled && _starRule != null)
+            _starRule.NextYear = Math.Min((Math.Floor(Year / _starRule.RhythmYears) + 1) * _starRule.RhythmYears, NextStarBoundary());
+        return true;
     }
 
     void EvolveStar(int i, double now)
