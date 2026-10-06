@@ -2,6 +2,11 @@
 
 READ `SPEC.md` FIRST (game, model, engine decisions, round-1 work packages). This file = what is running now.
 
+## STOPPED 2026-10-06 (Yang: rest here, no new work to team until he prompts) — RESUME HERE
+- master 78ee1ab = R7 A + C merged, checks re-run by Claire (cli 227 OK, audit 7D/4R, selftest/uitest PASS).
+- TO DO next session, in order: (1) review + merge `celine/starstate` 3b12b2d (SetStarState command: `new StellarState(AgeYears, Fuel, ProgenitorMass, CoolingAgeYears=0)`, world mass units 50 = 1 Sun, fuel end = `1 + C.StarGiantFraction`; her run: cli 240 OK, 14 star-state checks) — re-run cli/selftest/uitest myself; (2) Claire adds create presets white dwarf / neutron star / black hole in GodUi (Create with remnant mass, then SetStarState); (3) R7 B: `ariel/civtable` rebased on master WITHOUT the Add() edit of 722946c -> Selica QA -> merge; (4) Selica QA of C + starstate still owed; (5) zero net momentum in stock SolSystem scene.
+- Window added today by Claire: create-at-rest checkbox (ba09c5a), zone overlay key Z (0892189, 9addf74). Neither seen by eye by Claire.
+
 ## 06/10 night
 - Old web project E:\CosmosSandbox = ARCHIVED (reference only, nothing deleted; note at top of its ROADMAP.md).
 - master: object model core + command boundary (`World.Do`, journal, replay) + Sol scene + window (top-down default). Checks green: merge, moon (472 turns), sol (1.36% drift), constants (G 1→2), commands (replay hash equal), repeat.
