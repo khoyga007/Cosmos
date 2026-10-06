@@ -1068,9 +1068,14 @@ static class Audit
             string[] lines = File.ReadAllLines(f);
             for (int i = 0; i < lines.Length; i++)
             {
-                if (!re.IsMatch(lines[i]) || no.IsMatch(lines[i])) continue;
+                if (no.IsMatch(lines[i])) continue;
+                Match m = re.Match(lines[i]);
+                if (!m.Success) continue;
                 string where = $"{Path.GetFileName(f)}:{i + 1}";
-                if (lines[i].TrimStart().StartsWith("//")) Comments.Add(where); else found.Add(where);
+                // A mention that lives in a comment — whole line or trailing — is not code that must change.
+                int slash = lines[i].IndexOf("//", StringComparison.Ordinal);
+                bool comment = lines[i].TrimStart().StartsWith("//") || (slash >= 0 && m.Index > slash);
+                if (comment) Comments.Add(where); else found.Add(where);
             }
         }
         return found;
@@ -1097,7 +1102,7 @@ static class Audit
 
         // (1) a 7th material group costs one row: no line outside the table may name a group by a literal number
         //     or spell a six-cell mix out.
-        var g = Hits(core, @"Share\([A-Za-z0-9_\]\[\. ]+,\s*[0-5]\s*\)|Comp\[[^\[\]]*\+\s*[0-5]\]|\{\s*[0-9.]+\s*,\s*[0-9.]+\s*,\s*[0-9.]+\s*,\s*[0-9.]+\s*,\s*[0-9.]+\s*,\s*[0-9.]+\s*\}",
+        var g = Hits(core, @"Share\([A-Za-z0-9_\]\[\. ]+,\s*[0-5]\s*\)|Comp\[[^\[\]]*\+\s*[0-5]\]|Density\s*\[\s*[0-5]\s*\]|Elements\s*\[\s*[0-5]\s*\]|Elem[A-Za-z]*\s*\(\s*[0-5]\s*\)|\{\s*[0-9.]+\s*,\s*[0-9.]+\s*,\s*[0-9.]+\s*,\s*[0-9.]+\s*,\s*[0-9.]+\s*,\s*[0-9.]+\s*\}",
                           @"ElemName|Density\s*=|Elements|Elem\s*\(");
         Expect(g.Count == 0,
             $"table-group7 (the contract: with the groups in a table, core reads a material by id/role, so a 7th group is one more row): {g.Count} core line(s) still name a group by a literal number, or spell out a six-cell mix — {List(g)}; the API is shut as well — World.cs:26 pins NElem = 6, World.cs:131 refuses any mix whose length is not NElem and World.cs:19 Density holds six cells — so a 7th group cannot be reached from outside the core at all (the same numbers are read again outside core/ in cli/Program.cs:49-50, cli/KindChecks.cs:85/108-133/193-194, cli/LayerChecks.cs:26/42-43/205 and game/Main.cs:681/1040/1045)");
