@@ -41,27 +41,55 @@ public sealed partial class World
         for (int i = 0; i < N; i++) if (Alive[i] && !Attracts(i)) { defer = true; break; }
         if (defer)
         {
-            Ride(0); // choose the same initial primary hierarchy and retain each rock's relative orbit
-            for (int i = 0; i < N; i++) if (Alive[i] && !Attracts(i))
-            {
-                // Rock scratch cells are unused by body-only Ride; keep inertial starts for escape trajectories.
-                _cx![i] = X[i]; _cy![i] = Y[i]; _cvx![i] = Vx[i]; _cvy![i] = Vy[i];
-            }
+            StartRockOrbits();
         }
         _riding = true;
         _deferRocks = defer;
+        double began = Year, jumpBegan = Year;
         try
         {
             for (int k = 0; k < chunks; k++)
             {
                 _deferRocks = defer;
-                Ride(t / chunks);
-                // placed = the rules may read them again (rock temperature)
-                if (defer && (shown || k == chunks - 1)) { PlaceRocks(k == chunks - 1 ? t : t * (k + 1) / chunks); _deferRocks = false; }
-                Year += years / chunks; RunRules();
+                double target = Year + years / chunks;
+                if (NextStarBoundary() > target)
+                {
+                    Ride(t / chunks);
+                    if (defer && (shown || k == chunks - 1))
+                    {
+                        PlaceRocks(began == jumpBegan ? (k == chunks - 1 ? t : t * (k + 1) / chunks) : (target - began) * C.YearTime);
+                        _deferRocks = false;
+                    }
+                    Year = target; RunRules();
+                }
+                else
+                {
+                    // Arrive using the old mass, place rocks there, then evolve the star and capture new
+                    // rock origins. Kepler must never apply the remnant mass retroactively to the old orbit.
+                    while (Year < target)
+                    {
+                        double at = Math.Min(target, NextStarBoundary());
+                        _deferRocks = defer;
+                        if (at > Year) { Ride((at - Year) * C.YearTime); Year = at; }
+                        if (defer) { PlaceRocks((Year - began) * C.YearTime); _deferRocks = false; }
+                        _starRule.NextYear = Year;
+                        RunRules();
+                        if (defer) { StartRockOrbits(); began = Year; }
+                    }
+                }
             }
         }
         finally { _riding = _deferRocks = false; }
+    }
+
+    void StartRockOrbits()
+    {
+        _deferRocks = false;
+        Ride(0);
+        for (int i = 0; i < N; i++) if (Alive[i] && !Attracts(i))
+        {
+            _cx![i] = X[i]; _cy![i] = Y[i]; _cvx![i] = Vx[i]; _cvy![i] = Vy[i];
+        }
     }
 
     // Rocks exert no pull, so they are no part of any lump: the bodies ride as if the rocks were not there, the

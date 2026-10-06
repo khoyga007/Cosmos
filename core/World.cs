@@ -54,6 +54,7 @@ public sealed partial class World
         _att = new int[capacity];
         Temp = new double[capacity]; _temperatureBands = new int[capacity]; _starSlots = new int[capacity]; _starLight = new double[capacity];
         InitLayers(capacity);
+        InitStars(capacity);
         InitRules();
         _rng = seed == 0 ? 0x9E3779B97F4A7C15UL : seed;
     }
@@ -78,6 +79,8 @@ public sealed partial class World
 
     void SetRadius(int i)
     {
+        SyncStar(i);
+        if (StarPhaseOf(i) != StarPhase.None) { R[i] = StarRadius(i); return; }
         double vol = 0;
         for (int e = 0; e < NElem; e++) vol += Comp[i * NElem + e] / C.Density[e];
         R[i] = C.RadiusScale * Math.Cbrt(vol);
@@ -111,8 +114,8 @@ public sealed partial class World
         if (_free.Count > 0) i = _free.Pop(); else if (N < X.Length) i = N++; else return -1;
         X[i] = x; Y[i] = y; Vx[i] = vx; Vy[i] = vy; M[i] = m; Alive[i] = true; Name[i] = name; Col[i] = col; Par[i] = par; Grp[i] = grp;
         for (int e = 0; e < NElem; e++) Comp[i * NElem + e] = m * mix[e];
-        SetRadius(i); Live++;
         ResetTemperature(i); ResetLayers(i);
+        ResetStars(i); SetRadius(i); Live++;
         return i;
     }
 
@@ -129,6 +132,7 @@ public sealed partial class World
     {
         if (IsShip(a) || IsShip(b)) { if (IsShip(a)) ShipArrives(a, b); else ShipArrives(b, a); return; }
         int k = M[a] >= M[b] ? a : b, d = k == a ? b : a;
+        MergeStars(k, d);
         double m = M[k] + M[d];
         X[k] = (X[k] * M[k] + X[d] * M[d]) / m; Y[k] = (Y[k] * M[k] + Y[d] * M[d]) / m;
         Vx[k] = (Vx[k] * M[k] + Vx[d] * M[d]) / m; Vy[k] = (Vy[k] * M[k] + Vy[d] * M[d]) / m;
@@ -250,7 +254,7 @@ public sealed partial class World
             if (f.GetValue(C) is double d) mix(BitConverter.DoubleToUInt64Bits(d));
             else if (f.GetValue(C) is double[] a) foreach (double x in a) mix(BitConverter.DoubleToUInt64Bits(x));
         }
-        HashRules(mix); HashLayers(mix);
+        HashRules(mix); HashLayers(mix); HashStars(mix);
         return h;
     }
 }

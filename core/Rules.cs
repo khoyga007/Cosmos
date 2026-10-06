@@ -66,6 +66,7 @@ public sealed partial class World
     // PLACEHOLDER [P] rhythm: 0.01 years. No life/water/civilisation rules yet.
     void InitRules()
     {
+        InitStarRule();
         Rules.Add(new Rule("temperature", "M,X,Y,StarMass,LuminosityExponent,TemperatureScale,FrozenEdge,ScorchedEdge", "Temp,temperature.band", 0.01,
             w => w.UpdateTemperature()));
         InitLayerRules();
@@ -80,10 +81,10 @@ public sealed partial class World
     void UpdateTemperature()
     {
         int stars = 0;
-        for (int i = 0; i < N; i++) if (Alive[i] && M[i] >= C.StarMass)
+        for (int i = 0; i < N; i++) if (Alive[i] && StarLuminosity(i) > 0)
         {
             _starSlots[stars] = i;
-            _starLight[stars++] = Math.Pow(M[i] / 50, C.LuminosityExponent) * 45 * 45;
+            _starLight[stars++] = StarLuminosity(i) * 45 * 45;
         }
         // ponytail: O(objects * stars); enough for the system tier, revisit at galaxy scale.
         for (int i = 0; i < N; i++)
@@ -123,6 +124,7 @@ public sealed partial class World
             rule.LastYear = Year;
             // No historical physics states exist: skipped ticks coalesce at the current year.
             rule.NextYear = (Math.Floor(Year / rule.RhythmYears) + 1) * rule.RhythmYears;
+            if (ReferenceEquals(rule, _starRule)) rule.NextYear = Math.Min(rule.NextYear, NextStarBoundary());
         }
     }
 

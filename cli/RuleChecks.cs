@@ -74,7 +74,7 @@ static class RuleChecks
         replay.LogEvent(mars, "check", "hash", 1);
         Check(replay.Hash() != stateHash, "event state participates in repeat hash");
 
-        sol.Rules[0].Enabled = false;
+        sol.Rules.Find(r => r.Id == "temperature")!.Enabled = false;
         var temperatures = (double[])sol.Temp.Clone(); int events = sol.Events.Count;
         for (int i = 0; i < 100; i++) sol.Advance(0.5);
         Check(temperatures.SequenceEqual(sol.Temp) && sol.Events.Count == events,
@@ -108,7 +108,7 @@ static class RuleChecks
 
         // Alternate measurements on identical worlds; use medians to reduce scheduling noise.
         var enabled = World.SolSystem(5_000, 77); var disabled = World.SolSystem(5_000, 77);
-        disabled.Rules[0].Enabled = false;
+        disabled.Rules.Find(r => r.Id == "temperature")!.Enabled = false;
         for (int i = 0; i < 300; i++) { enabled.Advance(0.5); disabled.Advance(0.5); }
         var on = new double[5]; var off = new double[5];
         for (int i = 0; i < on.Length; i++)

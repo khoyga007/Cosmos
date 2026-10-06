@@ -67,7 +67,7 @@ public sealed partial class World
     }
 
     /// A planet or a moon: pulls others, is not a star. Only these carry layers.
-    public bool IsWorld(int i) => M[i] >= C.AttractMass && M[i] < C.StarMass;
+    public bool IsWorld(int i) => M[i] >= C.AttractMass && M[i] < C.StarMass && !IsShip(i) && StarPhaseOf(i) == StarPhase.None;
 
     public int LifeStage(int i) { int s = 0; while (s < LifeStageAt.Length && Life[i] >= LifeStageAt[s]) s++; return s; }
     public int TechStage(int i) => Pop[i] > 0 ? (int)Math.Min(Tech[i], MaxTechStage) : 0;
