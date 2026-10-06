@@ -179,6 +179,24 @@ public partial class Main : Node2D
     // Lines every power of ten of world units that comes out 60..600 px apart; every tenth one brighter and numbered.
     bool _grid = true;
 
+    // PLACEHOLDER: the zone each attracting object rules (World.Hill), as a faint ring. Z switches it.
+    // The heaviest object rules everything left over, so it has no ring.
+    bool _zones;
+
+    void DrawZones()
+    {
+        float far = GetViewportRect().Size.Length() * 4;
+        for (int i = 0; i < _w.N; i++)
+        {
+            if (!_w.Alive[i] || !_w.Attracts(i)) continue;
+            double h = _w.Hill(i) * _zoom;
+            if (!(h > 6) || h > far) continue;
+            DrawSetTransform(Screen(i), 0, new Vector2(1, _tilt));
+            DrawArc(Vector2.Zero, (float)h, 0, MathF.Tau, 96, new Color(0.45f, 0.75f, 1f, i == _sel ? 0.55f : 0.22f), 1f);
+            DrawSetTransform(Vector2.Zero);
+        }
+    }
+
     void DrawGrid(Font font)
     {
         Vector2 size = GetViewportRect().Size;
@@ -420,7 +438,7 @@ public partial class Main : Node2D
         var sb = new System.Text.StringBuilder();
         if (!Live(_sel))
         {
-            sb.Append("[color=#9aa4c0]Lăn chuột: phóng to tại con trỏ\nKéo chuột (phải, giữa, hoặc trái trên khoảng trống): di chuyển khung nhìn\nBấm: chọn · bấm đúp: chọn và bám theo\nKéo từ vật đang chọn: đẩy nó\nC: đặt vật thể mới · Space: tạm dừng · H: về toàn hệ · G: bật tắt lưới[/color]\n\n");
+            sb.Append("[color=#9aa4c0]Lăn chuột: phóng to tại con trỏ\nKéo chuột (phải, giữa, hoặc trái trên khoảng trống): di chuyển khung nhìn\nBấm: chọn · bấm đúp: chọn và bám theo\nKéo từ vật đang chọn: đẩy nó\nC: đặt vật thể mới · Space: tạm dừng · H: về toàn hệ · G: bật tắt lưới · Z: vùng hấp dẫn[/color]\n\n");
             for (int e = 0; e < World.NElem; e++) sb.Append($"[color=#{ElemCol[e].ToHtml(false)}]■[/color] {GodUi.ElemVi[e]}  ");
             return sb.ToString();
         }
@@ -547,6 +565,7 @@ public partial class Main : Node2D
         Font font = ThemeDB.FallbackFont;
 
         if (_grid) DrawGrid(font);
+        if (_zones) DrawZones();
 
         // Orbit lines
         for (int i = 0; i < _w.N; i++)
@@ -777,6 +796,7 @@ public partial class Main : Node2D
             if (k.Keycode == Key.F) FollowSelected();
             if (k.Keycode == Key.H) Home();
             if (k.Keycode == Key.G) _grid = !_grid;
+            if (k.Keycode == Key.Z) _zones = !_zones;
             if (k.Keycode == Key.Delete) RemoveSelected();
             if (k.Keycode == Key.Tab) _ui?.TogglePanel();
             if (k.Keycode == Key.Escape)
