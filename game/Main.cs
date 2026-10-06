@@ -175,6 +175,31 @@ public partial class Main : Node2D
         _zoom = 0.75f;
     }
 
+    // PLACEHOLDER: faint grid in the orbit plane, to give the eye a sense of place and scale. G switches it.
+    // Lines every power of ten of world units that comes out 60..600 px apart; every tenth one brighter and numbered.
+    bool _grid = true;
+
+    void DrawGrid(Font font)
+    {
+        Vector2 size = GetViewportRect().Size;
+        double step = Math.Pow(10, Math.Ceiling(Math.Log10(60 / _zoom)));
+        ToWorld(Vector2.Zero, out double x0, out double y0); ToWorld(size, out double x1, out double y1);
+        if (!(step > 0) || (x1 - x0) / step > 400 || (y1 - y0) / step > 400) return;
+        Color thin = new(0.55f, 0.65f, 0.9f, 0.07f), thick = new(0.55f, 0.65f, 0.9f, 0.16f), text = new(0.55f, 0.65f, 0.9f, 0.45f);
+        for (double k = Math.Floor(x0 / step); k * step <= x1; k++)
+        {
+            bool main = Math.Abs(k % 10) < 0.5; float sx = ToScreen(k * step, 0).X;
+            DrawLine(new Vector2(sx, 0), new Vector2(sx, size.Y), main ? thick : thin, 1);
+            if (main) DrawString(font, new Vector2(sx + 3, size.Y - 96), (k * step).ToString("G4"), HorizontalAlignment.Left, -1, 10, text);
+        }
+        for (double k = Math.Floor(y0 / step); k * step <= y1; k++)
+        {
+            bool main = Math.Abs(k % 10) < 0.5; float sy = ToScreen(0, k * step).Y;
+            DrawLine(new Vector2(0, sy), new Vector2(size.X, sy), main ? thick : thin, 1);
+            if (main) DrawString(font, new Vector2(4, sy - 3), (k * step).ToString("G4"), HorizontalAlignment.Left, -1, 10, text);
+        }
+    }
+
     /// A jump with the view riding along: the whole system drifts through space over the ages (it has net
     /// momentum), and after a long jump it would be far outside a view left where it was.
     public void JumpKeepingView(double years)
@@ -395,7 +420,7 @@ public partial class Main : Node2D
         var sb = new System.Text.StringBuilder();
         if (!Live(_sel))
         {
-            sb.Append("[color=#9aa4c0]Lăn chuột: phóng to tại con trỏ\nKéo chuột (phải, giữa, hoặc trái trên khoảng trống): di chuyển khung nhìn\nBấm: chọn · bấm đúp: chọn và bám theo\nKéo từ vật đang chọn: đẩy nó\nC: đặt vật thể mới · Space: tạm dừng · H: về toàn hệ[/color]\n\n");
+            sb.Append("[color=#9aa4c0]Lăn chuột: phóng to tại con trỏ\nKéo chuột (phải, giữa, hoặc trái trên khoảng trống): di chuyển khung nhìn\nBấm: chọn · bấm đúp: chọn và bám theo\nKéo từ vật đang chọn: đẩy nó\nC: đặt vật thể mới · Space: tạm dừng · H: về toàn hệ · G: bật tắt lưới[/color]\n\n");
             for (int e = 0; e < World.NElem; e++) sb.Append($"[color=#{ElemCol[e].ToHtml(false)}]■[/color] {GodUi.ElemVi[e]}  ");
             return sb.ToString();
         }
@@ -520,6 +545,8 @@ public partial class Main : Node2D
     {
         if (_w == null) return;
         Font font = ThemeDB.FallbackFont;
+
+        if (_grid) DrawGrid(font);
 
         // Orbit lines
         for (int i = 0; i < _w.N; i++)
@@ -747,6 +774,7 @@ public partial class Main : Node2D
             if (k.Keycode == Key.R) SetTool(_tool == Tool.Shove ? Tool.Select : Tool.Shove);
             if (k.Keycode == Key.F) FollowSelected();
             if (k.Keycode == Key.H) Home();
+            if (k.Keycode == Key.G) _grid = !_grid;
             if (k.Keycode == Key.Delete) RemoveSelected();
             if (k.Keycode == Key.Tab) _ui?.TogglePanel();
             if (k.Keycode == Key.Escape)
