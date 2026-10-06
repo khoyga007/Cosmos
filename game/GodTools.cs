@@ -50,7 +50,8 @@ public static class GodTools
         }
         if (sum <= 0)
         {
-            norm[2] = 1.0; // default to rock
+            int rock = ElementCatalog.Elem(ElementRole.Rock);
+            if (rock >= 0) norm[rock] = 1.0;
         }
         else
         {

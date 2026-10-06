@@ -59,7 +59,7 @@ public partial class GodUi : CanvasLayer
     RichTextLabel _txtEvents = null!;
     int _eventsCount = -1; double _eventsLastYear = double.NaN;
 
-    public static readonly string[] ElemVi = { "Khí nhẹ", "Băng", "Đá", "Kim loại", "Carbon", "Phóng xạ" };
+    public static readonly string[] ElemVi = ElementCatalog.Names;
     public static readonly string[] KindVi = { "Sao", "Hành tinh", "Vệ tinh", "Tiểu hành tinh" };
     public static readonly string[] StarPhaseVi = { "", "Sao lùn nâu", "Sao dãy chính", "Sao khổng lồ đỏ", "Sao lùn trắng", "Sao neutron", "Lỗ đen" };
 
@@ -318,7 +318,7 @@ public partial class GodUi : CanvasLayer
     public void ApplyPreset(int i)
     {
         _txtMass.Text = Presets[i].Earths.ToString("G4", CultureInfo.InvariantCulture);
-        for (int e = 0; e < World.NElem; e++) _sliders[e].SetValueNoSignal(Presets[i].Mix[e]);
+        for (int e = 0; e < World.NElem; e++) _sliders[e].SetValueNoSignal(e < Presets[i].Mix.Length ? Presets[i].Mix[e] : 0);
         UpdatePreview();
     }
 

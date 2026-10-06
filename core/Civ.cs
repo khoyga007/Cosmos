@@ -42,7 +42,6 @@ public sealed partial class World
     public double[] ShipTech = null!, ShipBorn = null!;
 
     const double ShipRhythmYears = 2; // [P] how often a world may send one
-    static readonly double[] ShipMix = { 0, 0, 0, 1, 0, 0 };
     static readonly string[] NameParts = { "ka", "ren", "tho", "lu", "mi", "sa", "vor", "el", "an", "dra", "qui", "zen", "ta", "no", "ri", "bel", "os", "ya", "ur", "she" };
 
     void InitCiv(int capacity)
@@ -57,7 +56,7 @@ public sealed partial class World
     public bool IsShip(int i) => ShipCiv[i] >= 0;
 
     /// Has a surface to stand on: ships land only here.
-    public bool IsSolid(int i) => IsWorld(i) && Share(i, 2) + Share(i, 3) >= C.LifeSolidMin;
+    public bool IsSolid(int i) => IsWorld(i) && Share(i, ElementRole.Rock) + Share(i, ElementRole.Metal) >= C.LifeSolidMin;
 
     /// Worlds a civilisation lives on right now.
     public int WorldsOf(int civ)
@@ -91,10 +90,11 @@ public sealed partial class World
     // Industry eats metal: `lived` = population summed over the stretch (people * years). The mass stays (waste rock).
     void UseMetal(int i, double lived)
     {
-        int o = i * NElem;
-        double used = Math.Min(Comp[o + 3], C.CivMetalUse * lived * M[i]);
+        int o = i * ElementCount, rock = Elem(ElementRole.Rock);
+        if (rock < 0) return;
+        double used = Math.Min(Matter(i, ElementRole.Metal), C.CivMetalUse * lived * M[i]);
         if (!(used > 0)) return;
-        Comp[o + 3] -= used; Comp[o + 2] += used;
+        LoseMatter(i, ElementRole.Metal, used); Comp[o + rock] += used;
         SetRadius(i);
     }
 
@@ -185,7 +185,10 @@ public sealed partial class World
             double ux = vx - Vx[i], uy = vy - Vy[i], u = Math.Sqrt(ux * ux + uy * uy);
             if (!(u > 0)) { ux = dx; uy = dy; u = d; }
             double off = R[i] * 1.5 + 1e-4;
-            int ship = Add(X[i] + ux / u * off, Y[i] + uy / u * off, vx, vy, C.ShipMass, ShipMix, $"Tàu {Civs[civ].Name}");
+            int metal = Elem(ElementRole.Metal);
+            if (metal < 0) continue;
+            var shipMix = new double[ElementCount]; shipMix[metal] = 1;
+            int ship = Add(X[i] + ux / u * off, Y[i] + uy / u * off, vx, vy, C.ShipMass, shipMix, $"Tàu {Civs[civ].Name}");
             if (ship < 0) continue; // the world is full
             sent();
             ShipCiv[ship] = civ; ShipTo[ship] = goal; ShipFrom[ship] = i; ShipTech[ship] = Tech[i]; ShipBorn[ship] = Year;

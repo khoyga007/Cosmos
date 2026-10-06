@@ -52,18 +52,19 @@ public sealed partial class World
         switch (c.Kind)
         {
             case CmdKind.Create:
-                return c.Mix is { Length: NElem } && c.Amount > 0 ? Add(c.X, c.Y, c.Vx, c.Vy, c.Amount, c.Mix, c.Name, c.Col) : -1;
+                return c.Mix != null ? Add(c.X, c.Y, c.Vx, c.Vy, c.Amount, c.Mix, c.Name, c.Col) : -1;
             case CmdKind.CreateOrbiting:
-                if (!Ok(c.Target) || c.Mix is not { Length: NElem } || c.Amount <= 0) return -1;
+                if (!Ok(c.Target) || c.Mix == null || c.Amount <= 0) return -1;
                 if (c.X == X[c.Target] && c.Y == Y[c.Target]) return -1;
                 return AddOrbiting(c.Target, c.X, c.Y, c.Amount, c.Mix, c.Name, c.Col);
             case CmdKind.AddMatter:
             {
-                if (!Ok(c.Target) || c.Index < 0 || c.Index >= NElem) return -1;
-                int i = c.Target, o = i * NElem;
-                Comp[o + c.Index] = Math.Max(0, Comp[o + c.Index] + c.Amount);
+                int elem = c.Name == null ? c.Index : Elem(c.Name);
+                if (!Ok(c.Target) || elem < 0 || elem >= ElementCount) return -1;
+                int i = c.Target, o = i * ElementCount;
+                Comp[o + elem] = Math.Max(0, Comp[o + elem] + c.Amount);
                 double m = 0;
-                for (int e = 0; e < NElem; e++) m += Comp[o + e];
+                for (int e = 0; e < ElementCount; e++) m += Comp[o + e];
                 if (m <= 0) { Kill(i); return i; }
                 M[i] = m; SetRadius(i);
                 return i;
