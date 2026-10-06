@@ -88,8 +88,9 @@ public sealed partial class World
 
     public Kind KindOf(int i)
     {
-        if (!Alive[i] || !Attracts(i)) return Kind.Rock;
+        if (!Alive[i]) return Kind.Rock;
         if (M[i] >= C.StarMass) return Kind.Star;
+        if (!Attracts(i)) return Kind.Rock;
         int p = PrimaryOf(i);
         return p >= 0 && Alive[p] && M[p] < C.StarMass ? Kind.Moon : Kind.Planet;
     }

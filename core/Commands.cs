@@ -220,7 +220,7 @@ public sealed partial class Consts
                 return v > 0 && v < AttractMass;
 
             case "JumpSamples":
-                return v >= 1;
+                return v >= 1 && v <= 10_000;
 
             default:
                 return true;
