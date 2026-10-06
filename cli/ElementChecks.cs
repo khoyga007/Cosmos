@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.IO;
+using System.Runtime.Loader;
 using Cosmos.Core;
 
 static class ElementChecks
@@ -105,5 +107,38 @@ static class ElementChecks
         }
         Array.Sort(samples);
         Console.WriteLine($"elements bench: 5000 rocks, step median7 {samples[3]:F6} ms ({string.Join(",", Array.ConvertAll(samples, x => x.ToString("F6")))})");
+    }
+
+    public static bool PairedBench(string baselineDll)
+    {
+        var context = new AssemblyLoadContext("elements-baseline", isCollectible: true);
+        try
+        {
+            var type = context.LoadFromAssemblyPath(Path.GetFullPath(baselineDll)).GetType("Cosmos.Core.World")!;
+            var make = type.GetMethod("SolSystem")!; var advance = type.GetMethod("Advance")!;
+            var before = new double[7]; var after = new double[7]; var ratios = new double[7];
+            double Measure(Action<double> step)
+            {
+                var timer = Stopwatch.StartNew();
+                for (int i = 0; i < 500; i++) step(.5);
+                return timer.Elapsed.TotalMilliseconds / 500;
+            }
+            for (int k = 0; k < before.Length; k++)
+            {
+                object old = make.Invoke(null, new object[] { 5000, 1234UL })!;
+                Action<double> oldStep = advance.CreateDelegate<Action<double>>(old);
+                var current = World.SolSystem(5000, 1234); Action<double> newStep = current.Advance;
+                for (int i = 0; i < 100; i++) { oldStep(.5); newStep(.5); }
+                if (k % 2 == 0) { before[k] = Measure(oldStep); after[k] = Measure(newStep); }
+                else { after[k] = Measure(newStep); before[k] = Measure(oldStep); }
+                ratios[k] = after[k] / before[k];
+                Console.WriteLine($"elements paired {k}: before {before[k]:F6}, after {after[k]:F6} ms, delta {100 * (ratios[k] - 1):F2}%");
+            }
+            Array.Sort(before); Array.Sort(after); Array.Sort(ratios);
+            bool pass = ratios[3] <= 1.05;
+            Console.WriteLine($"{(pass ? "OK    " : "FAILED")} elements paired: same-process median7 before {before[3]:F6}/after {after[3]:F6} ms, median paired delta {100 * (ratios[3] - 1):F2}% (ceiling +5%)");
+            return pass;
+        }
+        finally { context.Unload(); }
     }
 }
