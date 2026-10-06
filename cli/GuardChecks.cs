@@ -1,0 +1,211 @@
+// Verification suite for Ariel's Round 6 Defect Fixes & Guards.
+// Defect items: #2 #3 #4 (SetConst guards), #5 #6 #7 (Add / AddOrbiting guards),
+// #9 (Do return contract), #10 (hill-orphan re-parenting), #15 (layers-water-bank clock reset).
+// Alone: `cli -- guards`.
+using System;
+using System.Linq;
+using Cosmos.Core;
+
+static class GuardChecks
+{
+    const double H = 0.5;
+    static bool _ok;
+    static void Check(bool ok, string line)
+    {
+        _ok &= ok;
+        Console.WriteLine($"{(ok ? "OK    " : "FAILED")} guards: {line}");
+    }
+
+    public static bool Run()
+    {
+        _ok = true;
+
+        // 1. #2 #3 #4: SetConst input validation
+        {
+            var w = World.SolSystem(0, 1234);
+            int j0 = w.Journal.Count;
+            double oldG = w.C.G, oldYearTime = w.C.YearTime, oldDensity0 = w.C.Density[0];
+            double oldThrust = w.C.ShipThrust, oldShipMass = w.C.ShipMass, oldAttract = w.C.AttractMass;
+
+            // Density <= 0 rejected
+            bool rDenZero = w.Do(new Command(CmdKind.SetConst, Name: "Density[0]", Amount: 0)) == -1;
+            bool rDenNeg = w.Do(new Command(CmdKind.SetConst, Name: "Density[1]", Amount: -1.5)) == -1;
+            bool rDenNan = w.Do(new Command(CmdKind.SetConst, Name: "Density[2]", Amount: double.NaN)) == -1;
+
+            // YearTime <= 0 rejected
+            bool rYtZero = w.Do(new Command(CmdKind.SetConst, Name: "YearTime", Amount: 0)) == -1;
+            bool rYtNeg = w.Do(new Command(CmdKind.SetConst, Name: "YearTime", Amount: -100)) == -1;
+
+            // Negative values for physical constants rejected
+            bool rGNeg = w.Do(new Command(CmdKind.SetConst, Name: "G", Amount: -1)) == -1;
+            bool rRadNeg = w.Do(new Command(CmdKind.SetConst, Name: "RadiusScale", Amount: -0.5)) == -1;
+            bool rRadZero = w.Do(new Command(CmdKind.SetConst, Name: "RadiusScale", Amount: 0)) == -1;
+
+            // Ship constants validation
+            bool rThrustNeg = w.Do(new Command(CmdKind.SetConst, Name: "ShipThrust", Amount: -2)) == -1;
+            bool rShipMassGteAttract = w.Do(new Command(CmdKind.SetConst, Name: "ShipMass", Amount: w.C.AttractMass)) == -1;
+            bool rAttractLteShip = w.Do(new Command(CmdKind.SetConst, Name: "AttractMass", Amount: w.C.ShipMass)) == -1;
+            bool rShipMassNeg = w.Do(new Command(CmdKind.SetConst, Name: "ShipMass", Amount: -1e-12)) == -1;
+
+            // Valid SetConst succeeds with -2 and records in journal
+            bool rValid = w.Do(new Command(CmdKind.SetConst, Name: "G", Amount: 1.5)) == -2;
+
+            bool preserved = w.C.Density[0] == oldDensity0 && w.C.YearTime == oldYearTime && w.C.ShipThrust == oldThrust
+                && w.C.ShipMass == oldShipMass && w.C.AttractMass == oldAttract && w.C.G == 1.5;
+            bool journalClean = w.Journal.Count == j0 + 1; // only the valid command recorded
+
+            Check(rDenZero && rDenNeg && rDenNan && rYtZero && rYtNeg && rGNeg && rRadNeg && rRadZero
+                && rThrustNeg && rShipMassGteAttract && rAttractLteShip && rShipMassNeg && rValid && preserved && journalClean,
+                "SetConst validation: Density<=0, YearTime<=0, NaN, negative, ShipMass>=AttractMass rejected; journal records only valid");
+        }
+
+        // 2. #5 #6 #7: Add and AddOrbiting parameter guards
+        {
+            var w = World.SolSystem(0, 1234);
+            double[] rock = { 0, 0, 1, 0, 0, 0 };
+
+            // Mass <= 0 rejected
+            bool rMZero = w.Add(10, 10, 0, 0, 0, rock) == -1;
+            bool rMNeg = w.Add(10, 10, 0, 0, -1e-5, rock) == -1;
+
+            // NaN / Infinite positions and velocities rejected
+            bool rXNan = w.Add(double.NaN, 0, 0, 0, 1e-5, rock) == -1;
+            bool rYNan = w.Add(0, double.PositiveInfinity, 0, 0, 1e-5, rock) == -1;
+            bool rVxNan = w.Add(0, 0, double.NaN, 0, 1e-5, rock) == -1;
+            bool rVyInf = w.Add(0, 0, 0, double.NegativeInfinity, 1e-5, rock) == -1;
+            bool rMNan = w.Add(10, 10, 0, 0, double.NaN, rock) == -1;
+
+            // Invalid mix rejected
+            bool rMixNull = w.Add(10, 10, 0, 0, 1e-5, null!) == -1;
+            bool rMixShort = w.Add(10, 10, 0, 0, 1e-5, new double[] { 1, 0 }) == -1;
+            bool rMixNan = w.Add(10, 10, 0, 0, 1e-5, new double[] { double.NaN, 0, 1, 0, 0, 0 }) == -1;
+            bool rMixNeg = w.Add(10, 10, 0, 0, 1e-5, new double[] { -1, 0, 1, 0, 0, 0 }) == -1;
+            bool rMixAllZero = w.Add(10, 10, 0, 0, 1e-5, new double[6]) == -1;
+
+            // Invalid par and grp rejected
+            bool rParBad = w.Add(10, 10, 0, 0, 1e-5, rock, par: 999) == -1;
+            bool rGrpBad = w.Add(10, 10, 0, 0, 1e-5, rock, grp: 999) == -1;
+
+            // AddOrbiting parent guards
+            bool rOrbParNeg = w.AddOrbiting(-1, 20, 0, 1e-5, rock) == -1;
+            bool rOrbParOut = w.AddOrbiting(999, 20, 0, 1e-5, rock) == -1;
+            bool rOrbParDead = false;
+            {
+                int deadSlot = w.Add(30, 30, 0, 0, 1e-5, rock);
+                w.Do(new Command(CmdKind.Remove, Target: deadSlot));
+                rOrbParDead = w.AddOrbiting(deadSlot, 35, 30, 1e-6, rock) == -1;
+            }
+            // AddOrbiting coincident point rejected (r = 0)
+            bool rOrbCoincident = w.AddOrbiting(0, w.X[0], w.Y[0], 1e-5, rock) == -1;
+            bool rOrbSpeedNeg = w.AddOrbiting(0, 50, 0, 1e-5, rock, speedFactor: -1) == -1;
+
+            Check(rMZero && rMNeg && rXNan && rYNan && rVxNan && rVyInf && rMNan
+                && rMixNull && rMixShort && rMixNan && rMixNeg && rMixAllZero
+                && rParBad && rGrpBad && rOrbParNeg && rOrbParOut && rOrbParDead && rOrbCoincident && rOrbSpeedNeg,
+                "Add / AddOrbiting guards: mass<=0, NaN/inf pos/vel/mix, invalid par/parent/grp, r=0 all rejected (-1)");
+        }
+
+        // 3. #9: Do return contract separation
+        {
+            var w = World.SolSystem(0, 1234);
+            const int sun = 0, earth = 3;
+
+            // Target commands return targeted slot (>= 0)
+            int rPushSun = w.Do(new Command(CmdKind.Push, Target: sun, Vx: 0.01));
+            int rPushEarth = w.Do(new Command(CmdKind.Push, Target: earth, Vx: 0.01));
+            int rMove = w.Do(new Command(CmdKind.Move, Target: earth, X: w.X[earth] + 1, Y: w.Y[earth]));
+            int rSeed = w.Do(new Command(CmdKind.SeedLife, Target: earth, Amount: 0.5));
+
+            // Non-target commands return -2 (distinct from slot 0 Sun)
+            int rSetConst = w.Do(new Command(CmdKind.SetConst, Name: "G", Amount: 1.1));
+            int rSetRule = w.Do(new Command(CmdKind.SetRule, Name: "temperature", Amount: 1));
+            int rFastForward = w.Do(new Command(CmdKind.FastForward, Amount: 0.1));
+            int rForce = w.Do(new Command(CmdKind.Force, X: 0, Y: 0, Vx: 10, Amount: 0.05));
+
+            // Failed commands return -1
+            int rFailTarget = w.Do(new Command(CmdKind.Push, Target: 999));
+            int rFailConst = w.Do(new Command(CmdKind.SetConst, Name: "G", Amount: -5));
+            int rFailRule = w.Do(new Command(CmdKind.SetRule, Name: "nonexistent_rule", Amount: 1));
+
+            bool contractOk = rPushSun == 0 && rPushEarth == earth && rMove == earth && rSeed == earth
+                && rSetConst == -2 && rSetRule == -2 && rFastForward == -2 && rForce == -2
+                && rFailTarget == -1 && rFailConst == -1 && rFailRule == -1;
+
+            Check(contractOk,
+                $"Do return contract: slot commands return slot (Sun=0, Earth=3), non-target return -2 (SetConst={rSetConst}, Rule={rSetRule}), fail=-1");
+        }
+
+        // 4. #10: hill-orphan re-parenting
+        {
+            // Scenario A: Remove Earth -> Moon is orphan, finds real primary
+            var w = World.SolSystem(0, 1234);
+            const int sun = 0, earth = 3, moon = 9;
+            Check(w.Par[moon] == earth && w.Alive[earth], "Pre-condition: Moon orbits Earth");
+
+            w.Do(new Command(CmdKind.Remove, Target: earth));
+            Check(!w.Alive[earth], "Earth removed");
+            // In Sol, with Earth gone, Sun is the primary holding the Moon
+            Check(w.Par[moon] == sun, $"Moon orphan re-parented to Sun ({w.Par[moon]} == {sun}), not -1");
+
+            // Scenario B: Hierarchical sub-satellite: Sun -> Jupiter -> Moon -> Sub-moon
+            var w2 = new World(16, 42);
+            double[] gas = { 1, 0, 0, 0, 0, 0 }, rock = { 0, 0, 1, 0, 0, 0 };
+            int sSun = w2.Add(0, 0, 0, 0, 50, gas, "Sun");
+            int sJup = w2.AddOrbiting(sSun, 100, 0, 0.05, gas, "Jupiter"); // massive planet
+            double hillJup = w2.Hill(sJup);
+
+            // Moon orbits Jupiter well inside Jupiter's Hill sphere
+            int sMoon = w2.AddOrbiting(sJup, 100 + hillJup * 0.1, 0, 1e-5, rock, "Moon");
+            double hillMoon = w2.Hill(sMoon);
+
+            // Sub-moon orbits Moon inside Moon's Hill sphere
+            int sSubMoon = w2.AddOrbiting(sMoon, w2.X[sMoon] + hillMoon * 0.2, w2.Y[sMoon], 1e-10, rock, "SubMoon");
+            Check(w2.Par[sSubMoon] == sMoon, "Pre-condition: SubMoon orbits Moon");
+
+            // Remove Moon: Sub-moon is deep inside Jupiter's Hill zone, bound to Jupiter.
+            // It MUST be re-parented to Jupiter, NOT jump directly to the Sun!
+            w2.Do(new Command(CmdKind.Remove, Target: sMoon));
+            Check(!w2.Alive[sMoon], "Moon removed");
+            int newPar = w2.Par[sSubMoon];
+            Check(newPar == sJup, $"SubMoon orphan re-parented to Jupiter (slot {newPar} == {sJup}), NOT Sun (slot {sSun})");
+        }
+
+        // 5. #15: layers-water-bank clock reset
+        {
+            var w = World.SolSystem(0, 1234);
+            Rule tempRule = w.Rules.First(r => r.Id == "temperature");
+            w.Advance(10); // step forward a bit
+            double yearTurnOff = w.Year;
+
+            // Turn rule off
+            w.Do(new Command(CmdKind.SetRule, Name: "temperature", Amount: 0));
+            Check(!tempRule.Enabled, "temperature rule disabled");
+
+            // Jump forward 100 years while rule is disabled
+            w.Do(new Command(CmdKind.FastForward, Amount: 100));
+            double yearBeforeReenable = w.Year;
+            Check(yearBeforeReenable >= yearTurnOff + 99, $"Jumped 100 years: year is {w.Year:F1}");
+
+            // Re-enable rule
+            w.Do(new Command(CmdKind.SetRule, Name: "temperature", Amount: 1));
+            Check(tempRule.Enabled, "temperature rule re-enabled");
+            Check(Math.Abs(tempRule.LastYear - yearBeforeReenable) < 1e-9,
+                $"Rule LastYear reset to current year ({tempRule.LastYear:F2} == {yearBeforeReenable:F2}) upon re-enabling");
+
+            // Next advance: RuleYears must NOT be 100 years
+            w.Advance(w.C.YearTime * 0.05); // step 0.05 years
+            Check(w.RuleYears < 1.0,
+                $"RuleYears after re-enabling is {w.RuleYears:F4} years (does NOT dump 100 accumulated years)");
+        }
+
+        // 6. NeedsRockPositions flag support
+        {
+            var w = World.SolSystem(100, 1234);
+            var customRule = new Rule("test_needs_rocks", "", "", 1, _ => { }) { NeedsRockPositions = true };
+            w.Rules.Add(customRule);
+            Check(customRule.NeedsRockPositions, "Rule.NeedsRockPositions flag is recognized and accessible");
+        }
+
+        return _ok;
+    }
+}

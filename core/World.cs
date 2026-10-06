@@ -108,15 +108,54 @@ public sealed partial class World
         return Math.Sqrt(dx * dx + dy * dy) * Math.Cbrt(M[i] / (3 * M[p]));
     }
 
+    /// Finds the real primary for object i: the lightest pulling body holding it in its Hill zone
+    /// with v_rel < v_esc, else the heaviest body in the world (or -1 if none).
+    public int FindPrimary(int i)
+    {
+        if (!Alive[i]) return -1;
+        int best = -1;
+        double bestMass = double.MaxValue;
+        for (int j = 0; j < N; j++)
+        {
+            if (!Alive[j] || j == i || !Attracts(j) || M[j] <= M[i]) continue;
+            double dx = X[i] - X[j], dy = Y[i] - Y[j], d2 = dx * dx + dy * dy;
+            double hj = Hill(j);
+            if (d2 >= hj * hj) continue;
+            double d = Math.Sqrt(d2);
+            double ux = Vx[i] - Vx[j], uy = Vy[i] - Vy[j];
+            if (ux * ux + uy * uy < 2 * C.G * (M[i] + M[j]) / d)
+            {
+                if (M[j] < bestMass) { best = j; bestMass = M[j]; }
+            }
+        }
+        if (best >= 0) return best;
+        int h = Heaviest();
+        return h != i ? h : -1;
+    }
+
     // ---- making objects
 
-    /// Returns the slot, or -1 when the world is full.
+    /// Returns the slot, or -1 when the world is full or parameters are invalid.
     public int Add(double x, double y, double vx, double vy, double m, double[] mix, string? name = null, uint col = 0, int par = -1, int grp = 0)
     {
+        if (!double.IsFinite(x) || !double.IsFinite(y) || !double.IsFinite(vx) || !double.IsFinite(vy)) return -1;
+        if (!double.IsFinite(m) || m <= 0) return -1;
+        if (mix == null || mix.Length != NElem) return -1;
+        double sumMix = 0;
+        for (int e = 0; e < NElem; e++)
+        {
+            if (!double.IsFinite(mix[e]) || mix[e] < 0) return -1;
+            sumMix += mix[e];
+        }
+        if (sumMix <= 0) return -1;
+        if (par != -1 && (par < 0 || par >= N || !Alive[par])) return -1;
+        if (grp < 0 || grp >= Groups.Count) return -1;
+
         int i;
         if (_free.Count > 0) i = _free.Pop(); else if (N < X.Length) i = N++; else return -1;
         X[i] = x; Y[i] = y; Vx[i] = vx; Vy[i] = vy; M[i] = m; Alive[i] = true; Name[i] = name; Col[i] = col; Par[i] = par; Grp[i] = grp; Gen[i]++;
-        for (int e = 0; e < NElem; e++) Comp[i * NElem + e] = m * mix[e];
+        bool norm = Math.Abs(sumMix - 1.0) > 1e-11;
+        for (int e = 0; e < NElem; e++) Comp[i * NElem + e] = m * (norm ? mix[e] / sumMix : mix[e]);
         ResetTemperature(i); ResetLayers(i);
         ResetStars(i); SetRadius(i); Live++;
         return i;
@@ -125,8 +164,16 @@ public sealed partial class World
     /// New object at (x, y) on a circular orbit around `parent`, same turning sense as the planets.
     public int AddOrbiting(int parent, double x, double y, double m, double[] mix, string? name = null, uint col = 0, int grp = 0, double speedFactor = 1)
     {
+        if (parent < 0 || parent >= N || !Alive[parent]) return -1;
+        if (!double.IsFinite(x) || !double.IsFinite(y) || (x == X[parent] && y == Y[parent])) return -1;
+        if (!double.IsFinite(m) || m <= 0) return -1;
+        if (!double.IsFinite(speedFactor) || speedFactor < 0) return -1;
         double dx = x - X[parent], dy = y - Y[parent], r = Math.Sqrt(dx * dx + dy * dy);
-        double v = Math.Sqrt(C.G * (M[parent] + m) / r) * speedFactor;
+        if (r <= 0 || !double.IsFinite(r)) return -1;
+        double gm = C.G * (M[parent] + m);
+        if (gm < 0) return -1;
+        double v = Math.Sqrt(gm / r) * speedFactor;
+        if (!double.IsFinite(v)) return -1;
         return Add(x, y, Vx[parent] - dy / r * v, Vy[parent] + dx / r * v, m, mix, name, col, parent, grp);
     }
 

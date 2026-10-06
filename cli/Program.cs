@@ -10,6 +10,7 @@ if (args.Length > 0 && args[0] == "stars") return StarChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "contact") return ContactChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "contact-bench") { ContactChecks.Bench(); return 0; }
 if (args.Length > 0 && args[0] == "kinds") return KindChecks.Run() ? 0 : 1;
+if (args.Length > 0 && args[0] == "guards") return GuardChecks.Run() ? 0 : 1;
 bool allOk = true;
 void Check(bool ok, string line) { allOk &= ok; Console.WriteLine($"{(ok ? "OK    " : "FAILED")} {line}"); }
 
@@ -77,8 +78,8 @@ foreach (int n in new[] { 2_000, 5_000, 20_000, 50_000 })
         if (s == 50) ok &= w.Do(new Command(CmdKind.CreateOrbiting, Target: 3, X: w.X[3], Y: w.Y[3] + 0.2, Amount: 1e-6, Mix: rock, Name: "m")) >= 0;
         if (s == 100) ok &= w.Do(new Command(CmdKind.Push, Target: 4, Vx: 0.05, Vy: -0.02)) >= 0;
         if (s == 150) ok &= w.Do(new Command(CmdKind.AddMatter, Target: 4, Amount: 2e-5, Index: 1)) >= 0;
-        if (s == 200) ok &= w.Do(new Command(CmdKind.SetConst, Name: "G", Amount: 1.2)) >= 0;
-        if (s == 250) ok &= w.Do(new Command(CmdKind.SetConst, Name: "Density[2]", Amount: 2.5)) >= 0;
+        if (s == 200) ok &= w.Do(new Command(CmdKind.SetConst, Name: "G", Amount: 1.2)) == -2;
+        if (s == 250) ok &= w.Do(new Command(CmdKind.SetConst, Name: "Density[2]", Amount: 2.5)) == -2;
         if (s == 300) ok &= w.Do(new Command(CmdKind.Create, X: 300, Y: 10, Vx: 0, Vy: 0.3, Amount: 3e-4, Mix: rock)) >= 0;
         if (s == 350) ok &= w.Do(new Command(CmdKind.Remove, Target: 20)) >= 0;
         if (s == 400) ok &= w.Do(new Command(CmdKind.Remove, Target: 20)) < 0 && w.Do(new Command(CmdKind.SetConst, Name: "Nope", Amount: 1)) < 0; // refused, not recorded
@@ -98,6 +99,7 @@ allOk &= LayerChecks.Run();
 allOk &= StarChecks.Run();
 allOk &= ContactChecks.Run();
 allOk &= KindChecks.Run();
+allOk &= GuardChecks.Run();
 allOk &= Audit.Run();
 return allOk ? 0 : 1;
 
