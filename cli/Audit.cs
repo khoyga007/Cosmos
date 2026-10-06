@@ -5,9 +5,12 @@
 // Without that variable the shared `dotnet run --project cli` stays green while the lines are still printed,
 // so Celine and Ariel can still tell "my change broke something" from "known audit finding".
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using Cosmos.Core;
 
 static class Audit
@@ -35,6 +38,7 @@ static class Audit
         HashChecks();
         ConstChecks();
         AddChecks();
+        DebtChecks();
         SlotChecks();
         HillChecks();
         RailChecks();
@@ -45,6 +49,8 @@ static class Audit
         TouchChecks();
         GodChecks();
         CivChecks();
+        Head("audit P3: table-driven checks (Claire VÒNG 7) — lines outside the table that must change, expected 0");
+        TableChecks();
         Console.WriteLine($"AUDIT: {_defects} defect line(s), {_risks} risk line(s); core not touched (P3)");
         if (_defects > 0 && _strict) { Console.WriteLine("AUDIT: STRICT -> the run FAILS"); return false; }
         if (_defects > 0) Console.WriteLine("AUDIT: not strict -> run stays green; set COSMOS_AUDIT_STRICT=1 to fail on these");
@@ -317,6 +323,72 @@ static class Audit
         Run(nan, 20);
         Expect(double.IsFinite(nan.X[good]),
             $"add-nan (World.cs:108): one object added at x=NaN turns the other object's x into {nan.X[good]} in 20 steps (its gravity is NaN, d2=NaN, so it also never merges: Live {nan.Live}); nothing in the core refuses a non-finite state, only Advance's h is checked (World.cs:192)");
+    }
+
+    // ---- owed from the guards review: Claire 06:03Z asked for these three to be checked
+
+    /// StarPhaseOf exists only from the stars round on, so this check has to compile on the older trees too.
+    static readonly MethodInfo? PhaseOf = typeof(World).GetMethod("StarPhaseOf", BindingFlags.Public | BindingFlags.Instance);
+    static string Phase(World w, int i) => PhaseOf == null ? "no StarPhaseOf on this tree" : PhaseOf.Invoke(w, new object[] { i })?.ToString() ?? "?";
+
+    static void DebtChecks()
+    {
+        // KindOf asks the AttractMass dial before it asks the body's own mass. The dial has no ceiling
+        // (Commands.cs:215-216 only demands v > ShipMass), so it can be lifted over a star's own mass.
+        var k = World.SolSystem(0, 1234);
+        const int sun = 0;
+        Kind before = k.KindOf(sun);
+        string phase0 = Phase(k, sun);
+        double attract0 = k.C.AttractMass, sunM = k.M[sun], starMass = k.C.StarMass;
+        int acc = k.Do(new Command(CmdKind.SetConst, Name: "AttractMass", Amount: 100));
+        Kind after = k.KindOf(sun);
+        Expect(acc != -1 && before == Kind.Star && after == Kind.Star,
+            $"kindof-star-before-attract (World.cs:77 asks Attracts(i) first, World.cs:78 is the M >= StarMass test; Commands.cs:215-216 Validate(\"AttractMass\") accepts any value above ShipMass, and Do r=-2 means applied without a slot, Commands.cs:34-39): the Sun (M {sunM:F1} >= StarMass {starMass:F1}, KindOf {before}, StarPhase {phase0}) reads {(after == Kind.Star ? "Star" : after.ToString())} after AttractMass {attract0:E1} -> {k.C.AttractMass:E1} (Do r={acc}); line 78's own test still passes, so the classifier answers \"not a star\" for a body its own next line calls one, and KindOf is what Hill, the journal and every god tool read");
+
+        // JumpSamples is the chunk cap of one fast-forward, and the core spells out that a jump costs chunks * objects.
+        var j1 = World.SolSystem(5000, 7);
+        j1.Do(new Command(CmdKind.SetConst, Name: "JumpSamples", Amount: 200));
+        double ms1 = JumpMs(j1, 1e6);
+        var j2 = World.SolSystem(5000, 7);
+        j2.Do(new Command(CmdKind.SetConst, Name: "JumpSamples", Amount: 2000));
+        double ms2 = JumpMs(j2, 1e6);
+        var j3 = new World(2, 1);
+        int huge = j3.Do(new Command(CmdKind.SetConst, Name: "JumpSamples", Amount: 1e7));
+        double perChunk = ms2 / 2000;
+        string jumpMsg = $"jumpsamples-unbounded (Commands.cs:221-222 Validate(\"JumpSamples\") asks only v >= 1 unless a ceiling was added; Rails.cs:44 chunks = Clamp(ceil(years/fastest), 1, C.JumpSamples), cost chunks * objects per Rails.cs:33-35): the dial {(huge == -1 ? "is refused" : "takes 1e7")} (Do r={huge}, -1 is a refusal) and one 1e6-year jump over 5000 rocks costs {ms1:F0} ms at cap 200 and {ms2:F0} ms at cap 2000 ({perChunk:F2} ms per chunk), so cap 1e7 is about {perChunk * 1e7 / 1000:F0} s of wall clock inside a single FastForward";
+        if (huge == -1) Ok(jumpMsg); else Risk(jumpMsg);
+
+        // Add must not take the caller's mix and hand back a different one. Three answers are possible and they
+        // are not the same answer: refuse the mix, store it as given, or rewrite it in silence — and a rewrite is
+        // only half the story, because M is set from the argument while the table is written from the mix.
+        var a = new World(4, 1);
+        int quarter = a.Add(0, 0, 0, 0, 1.0, new double[] { 0, 0, 0, 0.25, 0, 0 }, "quarter-metal");
+        int whole = a.Add(0.5, 0, 0, 0, 1.0, new double[] { 0, 0, 0, 1, 0, 0 }, "full-metal");
+        // The stride belongs to the core and it moved on the elements branch, so read it off the two public arrays
+        // instead of naming a constant. A refusal returns -1 and no slot: nothing below may index with it.
+        int stride = a.M.Length > 0 ? a.Comp.Length / a.M.Length : 0;
+        int verdict = 0;   // 0 ok, 1 risk, 2 defect
+        string addMsg;
+        if (stride <= 3)
+            addMsg = $"add-mix-silent-normalise (World.cs:145-146): SKIPPED — the matter table holds {a.Comp.Length} cells over {a.M.Length} slots, so this audit cannot address one share";
+        else if (whole < 0)
+        {
+            verdict = 2;
+            addMsg = $"add-mix-silent-normalise (World.cs:127-149): Add(m=1.0, four zeros and a 1.0 — a mix that does sum to 1) returned {whole}, so the core refused a body it has always accepted; the bad mix scored {quarter}";
+        }
+        else if (quarter < 0)
+            addMsg = $"add-mix-silent-normalise (World.cs:145-146 used to store m * mix[e] / sumMix whenever the mix did not sum to 1): Add(m=1.0, 0.25 in a mix summing to 0.25) is refused (r={quarter}) while the mix that does sum to 1 still lands (slot {whole}, its share at position 3 stored {a.Comp[whole * stride + 3]:F4}, mass M {a.M[whole]:F4}) — a mix that does not sum to 1 is the caller's error, and saying so is the one answer that keeps the body's mass in step with its own matter table";
+        else
+        {
+            double qm = a.Comp[quarter * stride + 3];
+            double qsum = 0;
+            for (int e = 0; e < stride; e++) qsum += a.Comp[quarter * stride + e];
+            bool rescaled = Math.Abs(qm - 0.25) > 1e-9;
+            bool split = Math.Abs(a.M[quarter] - qsum) > 1e-9;
+            verdict = split ? 2 : (rescaled ? 1 : 0);
+            addMsg = $"add-mix-silent-normalise (World.cs:145 writes M = m straight from the argument and World.cs:146 the matter table from m * mix[e], both on this tree; 144/146 on the round-7 core): Add(m=1.0, 0.25 in a mix summing to 0.25) returns slot {quarter} and stores {qm:F4} where the caller asked for 0.25 ({(rescaled ? "rewritten in silence" : "stored as given")}), while M reads {a.M[quarter]:F4} against the same body's matter table summing {qsum:F4} ({(split ? "the two disagree, so the object's mass no longer matches its own matter" : "the two agree")}); Add(m=1.0, 1.0) stored {a.Comp[whole * stride + 3]:F4}; every in-tree caller already sums to 1 (World.cs:198/213/216/232, Civ.cs:45, GodTools.cs:44-57 normalises for itself), so this is for any other caller";
+        }
+        if (verdict == 0) Ok(addMsg); else if (verdict == 2) Defect(addMsg); else Risk(addMsg);
     }
 
     // ---- slot identity
@@ -965,5 +1037,97 @@ static class Audit
         Run(yv, ysteps);
         Expect(!yv.Alive[yfar] && yv.Pop[ygoal] == 0 && yv.Year > yv.C.ShipLifeYears,
             $"ship-life-clock (Civ.cs:23 ShipLifeYears, Civ.cs:153 kills a ship older than it, Civ.cs:203 caps the closing speed at ShipSpeed = {yv.C.ShipSpeed:F2}): a ship sent to a goal {Gap(yv, yfar, ygoal):E1} units away is dead at {yv.Year:F1} years with the goal Pop {yv.Pop[ygoal]} ({ysteps} steps at h = {H}) — at that cap a ship covers at most {yv.C.ShipSpeed * yv.C.ShipLifeYears * yv.C.YearTime:E1} units in its whole {yv.C.ShipLifeYears:F0}-year life, so any order further than that is a guaranteed loss of the ship and its people, and no line is written to say so");
+    }
+
+    // ---- Claire VÒNG 7: how many lines OUTSIDE the table must change to add a group, a stage, a star event
+    // These three count SOURCE lines, so they need the core directory: COSMOS_CORE_SRC, or a repo layout where
+    // the running assembly sits under <repo>/cli/bin/... . They are read-only scans of core/*.cs, no parsing.
+
+    static string? CoreDir()
+    {
+        string? env = Environment.GetEnvironmentVariable("COSMOS_CORE_SRC");
+        if (!string.IsNullOrEmpty(env) && Directory.Exists(env)) return env;
+        var d = new DirectoryInfo(AppContext.BaseDirectory);
+        for (int i = 0; i < 6 && d != null; i++, d = d.Parent)
+        {
+            string c = Path.Combine(d.FullName, "core");
+            if (File.Exists(Path.Combine(c, "Cosmos.Core.csproj"))) return c;
+        }
+        return null;
+    }
+
+    static readonly List<string> Comments = new();
+
+    static List<string> Hits(string dir, string pattern, string skip)
+    {
+        var re = new Regex(pattern); var no = new Regex(skip);
+        Comments.Clear();
+        var found = new List<string>();
+        foreach (string f in Directory.GetFiles(dir, "*.cs"))
+        {
+            string[] lines = File.ReadAllLines(f);
+            for (int i = 0; i < lines.Length; i++)
+            {
+                if (no.IsMatch(lines[i])) continue;
+                Match m = re.Match(lines[i]);
+                if (!m.Success) continue;
+                string where = $"{Path.GetFileName(f)}:{i + 1}";
+                // A mention that lives in a comment — whole line or trailing — is not code that must change.
+                int slash = lines[i].IndexOf("//", StringComparison.Ordinal);
+                bool comment = lines[i].TrimStart().StartsWith("//") || (slash >= 0 && m.Index > slash);
+                if (comment) Comments.Add(where); else found.Add(where);
+            }
+        }
+        return found;
+    }
+
+    /// A comment is not code that must change, but it is a line that would have to be reworded: count it apart.
+    static void SayComments(string what) => Info(Comments.Count == 0
+        ? $"  ({what}: no comment line names it)"
+        : $"  ({what}: {Comments.Count} comment line(s) name it too and would need rewording — {List(Comments)})");
+
+    static string List(List<string> sites) => sites.Count <= 12
+        ? string.Join(" ", sites)
+        : string.Join(" ", sites.Take(12)) + $" +{sites.Count - 12} more";
+
+    static void TableChecks()
+    {
+        string? core = CoreDir();
+        if (core == null)
+        {
+            Info("table-group7 / table-stage / table-starevent SKIPPED: no core/ source found (set COSMOS_CORE_SRC to a core directory to run the three static counts)");
+            return;
+        }
+        Info($"static scans of {core}: a line that names the table itself (ElemName, Density =, Elements, Elem(, Stages, StarEvents) is the table and is not counted, and neither is a Consts field declaration");
+
+        // (1) a 7th material group costs one row: no line outside the table may name a group by a literal number
+        //     or spell a six-cell mix out.
+        var g = Hits(core, @"Share\([A-Za-z0-9_\]\[\. ]+,\s*[0-5]\s*\)|Comp\[[^\[\]]*\+\s*[0-5]\]|Density\s*\[\s*[0-5]\s*\]|Elements\s*\[\s*[0-5]\s*\]|Elem[A-Za-z]*\s*\(\s*[0-5]\s*\)|\{\s*[0-9.]+\s*,\s*[0-9.]+\s*,\s*[0-9.]+\s*,\s*[0-9.]+\s*,\s*[0-9.]+\s*,\s*[0-9.]+\s*\}",
+                          @"ElemName|Density\s*=|Elements|Elem\s*\(");
+        Expect(g.Count == 0,
+            $"table-group7 (the contract: with the groups in a table, core reads a material by id/role, so a 7th group is one more row): {g.Count} core line(s) still name a group by a literal number, or spell out a six-cell mix — {List(g)}; the API is shut as well — World.cs:26 pins NElem = 6, World.cs:131 refuses any mix whose length is not NElem and World.cs:19 Density holds six cells — so a 7th group cannot be reached from outside the core at all (the same numbers are read again outside core/ in cli/Program.cs:49-50, cli/KindChecks.cs:85/108-133/193-194, cli/LayerChecks.cs:26/42-43/205 and game/Main.cs:681/1040/1045)");
+        SayComments("group7");
+
+        // (2) one more stage costs one row: the stage set must not be a compile-time constant.
+        var s = Hits(core, @"MaxTechStage|LifeStageAt", @"Stages");
+        Expect(s.Count == 0,
+            $"table-stage (the contract: the stages live in a table, so inserting one is one more row): {s.Count} core line(s) still take the stage set from a compile-time constant — {List(s)}; Layers.cs:49 is `const int MaxTechStage = 3` and Layers.cs:50 is `LifeStageAt = {{ 0.01, 0.1, 0.5 }}`, so inserting a stage between 1 and 2 renumbers Layers.cs:73 TechStage() and the two number tests that follow — Civ.cs:89 (the dome) and Civ.cs:166 (the launch gate) — and moves the event ids built at Layers.cs:131/173");
+        SayComments("stage");
+
+        // (3) one more star event costs one row: id, trigger and effect must not all sit inside EvolveStar.
+        //     A declared constant is configuration, not an event row: StarNovaRange/StarNovaDamage stay where they
+        //     are, because moving a Consts field reorders reflection and would break every hash already written.
+        var e = Hits(core, "\"star\\.|StarNovaRange|StarNovaDamage",
+                          @"StarEvents|^\s*(public|internal|private)\s+(static\s+)?(const\s+)?(readonly\s+)?(double|float|int|long|bool|string)\s+Star");
+        SayComments("starevent");
+        int rows = Hits(core, @"StarEvents\s*\.\s*Add|StarEvents\s*=\s*new", "$^").Count;
+        Info($"  (starevent: {rows} StarEvents row(s) declared in core; a Consts field declaration is configuration, not a row, and is not counted)");
+        bool starCode = Directory.GetFiles(core, "*.cs").Any(f =>
+            Path.GetFileName(f) == "Stars.cs" || File.ReadAllText(f).Contains("StarNova") || File.ReadAllText(f).Contains("\"star."));
+        if (!starCode)
+            Risk("table-starevent (nothing to count on this tree): core has no Stars.cs and no star-event code at all, so 0 is an empty file list, not a table — the giant/nova round is the tree this check is for (Stars.cs:224-268 on the current master family)");
+        else
+            Expect(e.Count == 0,
+                $"table-starevent (the contract: a star event is a row in a table, applied by one Eject(i, mass, mix)): {e.Count} core line(s) still carry a star event id, its trigger or its effect inline — {List(e)}; Stars.cs:224-268 holds the giant trigger (228-232), the nova trigger (246 reuses C.StarWhiteLimit, the very constant that then picks the remnant at 273), the nova blast (250-255) and the ejected matter (ShedEnvelope, 270-281) in one function, and Stars.cs:70/276/280 write the ejecta ledger with no call to any Eject");
     }
 }

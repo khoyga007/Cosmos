@@ -91,7 +91,8 @@ static class GuardChecks
 
             // Invalid mix rejected
             bool rMixNull = w.Add(10, 10, 0, 0, 1e-5, null!) == -1;
-            bool rMixShort = w.Add(10, 10, 0, 0, 1e-5, new double[] { 1, 0 }) == -1;
+            var tooLong = new double[w.ElementCount + 1]; tooLong[0] = 1;
+            bool rMixShort = w.Add(10, 10, 0, 0, 1e-5, tooLong) == -1 && w.Add(10, 10, 0, 0, 1e-5, new double[] { 1, 0 }) >= 0; // R7: too long is refused, short is fine (missing = 0)
             bool rMixNan = w.Add(10, 10, 0, 0, 1e-5, new double[] { double.NaN, 0, 1, 0, 0, 0 }) == -1;
             bool rMixNeg = w.Add(10, 10, 0, 0, 1e-5, new double[] { -1, 0, 1, 0, 0, 0 }) == -1;
             bool rMixAllZero = w.Add(10, 10, 0, 0, 1e-5, new double[6]) == -1;
