@@ -102,35 +102,21 @@ public sealed partial class World
     /// Radius inside which object i, not its parent (else the heaviest object), rules small things.
     public double Hill(int i)
     {
-        int p = Par[i] >= 0 && Alive[Par[i]] && M[Par[i]] > M[i] ? Par[i] : Heaviest();
-        if (p == i || p < 0) return double.MaxValue;
-        double dx = X[i] - X[p], dy = Y[i] - Y[p];
-        return Math.Sqrt(dx * dx + dy * dy) * Math.Cbrt(M[i] / (3 * M[p]));
+        if (!Alive[i] || !Attracts(i)) return 0;
+        BuildPullingHierarchy();
+        return _hill![i];
     }
 
-    /// Finds the real primary for object i: the lightest pulling body holding it in its Hill zone
-    /// with v_rel < v_esc, else the heaviest body in the world (or -1 if none).
+    /// Finds the real primary for object i: unified directly with the Rails pulling hierarchy.
     public int PrimaryOf(int i)
     {
         if (!Alive[i]) return -1;
-        int best = -1;
-        double bestMass = double.MaxValue;
-        for (int j = 0; j < N; j++)
-        {
-            if (!Alive[j] || j == i || !Attracts(j) || M[j] <= M[i]) continue;
-            double dx = X[i] - X[j], dy = Y[i] - Y[j], d2 = dx * dx + dy * dy;
-            double hj = Hill(j);
-            if (d2 >= hj * hj) continue;
-            double d = Math.Sqrt(d2);
-            double ux = Vx[i] - Vx[j], uy = Vy[i] - Vy[j];
-            if (ux * ux + uy * uy < 2 * C.G * (M[i] + M[j]) / d)
-            {
-                if (M[j] < bestMass) { best = j; bestMass = M[j]; }
-            }
-        }
-        if (best >= 0) return best;
-        int h = Heaviest();
-        return h != i ? h : -1;
+        BuildPullingHierarchy();
+        int na = _naPulling;
+        if (na == 0) return -1;
+        if (i == _ord![0]) return -1;
+        if (Attracts(i)) return _prim![i];
+        return FindPrimaryInHierarchy(i, na);
     }
 
     public int FindPrimary(int i) => PrimaryOf(i);

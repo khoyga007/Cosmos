@@ -75,6 +75,11 @@ public sealed partial class World
             case CmdKind.SetConst:
                 if (c.Name == null || !C.Set(c.Name, c.Amount)) return -1;
                 RecalcRadii();
+                for (int i = 0; i < N; i++)
+                {
+                    if (Alive[i] && (!double.IsFinite(R[i]) || R[i] <= 0 || !double.IsFinite(M[i]) || M[i] <= 0))
+                        return -1;
+                }
                 return -2; // applied, no object involved
             case CmdKind.SetRule:
             {
@@ -85,6 +90,7 @@ public sealed partial class World
                 {
                     rule.LastYear = Year;
                     rule.NextYear = (Math.Floor(Year / rule.RhythmYears) + 1) * rule.RhythmYears;
+                    if (ReferenceEquals(rule, _starRule)) rule.NextYear = Math.Min(rule.NextYear, NextStarBoundary());
                 }
                 rule.Enabled = enable;
                 return -2;
@@ -194,6 +200,12 @@ public sealed partial class Consts
     bool Validate(string name, double v)
     {
         if (v < 0) return false;
+        if (name.StartsWith("Star"))
+        {
+            if (name == "StarWhiteSlope") return v >= 0 && (v > 0 || StarWhiteIntercept > 0);
+            if (name == "StarWhiteIntercept") return v > 0;
+            return v > 0;
+        }
         switch (name)
         {
             case "YearTime":

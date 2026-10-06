@@ -47,6 +47,12 @@ static class GuardChecks
             bool rAttractLteShip = w.Do(new Command(CmdKind.SetConst, Name: "AttractMass", Amount: w.C.ShipMass)) == -1;
             bool rShipMassNeg = w.Do(new Command(CmdKind.SetConst, Name: "ShipMass", Amount: -1e-12)) == -1;
 
+            // Star constants and JumpSamples validation
+            bool rStarSolarMassZero = w.Do(new Command(CmdKind.SetConst, Name: "StarSolarMass", Amount: 0)) == -1;
+            bool rStarWhiteInterceptZero = w.Do(new Command(CmdKind.SetConst, Name: "StarWhiteIntercept", Amount: 0)) == -1;
+            bool rJumpSamplesZero = w.Do(new Command(CmdKind.SetConst, Name: "JumpSamples", Amount: 0)) == -1;
+            bool rJumpSamplesNeg = w.Do(new Command(CmdKind.SetConst, Name: "JumpSamples", Amount: -10)) == -1;
+
             // Valid SetConst succeeds with -2 and records in journal
             bool rValid = w.Do(new Command(CmdKind.SetConst, Name: "G", Amount: 1.5)) == -2;
 
@@ -54,9 +60,17 @@ static class GuardChecks
                 && w.C.ShipMass == oldShipMass && w.C.AttractMass == oldAttract && w.C.G == 1.5;
             bool journalClean = w.Journal.Count == j0 + 1; // only the valid command recorded
 
+            bool finiteRadiiAndMass = true;
+            for (int i = 0; i < w.N; i++)
+            {
+                if (w.Alive[i]) finiteRadiiAndMass &= double.IsFinite(w.R[i]) && w.R[i] > 0 && double.IsFinite(w.M[i]) && w.M[i] > 0;
+            }
+
             Check(rDenZero && rDenNeg && rDenNan && rYtZero && rYtNeg && rGNeg && rRadNeg && rRadZero
-                && rThrustNeg && rShipMassGteAttract && rAttractLteShip && rShipMassNeg && rValid && preserved && journalClean,
-                "SetConst validation: Density<=0, YearTime<=0, NaN, negative, ShipMass>=AttractMass rejected; journal records only valid");
+                && rThrustNeg && rShipMassGteAttract && rAttractLteShip && rShipMassNeg
+                && rStarSolarMassZero && rStarWhiteInterceptZero && rJumpSamplesZero && rJumpSamplesNeg
+                && rValid && preserved && journalClean && finiteRadiiAndMass,
+                "SetConst validation: Density<=0, YearTime<=0, NaN, negative, ShipMass>=AttractMass, Star*<=0, JumpSamples<1 rejected; journal records only valid, R/M finite");
         }
 
         // 2. #5 #6 #7: Add and AddOrbiting parameter guards
@@ -189,6 +203,24 @@ static class GuardChecks
             }
             double costMs = sw.Elapsed.TotalMilliseconds / 100;
             Check(costMs < 1.0, $"KindOf cost across 5010 objects: {costMs:F3} ms/scan (rocks fast-path < 1ms)");
+
+            // Claire requirement 1: Sol + 2000 rocks + moved bodies: PrimaryOf(i) == primary that Rails selects for ALL objects
+            {
+                var wSol = World.SolSystem(2000, 42);
+                wSol.Do(new Command(CmdKind.Move, Target: 9, X: wSol.X[9] + 30, Y: wSol.Y[9]));
+                wSol.Do(new Command(CmdKind.Move, Target: 3, X: wSol.X[3] + 1, Y: wSol.Y[3] - 1));
+
+                wSol.BuildPullingHierarchy();
+                bool allPrimaryMatch = true;
+                for (int i = 0; i < wSol.N; i++)
+                {
+                    if (!wSol.Alive[i] || i == wSol.Heaviest()) continue;
+                    int pDirect = wSol.PrimaryOf(i);
+                    int pRails = wSol.RailsPrimary(i);
+                    if (pDirect != pRails) allPrimaryMatch = false;
+                }
+                Check(allPrimaryMatch, "Sol + 2000 rocks + moved bodies: PrimaryOf(i) matches Rails primary for all 2010 objects");
+            }
         }
 
         // 5. #15: layers-water-bank clock reset
@@ -217,6 +249,12 @@ static class GuardChecks
             w.Advance(w.C.YearTime * 0.05); // step 0.05 years
             Check(w.RuleYears < 1.0,
                 $"RuleYears after re-enabling is {w.RuleYears:F4} years (does NOT dump 100 accumulated years)");
+
+            // Star rule re-enable ceiling check
+            Rule starRule = w.Rules.First(r => r.Id == "stars");
+            w.Do(new Command(CmdKind.SetRule, Name: "stars", Amount: 0));
+            w.Do(new Command(CmdKind.SetRule, Name: "stars", Amount: 1));
+            Check(starRule.NextYear <= 1000.0, $"stars rule re-enabled: NextYear ({starRule.NextYear:F2}) keeps NextStarBoundary ceiling");
         }
 
         // 6. NeedsRockPositions flag support
