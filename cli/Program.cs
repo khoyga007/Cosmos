@@ -6,6 +6,9 @@ using Cosmos.Core;
 const double H = 0.5;
 if (args.Length > 0 && args[0] == "elements-probe") { ElementChecks.PrintProbe(); return 0; }
 if (args.Length > 0 && args[0] == "elements-bench") { ElementChecks.Bench(); return 0; }
+if (args.Length > 0 && args[0] == "audit-tables") return Audit.RunTables() ? 0 : 1;
+if (args.Length > 0 && args[0] == "boundaries") return BoundaryChecks.Run() ? 0 : 1;
+if (args.Length > 2 && args[0] == "cooling-paired") return CoolingBench.Paired(args[1], args[2]) ? 0 : 1;
 if (args.Length > 0 && args[0] == "elements") return ElementChecks.Run() ? 0 : 1;
 if (args.Length > 1 && args[0] == "elements-paired") return ElementChecks.PairedBench(args[1]) ? 0 : 1;
 if (args.Length > 0 && args[0] == "rails") return RailChecks.Run() ? 0 : 1;
@@ -20,12 +23,13 @@ if (args.Length > 0 && args[0] == "contact-bench") { ContactChecks.Bench(); retu
 if (args.Length > 1 && args[0] == "jump-bench")
 {
     // cost of one god jump of args[1] years on the stock scene, and what the Sun is afterwards
-    var jw = World.SolSystem(args.Length > 2 ? int.Parse(args[2]) : 500, 1234);
+    int jumpRocks = args.Length > 2 ? int.Parse(args[2]) : 500;
+    var jw = args.Length > 3 && args[3] == "remnant" ? CoolingBench.Scene(jumpRocks) : World.SolSystem(jumpRocks, 1234);
     var jt = Stopwatch.StartNew();
     jw.Do(new Command(CmdKind.FastForward, Amount: double.Parse(args[1], System.Globalization.CultureInfo.InvariantCulture)));
     Console.WriteLine($"jump {args[1]} yr: {jt.Elapsed.TotalMilliseconds:F0} ms, live {jw.Live}, Sun {jw.StarPhaseOf(0)} {jw.StarSpectralClass(0)}, events {jw.Events.Count}");
     Console.WriteLine($"  Sun R {jw.R[0]:G4} StarRadius {jw.StarRadius(0):G4} M {jw.M[0]/World.EarthMass:G5} RadiusScale {jw.C.RadiusScale}");
-    if (args.Length > 3) foreach (var e in jw.Events) Console.WriteLine($"  {e.Year:G6} #{e.ObjectSlot} {jw.Name[e.ObjectSlot]} {e.RuleId} {e.Change} {e.A:G4} {e.B:G4} {e.C:G4}");
+    if (args.Length > 3 && args[3] != "remnant") foreach (var e in jw.Events) Console.WriteLine($"  {e.Year:G6} #{e.ObjectSlot} {jw.Name[e.ObjectSlot]} {e.RuleId} {e.Change} {e.A:G4} {e.B:G4} {e.C:G4}");
     return 0;
 }
 if (args.Length > 0 && args[0] == "kinds") return KindChecks.Run() ? 0 : 1;
@@ -122,6 +126,7 @@ allOk &= StarChecks.Run();
 allOk &= StarEventChecks.Run();
 allOk &= StarStateChecks.Run();
 allOk &= NovaStampChecks.Run();
+allOk &= BoundaryChecks.Run();
 allOk &= ContactChecks.Run();
 allOk &= GiantChecks.Run();
 allOk &= ElementChecks.Run();

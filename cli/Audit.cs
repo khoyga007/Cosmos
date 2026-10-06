@@ -29,6 +29,8 @@ static class Audit
     static void Expect(bool ok, string s) { if (ok) Ok(s); else Defect(s); }
     static void Run(World w, int steps) { for (int i = 0; i < steps; i++) w.Advance(H); }
 
+    public static bool RunTables() { _defects = 0; TableChecks(); return _defects == 0; }
+
     public static bool Run()
     {
         _strict = Environment.GetEnvironmentVariable("COSMOS_AUDIT_STRICT") == "1";
@@ -1131,10 +1133,20 @@ static class Audit
         string? core = CoreDir();
         if (core == null)
         {
-            Info("table-group7 / table-stage / table-starevent SKIPPED: no core/ source found (set COSMOS_CORE_SRC to a core directory to run the three static counts)");
+            Info("table checks SKIPPED: no core/ source found (set COSMOS_CORE_SRC to a core directory)");
             return;
         }
         Info($"static scans of {core}: a line that names the table itself (ElemName, Density =, Elements, Elem(, Stages, StarEvents) is the table and is not counted, and neither is a Consts field declaration");
+
+        string rulesFile = Path.Combine(core, "Rules.cs");
+        string source = File.Exists(rulesFile) ? File.ReadAllText(rulesFile) : "";
+        int begin = source.IndexOf("void RunRules(", StringComparison.Ordinal), end = source.IndexOf("void ApplyRule(", Math.Max(0, begin), StringComparison.Ordinal);
+        string dispatcher = begin >= 0 && end > begin ? source[begin..end] : "";
+        dispatcher = Regex.Replace(dispatcher, @"//[^\r\n]*|/\*[\s\S]*?\*/", "");
+        int boundaryLiterals = Regex.Matches(dispatcher, "\"[^\"\r\n]*\"").Count;
+        int boundaryRows = CodeHits(core, @"\bBoundary\s*=\s*RuleBoundary\.");
+        Expect(dispatcher.Length > 0 && boundaryLiterals == 0 && boundaryRows > 0,
+            $"table-rule-boundary: RunRules has {boundaryLiterals} string literals; {boundaryRows} flagged table rows (expected zero literals and nonempty policy rows)");
 
         // (1) a 7th material group costs one row: no line outside the table may name a group by a literal number
         //     or spell a six-cell mix out.
