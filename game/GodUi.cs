@@ -59,10 +59,10 @@ public partial class GodUi : CanvasLayer
     static readonly (string Name, double Earths, double[] Mix)[] Presets =
     {
         ("Thiên thạch", 1e-4, new[] { 0, 0.05, 0.75, 0.18, 0.02, 0 }),
-        ("Mặt Trăng", 0.0123, new[] { 0, 0.01, 0.80, 0.18, 0.005, 0.005 }),
-        ("Trái Đất", 1, new[] { 0, 0.01, 0.66, 0.32, 0.005, 0.005 }),
-        ("Sao Mộc", 317.8, new[] { 0.90, 0.05, 0.03, 0.02, 0, 0 }),
-        ("Mặt Trời", 50 / World.EarthMass, new[] { 1.0, 0, 0, 0, 0, 0 }),
+        ("Vệ tinh", 0.0123, new[] { 0, 0.01, 0.80, 0.18, 0.005, 0.005 }),
+        ("Hành tinh sự sống", 1, new[] { 0, 0.01, 0.66, 0.32, 0.005, 0.005 }),
+        ("Hành tinh khí", 317.8, new[] { 0.90, 0.05, 0.03, 0.02, 0, 0 }),
+        ("Sao", 50 / World.EarthMass, new[] { 1.0, 0, 0, 0, 0, 0 }),
     };
 
     public GodUi(Main main, World w)
@@ -195,11 +195,11 @@ public partial class GodUi : CanvasLayer
         v.AddChild(Note("Con trỏ mang theo vật thể mới. Bấm vào không gian: nó tự quay tròn quanh vật đang thống trị chỗ đó. Giữ và kéo: phóng nó đi, đường vàng cho thấy trước quỹ đạo."));
 
         v.AddChild(new HSeparator());
-        var grid = new GridContainer { Columns = 3 };
+        var grid = new GridContainer { Columns = 2 };
         for (int i = 0; i < Presets.Length; i++)
         {
             int idx = i;
-            var b = Btn(Presets[i].Name, () => { ApplyPreset(idx); if (!_main.Creating) _main.SetCreating(true); }, 104);
+            var b = Btn(Presets[i].Name, () => { ApplyPreset(idx); if (!_main.Creating) _main.SetCreating(true); }, 168);
             grid.AddChild(b);
         }
         v.AddChild(grid);
@@ -258,7 +258,7 @@ public partial class GodUi : CanvasLayer
         foreach (double s in mix) sum += s;
         var (kind, radius) = GodTools.Preview(_w, GetCreateMass(), mix);
         var parts = new List<string>();
-        for (int e = 0; e < World.NElem; e++) if (sum > 0 && mix[e] / sum >= 0.005) parts.Add($"{ElemVi[e]} {100 * mix[e] / sum:F0}%");
+        for (int e = 0; e < World.NElem; e++) if (sum > 0 && mix[e] / sum >= 0.005) parts.Add($"{ElemVi[e]} {100 * mix[e] / sum:0.#}%");
         _lblPreview.Text = $"Sẽ là: {KindVi[(int)kind]}, bán kính {radius:G3}\n{(parts.Count > 0 ? string.Join(" · ", parts) : "Đá 100%")}";
     }
 
