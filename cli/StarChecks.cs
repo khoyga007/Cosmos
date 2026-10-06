@@ -1,0 +1,118 @@
+// SPEC 8: checks use commands, derived phases and conservation including matter that left the domain.
+using System;
+using System.Diagnostics;
+using System.Linq;
+using Cosmos.Core;
+
+static class StarChecks
+{
+    static readonly double[] Gas = { 1, 0, 0, 0, 0, 0 };
+    static readonly double[] Rock = { 0, 0, 1, 0, 0, 0 };
+    static int Jump(World w, double years) => w.Do(new Command(CmdKind.FastForward, Amount: years));
+    static void Set(World w, string field, double value) => w.Do(new Command(CmdKind.SetConst, Name: field, Amount: value));
+    static World Single(double suns, double vx = 0, double vy = 0)
+    {
+        var w = new World(16, 1); w.Do(new Command(CmdKind.Create, Amount: suns * 50, Mix: Gas, Vx: vx, Vy: vy)); return w;
+    }
+    static double Px(World w) => Enumerable.Range(0, w.N).Where(i => w.Alive[i]).Sum(i => w.M[i] * w.Vx[i]) + w.StellarEjectaPx;
+    static double Py(World w) => Enumerable.Range(0, w.N).Where(i => w.Alive[i]).Sum(i => w.M[i] * w.Vy[i]) + w.StellarEjectaPy;
+
+    public static bool Run()
+    {
+        bool ok = true;
+        void Check(bool pass, string line) { ok &= pass; Console.WriteLine($"{(pass ? "OK    " : "FAILED")} stars: {line}"); }
+        var sun = Single(1);
+        double lifetime = sun.StarLifetime(50), dwarf = sun.StarLifetime(5), massive = sun.StarLifetime(500);
+        Check(Math.Abs(lifetime / 1e10 - 1) < .05 && dwarf > 13.8e9 && dwarf > lifetime && lifetime > massive && massive < 3e7,
+            $"lifetimes .1/1/10 Suns {dwarf:E6}/{lifetime:E6}/{massive:E6} yr; scale={sun.C.StarLifeScale}");
+        var red = Single(.1); var blue = Single(10);
+        Check(sun.StarLuminosity(0) == 1 && sun.StarSpectralClass(0) == StarSpectrum.G
+            && red.StarSpectralClass(0) == StarSpectrum.M && blue.StarSurfaceTemperature(0) > sun.StarSurfaceTemperature(0)
+            && red.StarRadius(0) < sun.StarRadius(0) && blue.StarRadius(0) > sun.StarRadius(0),
+            $"mass -> light/size/colour: Sun 1 Lsun/{sun.StarSurfaceTemperature(0):F0}K/{sun.StarSpectralClass(0)}, red {red.StarSurfaceTemperature(0):F0}K, blue {blue.StarSurfaceTemperature(0):F0}K");
+
+        foreach (int rocks in new[] { 0, 5000 })
+        {
+            var sol = World.SolSystem(rocks, 1234); Jump(sol, 1e6);
+            double reference = rocks == 0 ? 288.10794065768596 : 288.10794065744284; // measured b149837 DLL, same seed/inputs
+            Check(Math.Abs(sol.Temp[3] - reference) <= 1e-9 && sol.StarLuminosity(0) == 1 && sol.M[0] == 50,
+                $"Sol +1e6yr, {rocks} rocks: Earth {sol.Temp[3]:R}K vs master {reference:R}, delta {sol.Temp[3] - reference:E2}");
+        }
+
+        var brown = Single(.05); double youngLight = brown.StarLuminosity(0);
+        Jump(brown, 1e9);
+        Check(brown.StarPhaseOf(0) == StarPhase.BrownDwarf && !brown.IsWorld(0) && brown.StarFuel[0] == 0
+            && brown.StarLuminosity(0) < youngLight && brown.StarLuminosity(0) > 0,
+            $"brown dwarf: not IsWorld, no H fuel burn, light {youngLight:E3} -> {brown.StarLuminosity(0):E3}");
+
+        foreach (double mass in new[] { 1.0, 10.0, 30.0 })
+        {
+            var a = Single(mass, .02, -.03); var b = Single(mass, .02, -.03);
+            Set(a, "JumpSamples", 1); Set(b, "JumpSamples", 200);
+            double end = a.StarLifetime(mass * 50) * (1 + a.C.StarGiantFraction), beforeMass = a.M[0];
+            double px = Px(a), py = Py(a);
+            var timer = Stopwatch.StartNew(); Jump(a, end * 1.1); Jump(b, end * 1.1); timer.Stop();
+            var ae = a.Events.Where(e => e.RuleId == "stars").ToArray(); var be = b.Events.Where(e => e.RuleId == "stars").ToArray();
+            bool same = ae.Length == be.Length && ae.Length >= 2;
+            for (int i = 0; same && i < ae.Length; i++) same &= ae[i].Change == be[i].Change && Math.Abs(ae[i].Year - be[i].Year) <= 1e-4;
+            StarPhase expected = mass < 8 ? StarPhase.WhiteDwarf : mass <= 20 ? StarPhase.NeutronStar : StarPhase.BlackHole;
+            Check(a.StarPhaseOf(0) == expected && b.StarPhaseOf(0) == expected && same
+                && Math.Abs(a.M[0] + a.StellarEjectaMass - beforeMass) < 1e-10 && Math.Abs(Px(a) - px) < 1e-10 && Math.Abs(Py(a) - py) < 1e-10,
+                $"{mass:F0} Suns -> {a.StarPhaseOf(0)}, mass {a.M[0] / 50:F3} Suns, lost {a.StellarEjectaMass:F3}; 1/200 phase years [{string.Join(",", ae.Select(e => $"{e.Change}@{e.Year:R}"))}], momentum conserved, {timer.Elapsed.TotalMilliseconds:F1}ms");
+            Check(Math.Abs(a.StarAge[0] - b.StarAge[0]) < 1e-4 && Math.Abs(a.StarFuel[0] - b.StarFuel[0]) < 1e-12
+                && Math.Abs(a.StarLuminosity(0) - b.StarLuminosity(0)) < 1e-12,
+                $"{mass:F0} Suns stretch-exact age/fuel/cooling; light {a.StarLuminosity(0):E3}, radius {a.R[0]:E3}");
+            if (mass == 10) Check(ae.Last().Year < 3e7 && ae.Any(e => e.Change == "star.nova"), "10-Sun nova and neutron remnant before 30 Myr");
+            if (mass == 30) Check(a.StarLuminosity(0) == 0 && a.StarSurfaceTemperature(0) == 0 && a.R[0] < 1e-2, "black hole is dark, tiny Schwarzschild-like radius");
+        }
+
+        var giant = Single(1); Set(giant, "StarLifeScale", 1e-9);
+        int planet = giant.Do(new Command(CmdKind.CreateOrbiting, Target: 0, X: 45, Amount: World.EarthMass, Mix: Rock));
+        double mainRadius = giant.R[0]; Jump(giant, giant.StarLifetime(50));
+        Check(giant.StarPhaseOf(0) == StarPhase.RedGiant && giant.R[0] >= mainRadius * 99.9 && giant.Temp[planet] > giant.C.ScorchedEdge
+            && giant.StarSurfaceTemperature(0) <= giant.C.StarGiantTemperature,
+            $"giant: radius {mainRadius:F3}->{giant.R[0]:F3}, planet {giant.Temp[planet]:F0}K");
+        giant.Advance(0);
+        Check(!giant.Alive[planet] && giant.StarPhaseOf(0) == StarPhase.RedGiant, "normal collision swallows inner planet without rejuvenating exhausted core");
+
+        var nova = Single(10); int world = nova.Do(new Command(CmdKind.Create, X: 100, Amount: World.EarthMass,
+            Mix: new double[] { 0, .01, .66, .32, .005, .005 }));
+        nova.Do(new Command(CmdKind.SeedLife, Target: world, Amount: .8));
+        nova.Do(new Command(CmdKind.SetRule, Name: "life", Amount: 0));
+        nova.Do(new Command(CmdKind.SetRule, Name: "civ", Amount: 0));
+        Jump(nova, 3e7);
+        Check(nova.Life[world] < .8 && nova.Events.Any(e => e.RuleId == "impact" && e.ObjectSlot == world),
+            $"nova damages nearby biosphere: life .8 -> {nova.Life[world]:E3}");
+
+        var merged = new World(8, 1); Set(merged, "G", 0);
+        int x = merged.Do(new Command(CmdKind.Create, X: -1e6, Amount: 50, Mix: Gas, Vx: .01));
+        int y = merged.Do(new Command(CmdKind.Create, X: 1e6, Amount: 100, Mix: Gas, Vx: -.01));
+        Jump(merged, 1e8);
+        double fuel = (merged.StarFuel[x] * 50 + merged.StarFuel[y] * 100) / 150, momentum = Px(merged);
+        merged.Do(new Command(CmdKind.Move, Target: x, X: merged.X[y], Y: merged.Y[y], Vx: merged.Vx[x], Vy: merged.Vy[x]));
+        merged.Advance(0);
+        Check(merged.Alive[y] && !merged.Alive[x] && merged.M[y] == 150 && Math.Abs(merged.StarFuel[y] - fuel) < 1e-12
+            && Math.Abs(Px(merged) - momentum) < 1e-10, $"two stars merge: mass={merged.M[y]:F1}, burnt fuel mixed={merged.StarFuel[y]:F9}, momentum kept");
+        merged.Do(new Command(CmdKind.Remove, Target: y));
+        int reused = merged.Do(new Command(CmdKind.Create, Amount: 50, Mix: Gas));
+        Check(reused == y && merged.StarAge[reused] == 0 && merged.StarFuel[reused] == 0 && merged.StarInitialMass[reused] == 50,
+            "reused slot resets stellar age, fuel, initial mass");
+
+        var orbit = Single(1); Set(orbit, "StarLifeScale", 1e-9);
+        int far = orbit.Do(new Command(CmdKind.CreateOrbiting, Target: 0, X: 10000, Amount: World.EarthMass, Mix: Rock));
+        Jump(orbit, orbit.StarLifetime(50) * (1 + orbit.C.StarGiantFraction));
+        double rx = orbit.X[far] - orbit.X[0], ry = orbit.Y[far] - orbit.Y[0], vx = orbit.Vx[far] - orbit.Vx[0], vy = orbit.Vy[far] - orbit.Vy[0];
+        double r = Math.Sqrt(rx * rx + ry * ry), mu = orbit.C.G * (orbit.M[0] + orbit.M[far]);
+        double semiMajor = 1 / (2 / r - (vx * vx + vy * vy) / mu);
+        Check(orbit.StarPhaseOf(0) == StarPhase.WhiteDwarf && semiMajor > 10000 && double.IsFinite(semiMajor),
+            $"mass loss widens orbital semimajor through gravity: 10000 -> {semiMajor:F1}; impulsive loss, no forced planet velocity");
+
+        var live = Single(10); Set(live, "StarLifeScale", .01); Jump(live, 3e5);
+        live.Do(new Command(CmdKind.SetConst, Name: "StarLifeScale", Amount: .001)); Jump(live, 1e6);
+        var replay = new World(16, 1); int next = 0; replay.Replay(live.Journal, ref next);
+        Check(live.Hash() == replay.Hash(), $"journal replay across giant/nova/remnant hash {live.Hash():X16}/{replay.Hash():X16}");
+        ulong hash = live.Hash(); live.StarFuel[0] -= .001;
+        Check(live.Hash() != hash, "stellar fuel participates in Hash");
+        return ok;
+    }
+}
