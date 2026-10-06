@@ -120,3 +120,34 @@ Fast-forward on rails (design + spike), review + merge P1–P3, Yang's content q
 ### Selica — P3 audit unchanged, plus Rails/Layers in scope (`cli/Audit.cs` only).
 ### Round 2 result: Ariel + Celine merged 06/10; Celine's 7 defects fixed by Claire (NEXT.md). Rule for clock rules, added: an event inside a stretch (start, threshold, seed, impact) is placed at its own moment — only the years after it count (`Touched`, crossing time on the curve).
 ### Round 3/4 (06/10, Claire, after Yang's verdict on the window): `game/` interaction rewritten; god tools by mouse = select, create (C), vector (V: arrow = new velocity), move (M), pull (A), push away (R). Core commands added: `Move` (Target, X, Y, Vx, Vy), `Force` (X, Y, radius in Vx, Amount toward centre, linear fade, mass-blind; one command per frame while held). Mouse scale everywhere: 120 px = one circular-orbit speed at that spot. `-- --uitest` = headless gesture test. Not built: a moved planet does not take its moons along.
+
+## 8. Round 5 (06/10) — what a body IS, by physics · Yang: "đúng vật lý thì như nào" -> "giao cho team đi"
+Law of the round: NO type is chosen or stored. A type is read off numbers the body already has (mass, 6-element mix, temperature, age). Push a body somewhere else / change its mass -> it becomes something else by itself. Every threshold a `Consts` field marked [P] with the real-world value in the comment. Units: star mass 50 = 1 Sun; Earth = 1.5e-4; Jupiter = 317.8 Earths = 0.0477; StarMass 4 = 0.08 Sun.
+Rules of §6 hold: own worktree, rebase on master 26a56f5+ first, headless only, never open a window, outside changes only via `World.Do`, clock rules stretch-exact (§7 note: an event inside a stretch is placed at its own moment), new state goes into `Hash()`, replay check, full `cli` exit 0 before reporting. Report on thread `cosmos` with numbers. Do NOT touch `game/` (Claire).
+
+### Celine — stars live and die · `core/Stars.cs` + `cli/StarChecks.cs` · branch `celine/stars`
+1. Per-star state: age, fuel burnt (or one of them derived). Reset in `Add`, merged sensibly in `Merge` (two stars -> mass sum, fuel mixed), hashed.
+2. Main sequence from mass alone: luminosity (replace the single `LuminosityExponent` use in Rules.cs:86 with a function; Sun stays exactly 1 so Sol checks hold), surface temperature -> colour class (red dwarf .. blue giant), radius, lifetime ~ 10 Gyr * M^-2.5 (Sun 1e10 yr; 10 Suns ~2e7 yr; red dwarf > age of universe).
+3. Below StarMass: brown dwarf band 13-80 Jupiters (0.62-4 units): glows faintly, cools with age, never a star. Decide + document whether it counts as `IsWorld`.
+4. Death, by initial mass: fuel gone -> red giant (radius x100, luminosity up: inner planets scorched or swallowed through the normal collision path) -> < 8 Suns: sheds envelope (mass loss: orbits widen — do it through state, momentum conserved), white dwarf (Earth-size, cooling); 8-20 Suns: supernova (event; mass thrown off; `Impact`-like blow to biospheres within a range) -> neutron star; > 20: black hole (radius = Schwarzschild-like tiny, no light).
+5. Rule `stars` in the rule table (rhythm your call; must survive `Jump` chunks of 5e6 yr: stretch-exact, phase changes placed at their own year, logged as events `star.giant`, `star.nova`, `star.remnant.*`).
+6. Const `StarLifeScale` (1 = real years). Yang decides the dial; default 1.
+7. Checks: Sun lifetime within 5% of 1e10 at scale 1; lifetimes ordered by mass; Sol at +1e6 yr unchanged vs master (Earth temperature equal to 1e-9); a 10-Sun star dies inside 3e7 yr and leaves a neutron star; cut 1/200 equality of phase years; replay hash.
+Not in scope: binaries exchanging mass, novae, accretion discs.
+
+### Ariel — worlds and small bodies name themselves · `core/Kinds.cs` + `cli/KindChecks.cs` · branch `ariel/kinds`
+1. `World.ClassOf(i)` -> enum (pure function of M, Comp shares, Temp, Water, R, primary; no stored field): rocky / lava (Temp above rock melt) / ocean (liquid water + ice share) / ice ball / gas giant (gas share + mass) / ice giant / dwarf planet (pulls, round, below a clearing mass) / asteroid / comet (ice-rich, no pull) / ship. Keep `Kind` (Star/Planet/Moon/Rock) as is — it is about orbits, yours is about matter.
+2. Snow line: `World.SnowLine(star)` = distance where Temp = WaterFreeze. Check against Sol (between Mars and Jupiter).
+3. Comets act: rule `comets` — an ice-rich small body inside the snow line loses ice (mass) per year at a rate rising with temperature; `Comp`/`M`/radius updated; gone when ice is gone or mass ~0 (event `comet.spent`). Expose `TailStrength(i)` (0..1) for the window. Must cost ~nothing at 50000 rocks: touch only bodies inside the snow line, stretch-exact loss.
+4. Atmosphere keeping (number only, no new state unless needed): `HoldsGas(i)` from escape speed vs thermal speed; a hot light world loses its `gas` share over time (rule or part of 3 — your call, say why).
+5. Checks: each Sol body gets the class a textbook gives it (Mercury..Neptune, Moon); a Kuiper rock moved to 1 AU (`CmdKind.Move`) becomes a comet with tail > 0 and loses ice year by year, same result in 1 or 200 cuts; Earth moved to 0.2 AU reads lava; classes of Sol unchanged after +1e6 yr; replay hash; rule overhead at 5000 rocks under +10% (same criterion as RuleChecks).
+Not in scope: Roche breakup (Claire), drawing.
+
+### Selica — audit · `cli/Audit.cs` only · branch `selica/audit`
+1. Finish the re-measure on master (rebase to 26a56f5): which of the 18 old defects still fail. One table: id · file:line · still fails? · smallest input.
+2. New in scope: `core/Civ.cs` — ships. Hunt: ship whose goal slot is reused by another object; ship alive across `Jump`; `SetConst` ShipThrust/ShipSpeed/ShipMass to 0, negative, huge (ShipMass >= AttractMass makes a ship pull: what then?); two peoples, one goal; `Remove`/`Move`/`Force` on a ship then replay; capacity full at launch; `_civLaunches`/`Chronicle` vs replay; SteerShips with star == goal.
+3. Policy: default run stays exit 0 + prints the count (as you chose). Good.
+4. After Celine/Ariel report: cross-vendor review of their diffs before merge.
+
+### Claire
+`game/`: class names, star colours, comet tails, remnants; jump buttons past 1e6 yr; Roche breakup; fixes from Selica's table; merge.
