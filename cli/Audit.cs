@@ -1081,6 +1081,28 @@ static class Audit
         return found;
     }
 
+    /// Lines of real code that match — for a check that needs PROOF the new shape is there, not a list of offenders.
+    /// Hits() is the wrong tool for that: its skip regex is tested against the whole line, comments included, so a
+    /// line carrying the word it looks for (or a trailing `// Stages`) is exempt however wrong it is.
+    static int CodeHits(string dir, string pattern)
+    {
+        var re = new Regex(pattern);
+        int n = 0;
+        foreach (string f in Directory.GetFiles(dir, "*.cs"))
+        {
+            string[] lines = File.ReadAllLines(f);
+            for (int i = 0; i < lines.Length; i++)
+            {
+                Match m = re.Match(lines[i]);
+                if (!m.Success) continue;
+                int slash = lines[i].IndexOf("//", StringComparison.Ordinal);
+                bool comment = lines[i].TrimStart().StartsWith("//") || (slash >= 0 && m.Index > slash);
+                if (!comment) n++;
+            }
+        }
+        return n;
+    }
+
     /// A comment is not code that must change, but it is a line that would have to be reworded: count it apart.
     static void SayComments(string what) => Info(Comments.Count == 0
         ? $"  ({what}: no comment line names it)"
@@ -1104,14 +1126,33 @@ static class Audit
         //     or spell a six-cell mix out.
         var g = Hits(core, @"Share\([A-Za-z0-9_\]\[\. ]+,\s*[0-5]\s*\)|Comp\[[^\[\]]*\+\s*[0-5]\]|Density\s*\[\s*[0-5]\s*\]|Elements\s*\[\s*[0-5]\s*\]|Elem[A-Za-z]*\s*\(\s*[0-5]\s*\)|\{\s*[0-9.]+\s*,\s*[0-9.]+\s*,\s*[0-9.]+\s*,\s*[0-9.]+\s*,\s*[0-9.]+\s*,\s*[0-9.]+\s*\}",
                           @"ElemName|Density\s*=|Elements|Elem\s*\(");
-        Expect(g.Count == 0,
-            $"table-group7 (the contract: with the groups in a table, core reads a material by id/role, so a 7th group is one more row): {g.Count} core line(s) still name a group by a literal number, or spell out a six-cell mix — {List(g)}; the API is shut as well — World.cs:26 pins NElem = 6, World.cs:131 refuses any mix whose length is not NElem and World.cs:19 Density holds six cells — so a 7th group cannot be reached from outside the core at all (the same numbers are read again outside core/ in cli/Program.cs:49-50, cli/KindChecks.cs:85/108-133/193-194, cli/LayerChecks.cs:26/42-43/205 and game/Main.cs:681/1040/1045)");
+        // The positive half, for the same reason as table-stage: the old check only hunted for the OLD shape, so
+        // deleting the constant without ever adding a table would also have read as 0. On master the groups are
+        // rows in core/Elements.cs and World.cs:30 is `NElem => ElementCatalog.Elements.Count` — the "NElem = 6"
+        // the DEFECT text used to cite is history, not the current shape.
+        int gRows = CodeHits(core, @"new Element\s*\(");
+        string gd = g.Count == 0 && gRows > 0
+            ? $"the group set is a table read by id/role — {gRows} line(s) of `new Element(` and Density/ElemName/NElem are built from it (World.cs:20-22, :30-31)"
+            : $"the group set is NOT rows read by id/role — {gRows} line(s) of `new Element(`, and {g.Count} core line(s) still name a group by a literal number";
+        Expect(g.Count == 0 && gRows > 0,
+            $"table-group7 (the contract: with the groups in a table, core reads a material by id/role, so a 7th group is one more row): {g.Count} core line(s) still name a group by a literal number, or spell out a six-cell mix — {List(g)}; {gd}");
         SayComments("group7");
 
-        // (2) one more stage costs one row: the stage set must not be a compile-time constant.
-        var s = Hits(core, @"MaxTechStage|LifeStageAt", @"Stages");
-        Expect(s.Count == 0,
-            $"table-stage (the contract: the stages live in a table, so inserting one is one more row): {s.Count} core line(s) still take the stage set from a compile-time constant — {List(s)}; Layers.cs:49 is `const int MaxTechStage = 3` and Layers.cs:50 is `LifeStageAt = {{ 0.01, 0.1, 0.5 }}`, so inserting a stage between 1 and 2 renumbers Layers.cs:73 TechStage() and the two number tests that follow — Civ.cs:89 (the dome) and Civ.cs:166 (the launch gate) — and moves the event ids built at Layers.cs:131/173");
+        // (2) one more stage costs one row. TWO-SIDED on purpose, and the old one-sided version was a hole:
+        //     it looked only for the two old NAMES (MaxTechStage / LifeStageAt), and its skip regex was the bare
+        //     word `Stages`, tested against the whole line — so on B `MaxTechStage => DefaultStages.Length - 1;
+        //     // Stages` (Layers.cs:68, a trailing comment) was exempt, and renaming LifeStageAt to LifeStages
+        //     removed the other hit. It reported 0 with no table in sight. Claire spotted that 2026-10-06.
+        //     Now: no line may pin the count or the thresholds to a literal AND the stage set must be rows.
+        var s = Hits(core, @"MaxTechStage\s*(=>|=)\s*[0-9]|LifeStageAt\s*=\s*\{", @"Stages\s*[\[\.]|DefaultStages");
+        int rows = CodeHits(core, @"new Stage\s*\(");
+        int reads = CodeHits(core, @"Stages\s*\[|Stages\s*\.\s*(Count|Add|AddRange|Clear)");
+        bool stageTable = rows > 0 && reads > 0;
+        string staged = stageTable
+            ? $"the stage set is a table that is read as one — {rows} row(s) of `new Stage(` and {reads} read site(s) of `Stages[`/`.Count`/`.Add*`"
+            : $"the stage set is NOT a table read as one — {rows} row(s) of `new Stage(` and {reads} read site(s) of `Stages[`/`.Count`/`.Add*` (both must be > 0); before B the shape was Layers.cs:49 `const int MaxTechStage = 3` plus Layers.cs:50 `LifeStageAt = {{ 0.01, 0.1, 0.5 }}`, so inserting a stage between 1 and 2 renumbered Layers.cs:73 TechStage() and the two number tests that followed — Civ.cs:89 (the dome) and Civ.cs:166 (the launch gate) — and moved the event ids built at Layers.cs:131/173";
+        Expect(s.Count == 0 && stageTable,
+            $"table-stage (the contract: the stages live in a table, so inserting one is one more row): {s.Count} core line(s) pin the stage count or the life thresholds to a literal — {List(s)}; {staged}");
         SayComments("stage");
 
         // (3) one more star event costs one row: id, trigger and effect must not all sit inside EvolveStar.
@@ -1120,14 +1161,21 @@ static class Audit
         var e = Hits(core, "\"star\\.|StarNovaRange|StarNovaDamage",
                           @"StarEvents|^\s*(public|internal|private)\s+(static\s+)?(const\s+)?(readonly\s+)?(double|float|int|long|bool|string)\s+Star");
         SayComments("starevent");
-        int rows = Hits(core, @"StarEvents\s*\.\s*Add|StarEvents\s*=\s*new", "$^").Count;
-        Info($"  (starevent: {rows} StarEvents row(s) declared in core; a Consts field declaration is configuration, not a row, and is not counted)");
+        // A row is one Add() call that names an event; the list declaration itself
+        // (`var StarEvents = new List<StarEvent>()`, StarEvents.cs:48) is not a row. Counting the
+        // declaration reported 6 rows on the C tree where the table holds 5 — Celine caught this
+        // running bf7f070, and it is the same mistake as counting a Consts field as an event row.
+        int eRows = Hits(core, @"StarEvents\s*\.\s*Add\s*\(", "$^").Count;
+        Info($"  (starevent: {eRows} StarEvents.Add row(s) in core; the list declaration and a Consts field declaration are not rows and are not counted)");
         bool starCode = Directory.GetFiles(core, "*.cs").Any(f =>
             Path.GetFileName(f) == "Stars.cs" || File.ReadAllText(f).Contains("StarNova") || File.ReadAllText(f).Contains("\"star."));
+        string ed = e.Count == 0 && eRows > 0
+            ? $"the star events are rows — {eRows} Add() row(s) applied through one payload reader, so a new event is one more row"
+            : $"the star events are NOT rows — {eRows} Add() row(s) and {e.Count} inline site(s); on the pre-C core Stars.cs:224-268 held the giant trigger (228-232), the nova trigger (246 reuses C.StarWhiteLimit, the constant that then picked the remnant at 273), the nova blast (250-255) and the ejected matter (ShedEnvelope, 270-281) in one function, with Stars.cs:70/276/280 writing the ejecta ledger and no call to any Eject";
         if (!starCode)
             Risk("table-starevent (nothing to count on this tree): core has no Stars.cs and no star-event code at all, so 0 is an empty file list, not a table — the giant/nova round is the tree this check is for (Stars.cs:224-268 on the current master family)");
         else
-            Expect(e.Count == 0,
-                $"table-starevent (the contract: a star event is a row in a table, applied by one Eject(i, mass, mix)): {e.Count} core line(s) still carry a star event id, its trigger or its effect inline — {List(e)}; Stars.cs:224-268 holds the giant trigger (228-232), the nova trigger (246 reuses C.StarWhiteLimit, the very constant that then picks the remnant at 273), the nova blast (250-255) and the ejected matter (ShedEnvelope, 270-281) in one function, and Stars.cs:70/276/280 write the ejecta ledger with no call to any Eject");
+            Expect(e.Count == 0 && eRows > 0,
+                $"table-starevent (the contract: a star event is a row in a table, applied by one Eject(i, mass, mix)): {e.Count} core line(s) still carry a star event id, its trigger or its effect inline — {List(e)}; {ed}");
     }
 }
