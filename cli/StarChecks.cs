@@ -44,6 +44,26 @@ static class StarChecks
         Check(brown.StarPhaseOf(0) == StarPhase.BrownDwarf && !brown.IsWorld(0) && brown.StarFuel[0] == 0
             && brown.StarLuminosity(0) < youngLight && brown.StarLuminosity(0) > 0,
             $"brown dwarf: not IsWorld, no H fuel burn, light {youngLight:E3} -> {brown.StarLuminosity(0):E3}");
+        var ignited = Single(.05); Set(ignited, "StarLifeScale", 1e-8); Jump(ignited, 10);
+        ignited.Do(new Command(CmdKind.AddMatter, Target: 0, Index: 0, Amount: 47.5));
+        bool main = ignited.StarPhaseOf(0) == StarPhase.MainSequence && ignited.StarFuel[0] == 0 && ignited.StarInitialMass[0] == 50;
+        Jump(ignited, 150);
+        Check(main && ignited.StarPhaseOf(0) == StarPhase.WhiteDwarf, "brown dwarf gains mass -> H ignition -> correct progenitor and remnant, no stored type");
+        var edited = Single(1); Set(edited, "StarLifeScale", 1e-8);
+        edited.Do(new Command(CmdKind.AddMatter, Target: 0, Index: 0, Amount: 450)); Jump(edited, 1);
+        Check(edited.StarInitialMass[0] == 500 && edited.StarPhaseOf(0) == StarPhase.NeutronStar,
+            "main-sequence mass edit changes lifetime and remnant fate through progenitor numbers");
+        var dial = Single(1); dial.Advance(0); Set(dial, "StarLifeScale", 1e-10);
+        dial.Advance(dial.C.YearTime * 1.01);
+        bool changed = dial.StarPhaseOf(0) == StarPhase.RedGiant && dial.Events.Any(e => e.Change == "star.giant" && Math.Abs(e.Year - 1) < 1e-12);
+        dial.Advance(dial.C.YearTime * .05);
+        Check(changed && dial.StarPhaseOf(0) == StarPhase.WhiteDwarf && dial.Events.Any(e => e.Change == "star.remnant.white" && Math.Abs(e.Year - 1.05) < 1e-12),
+            "clock dial changed after first tick: Advance reschedules giant/death at 1 / 1.05 years");
+        var removed = Single(10); Set(removed, "StarLifeScale", 1e-8);
+        removed.Rules.Remove(removed.Rules.Find(r => r.Id == "stars")!);
+        Jump(removed, 10);
+        Check(Math.Abs(removed.Year - 10) < 1e-12 && removed.StarFuel[0] == 0 && removed.Events.All(e => e.RuleId != "stars"),
+            $"removed stellar rule: jump completes, year={removed.Year:R}, fuel={removed.StarFuel[0]:R}, no unhandled boundary");
 
         foreach (double mass in new[] { 1.0, 10.0, 30.0 })
         {
@@ -57,7 +77,9 @@ static class StarChecks
             for (int i = 0; same && i < ae.Length; i++) same &= ae[i].Change == be[i].Change && Math.Abs(ae[i].Year - be[i].Year) <= 1e-4;
             StarPhase expected = mass < 8 ? StarPhase.WhiteDwarf : mass <= 20 ? StarPhase.NeutronStar : StarPhase.BlackHole;
             Check(a.StarPhaseOf(0) == expected && b.StarPhaseOf(0) == expected && same
-                && Math.Abs(a.M[0] + a.StellarEjectaMass - beforeMass) < 1e-10 && Math.Abs(Px(a) - px) < 1e-10 && Math.Abs(Py(a) - py) < 1e-10,
+                && Math.Abs(a.M[0] + a.StellarEjectaMass - beforeMass) < 1e-10
+                && Math.Abs(a.Comp.Take(World.NElem).Sum() + a.StellarEjectaMatter.Sum() - beforeMass) < 1e-10
+                && Math.Abs(Px(a) - px) < 1e-10 && Math.Abs(Py(a) - py) < 1e-10,
                 $"{mass:F0} Suns -> {a.StarPhaseOf(0)}, mass {a.M[0] / 50:F3} Suns, lost {a.StellarEjectaMass:F3}; 1/200 phase years [{string.Join(",", ae.Select(e => $"{e.Change}@{e.Year:R}"))}], momentum conserved, {timer.Elapsed.TotalMilliseconds:F1}ms");
             Check(Math.Abs(a.StarAge[0] - b.StarAge[0]) < 1e-4 && Math.Abs(a.StarFuel[0] - b.StarFuel[0]) < 1e-12
                 && Math.Abs(a.StarLuminosity(0) - b.StarLuminosity(0)) < 1e-12,
@@ -106,6 +128,18 @@ static class StarChecks
         double semiMajor = 1 / (2 / r - (vx * vx + vy * vy) / mu);
         Check(orbit.StarPhaseOf(0) == StarPhase.WhiteDwarf && semiMajor > 10000 && double.IsFinite(semiMajor),
             $"mass loss widens orbital semimajor through gravity: 10000 -> {semiMajor:F1}; impulsive loss, no forced planet velocity");
+
+        var ordinary = new World(128, 1); var observed = new World(128, 1);
+        foreach (var w in new[] { ordinary, observed })
+        {
+            w.Do(new Command(CmdKind.Create, Amount: 500, Mix: Gas));
+            for (int i = 0; i < 100; i++) w.Do(new Command(CmdKind.CreateOrbiting, Target: 0, X: 10000 + i * 100, Amount: 1e-9, Mix: Rock));
+        }
+        var view = new Rule("star.observer", "X", "", 1, _ => { }) { Enabled = false }; observed.Rules.Add(view);
+        Jump(ordinary, 1e9); Jump(observed, 1e9); observed.Rules.Remove(view); // exactly 5e6 years per original chunk
+        Check(ordinary.Hash() == observed.Hash() && ordinary.StarPhaseOf(0) == StarPhase.NeutronStar
+            && ordinary.X.All(double.IsFinite) && ordinary.Vx.All(double.IsFinite),
+            $"5-Myr chunks crossing nova: rock origins rebased, observer-independent hash {ordinary.Hash():X16}/{observed.Hash():X16}");
 
         var live = Single(10); Set(live, "StarLifeScale", .01); Jump(live, 3e5);
         live.Do(new Command(CmdKind.SetConst, Name: "StarLifeScale", Amount: .001)); Jump(live, 1e6);
