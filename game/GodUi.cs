@@ -241,7 +241,7 @@ public partial class GodUi : CanvasLayer
             row.AddChild(Btn(text, () =>
             {
                 int before = _w.Events.Count;
-                GodTools.FastForward(_w, y);
+                _main.JumpKeepingView(y);
                 int news = _w.Events.Count - before;
                 _main.Toast(news > 0 ? $"Đã nhảy {t.TrimStart('+')}: {news} sự kiện mới, xem tab Nhật ký" : $"Đã nhảy {t.TrimStart('+')}: không có gì đáng kể xảy ra");
                 RefreshSelection();

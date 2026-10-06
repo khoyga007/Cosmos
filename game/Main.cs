@@ -175,6 +175,16 @@ public partial class Main : Node2D
         _zoom = 0.75f;
     }
 
+    /// A jump with the view riding along: the whole system drifts through space over the ages (it has net
+    /// momentum), and after a long jump it would be far outside a view left where it was.
+    public void JumpKeepingView(double years)
+    {
+        int h = _w.Heaviest();
+        double hx = h >= 0 ? _w.X[h] : 0, hy = h >= 0 ? _w.Y[h] : 0;
+        GodTools.FastForward(_w, years);
+        if (_follow < 0 && Live(h)) { _cx += _w.X[h] - hx; _cy += _w.Y[h] - hy; }
+    }
+
     bool Live(int i) => i >= 0 && i < _w.N && _w.Alive[i];
 
     // ---- view ----
