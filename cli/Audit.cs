@@ -355,16 +355,40 @@ static class Audit
         var j3 = new World(2, 1);
         int huge = j3.Do(new Command(CmdKind.SetConst, Name: "JumpSamples", Amount: 1e7));
         double perChunk = ms2 / 2000;
-        string jumpMsg = $"jumpsamples-unbounded (Commands.cs:221-222 Validate(\"JumpSamples\") asks only v >= 1; Rails.cs:44 chunks = Clamp(ceil(years/fastest), 1, C.JumpSamples), cost chunks * objects per Rails.cs:33-35): the dial takes 1e7 (Do r={huge}, -1 would be a refusal) and one 1e6-year jump over 5000 rocks costs {ms1:F0} ms at cap 200 and {ms2:F0} ms at cap 2000 ({perChunk:F2} ms per chunk), so cap 1e7 is about {perChunk * 1e7 / 1000:F0} s of wall clock inside a single FastForward, with nothing above it to refuse the dial";
+        string jumpMsg = $"jumpsamples-unbounded (Commands.cs:221-222 Validate(\"JumpSamples\") asks only v >= 1 unless a ceiling was added; Rails.cs:44 chunks = Clamp(ceil(years/fastest), 1, C.JumpSamples), cost chunks * objects per Rails.cs:33-35): the dial {(huge == -1 ? "is refused" : "takes 1e7")} (Do r={huge}, -1 is a refusal) and one 1e6-year jump over 5000 rocks costs {ms1:F0} ms at cap 200 and {ms2:F0} ms at cap 2000 ({perChunk:F2} ms per chunk), so cap 1e7 is about {perChunk * 1e7 / 1000:F0} s of wall clock inside a single FastForward";
         if (huge == -1) Ok(jumpMsg); else Risk(jumpMsg);
 
-        // Add rewrites the caller's mix in silence unless it already sums to 1.
+        // Add must not take the caller's mix and hand back a different one. Three answers are possible and they
+        // are not the same answer: refuse the mix, store it as given, or rewrite it in silence — and a rewrite is
+        // only half the story, because M is set from the argument while the table is written from the mix.
         var a = new World(4, 1);
         int quarter = a.Add(0, 0, 0, 0, 1.0, new double[] { 0, 0, 0, 0.25, 0, 0 }, "quarter-metal");
         int whole = a.Add(0.5, 0, 0, 0, 1.0, new double[] { 0, 0, 0, 1, 0, 0 }, "full-metal");
-        double qm = a.Comp[quarter * World.NElem + 3], wm = a.Comp[whole * World.NElem + 3];
-        string addMsg = $"add-mix-silent-normalise (World.cs:145 sumMix != 1 -> World.cs:146 stores m * mix[e] / sumMix): Add(m=1.0, metal 0.25 in a mix summing to 0.25) stores metal {qm:F4} and Add(m=1.0, metal 1.0) stores metal {wm:F4} — the same body from two different mixes, mass {a.M[quarter]:F3} either way, with no flag, no event and no return code telling the caller its mix was rewritten; every in-tree caller already sums to 1 (World.cs:198/213/216/232, Civ.cs:45, GodTools.cs:44-57 normalises for itself), so the branch is dead in core and live for any other caller";
-        if (Math.Abs(qm - 0.25) < 1e-12) Ok(addMsg); else Risk(addMsg);
+        // The stride belongs to the core and it moved on the elements branch, so read it off the two public arrays
+        // instead of naming a constant. A refusal returns -1 and no slot: nothing below may index with it.
+        int stride = a.M.Length > 0 ? a.Comp.Length / a.M.Length : 0;
+        int verdict = 0;   // 0 ok, 1 risk, 2 defect
+        string addMsg;
+        if (stride <= 3)
+            addMsg = $"add-mix-silent-normalise (World.cs:145-146): SKIPPED — the matter table holds {a.Comp.Length} cells over {a.M.Length} slots, so this audit cannot address one share";
+        else if (whole < 0)
+        {
+            verdict = 2;
+            addMsg = $"add-mix-silent-normalise (World.cs:127-149): Add(m=1.0, four zeros and a 1.0 — a mix that does sum to 1) returned {whole}, so the core refused a body it has always accepted; the bad mix scored {quarter}";
+        }
+        else if (quarter < 0)
+            addMsg = $"add-mix-silent-normalise (World.cs:145-146 used to store m * mix[e] / sumMix whenever the mix did not sum to 1): Add(m=1.0, 0.25 in a mix summing to 0.25) is refused (r={quarter}) while the mix that does sum to 1 still lands (slot {whole}, its share at position 3 stored {a.Comp[whole * stride + 3]:F4}, mass M {a.M[whole]:F4}) — a mix that does not sum to 1 is the caller's error, and saying so is the one answer that keeps the body's mass in step with its own matter table";
+        else
+        {
+            double qm = a.Comp[quarter * stride + 3];
+            double qsum = 0;
+            for (int e = 0; e < stride; e++) qsum += a.Comp[quarter * stride + e];
+            bool rescaled = Math.Abs(qm - 0.25) > 1e-9;
+            bool split = Math.Abs(a.M[quarter] - qsum) > 1e-9;
+            verdict = split ? 2 : (rescaled ? 1 : 0);
+            addMsg = $"add-mix-silent-normalise (World.cs:145 writes M = m straight from the argument and World.cs:146 the matter table from m * mix[e], both on this tree; 144/146 on the round-7 core): Add(m=1.0, 0.25 in a mix summing to 0.25) returns slot {quarter} and stores {qm:F4} where the caller asked for 0.25 ({(rescaled ? "rewritten in silence" : "stored as given")}), while M reads {a.M[quarter]:F4} against the same body's matter table summing {qsum:F4} ({(split ? "the two disagree, so the object's mass no longer matches its own matter" : "the two agree")}); Add(m=1.0, 1.0) stored {a.Comp[whole * stride + 3]:F4}; every in-tree caller already sums to 1 (World.cs:198/213/216/232, Civ.cs:45, GodTools.cs:44-57 normalises for itself), so this is for any other caller";
+        }
+        if (verdict == 0) Ok(addMsg); else if (verdict == 2) Defect(addMsg); else Risk(addMsg);
     }
 
     // ---- slot identity
@@ -1069,7 +1093,7 @@ static class Audit
             Info("table-group7 / table-stage / table-starevent SKIPPED: no core/ source found (set COSMOS_CORE_SRC to a core directory to run the three static counts)");
             return;
         }
-        Info($"static scans of {core}: a line that names the table itself (ElemName, Density =, Elements, Elem(, Stages, StarEvents) is the table and is not counted");
+        Info($"static scans of {core}: a line that names the table itself (ElemName, Density =, Elements, Elem(, Stages, StarEvents) is the table and is not counted, and neither is a Consts field declaration");
 
         // (1) a 7th material group costs one row: no line outside the table may name a group by a literal number
         //     or spell a six-cell mix out.
@@ -1086,8 +1110,13 @@ static class Audit
         SayComments("stage");
 
         // (3) one more star event costs one row: id, trigger and effect must not all sit inside EvolveStar.
-        var e = Hits(core, "\"star\\.|StarNovaRange|StarNovaDamage", @"StarEvents");
+        //     A declared constant is configuration, not an event row: StarNovaRange/StarNovaDamage stay where they
+        //     are, because moving a Consts field reorders reflection and would break every hash already written.
+        var e = Hits(core, "\"star\\.|StarNovaRange|StarNovaDamage",
+                          @"StarEvents|^\s*(public|internal|private)\s+(static\s+)?(const\s+)?(readonly\s+)?(double|float|int|long|bool|string)\s+Star");
         SayComments("starevent");
+        int rows = Hits(core, @"StarEvents\s*\.\s*Add|StarEvents\s*=\s*new", "$^").Count;
+        Info($"  (starevent: {rows} StarEvents row(s) declared in core; a Consts field declaration is configuration, not a row, and is not counted)");
         bool starCode = Directory.GetFiles(core, "*.cs").Any(f =>
             Path.GetFileName(f) == "Stars.cs" || File.ReadAllText(f).Contains("StarNova") || File.ReadAllText(f).Contains("\"star."));
         if (!starCode)
