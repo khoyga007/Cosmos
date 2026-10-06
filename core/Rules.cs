@@ -18,6 +18,9 @@ public sealed partial class Consts
 
 public enum TemperatureBand { Frozen, Temperate, Scorched }
 
+[Flags]
+public enum RuleBoundary { None = 0, BeforeStar = 1, BeforeCooling = 2, After = 4 }
+
 /// One rule per parameter, evaluated in table order at the first Advance reaching its due year.
 public sealed class Rule
 {
@@ -26,6 +29,7 @@ public sealed class Rule
     public string Writes { get; }
     public bool Enabled = true;
     public bool NeedsRockPositions { get; init; }
+    public RuleBoundary Boundary { get; set; }
     public Action<World> Apply { get; }
     public double NextYear { get; internal set; }
     public double LastYear { get; internal set; } // year of its last run; World.RuleYears = years since then
@@ -60,6 +64,8 @@ public sealed partial class World
     readonly int[] _temperatureBands, _starSlots;
     readonly double[] _starLight;
     public readonly List<Rule> Rules = new();
+    // Canonical table metadata is implicit in legacy hashes; overrides and new flagged rows are explicit.
+    readonly Dictionary<string, RuleBoundary> _boundaryDefaults = new(StringComparer.Ordinal);
     public const int EventCapacity = 1024; // PLACEHOLDER [P], not a content decision by Yang
     readonly List<RuleEvent> _events = new();
     public IReadOnlyList<RuleEvent> Events => _events;
@@ -69,9 +75,10 @@ public sealed partial class World
     {
         InitStarRule();
         Rules.Add(new Rule("temperature", "M,X,Y,StarMass,LuminosityExponent,TemperatureScale,FrozenEdge,ScorchedEdge", "Temp,temperature.band", 0.01,
-            w => w.UpdateTemperature()));
+            w => w.UpdateTemperature()) { Boundary = RuleBoundary.BeforeStar | RuleBoundary.After });
         InitLayerRules();
         InitKindRules();
+        foreach (var rule in Rules) _boundaryDefaults[rule.Id] = rule.Boundary;
     }
 
     void ResetTemperature(int i) { Temp[i] = double.NaN; _temperatureBands[i] = -1; }
@@ -132,13 +139,13 @@ public sealed partial class World
             {
                 _lifeCurveReady = false;
                 foreach (var rule in Rules)
-                    if (rule.Enabled && rule.Id is "temperature" or "water" or "life" or "civ") ApplyRule(rule);
+                    if (rule.Enabled && (rule.Boundary & RuleBoundary.BeforeStar) != 0) ApplyRule(rule);
             }
             finally { _updatingStars = false; }
             ApplyRule(_starRule);
             // Temperature/water change at the boundary; growth/decay starts after it.
             foreach (var rule in Rules)
-                if (rule.Enabled && rule.Id is "temperature" or "water") ApplyRule(rule);
+                if (rule.Enabled && (rule.Boundary & RuleBoundary.After) != 0) ApplyRule(rule);
             Year = target;
         }
         if (coolingBoundary)
@@ -149,12 +156,12 @@ public sealed partial class World
             {
                 _lifeCurveReady = false;
                 foreach (var rule in Rules)
-                    if (rule.Enabled && rule.Id is "water" or "life" or "civ") ApplyRule(rule);
+                    if (rule.Enabled && (rule.Boundary & RuleBoundary.BeforeCooling) != 0) ApplyRule(rule);
             }
             finally { _updatingStars = false; }
             ApplyRule(_starRule);
             foreach (var rule in Rules)
-                if (rule.Enabled && rule.Id is "temperature" or "water") ApplyRule(rule);
+                if (rule.Enabled && (rule.Boundary & RuleBoundary.After) != 0) ApplyRule(rule);
         }
         _lifeCurveReady = false;
         foreach (var rule in Rules)
@@ -180,7 +187,12 @@ public sealed partial class World
         void code(string s) { mix((ulong)s.Length); foreach (char c in s) mix(c); }
         number(Year);
         for (int i = 0; i < N; i++) if (Alive[i]) { number(Temp[i]); mix((ulong)_temperatureBands[i]); }
-        foreach (var rule in Rules) { code(rule.Id); number(rule.RhythmYears); number(rule.NextYear); number(rule.LastYear); mix(rule.Enabled ? 1UL : 0UL); }
+        foreach (var rule in Rules)
+        {
+            code(rule.Id); number(rule.RhythmYears); number(rule.NextYear); number(rule.LastYear); mix(rule.Enabled ? 1UL : 0UL);
+            _boundaryDefaults.TryGetValue(rule.Id, out var baseline);
+            if (rule.Boundary != baseline) { code("rule.boundary"); mix((ulong)rule.Boundary); }
+        }
         mix((ulong)_events.Count);
         foreach (var e in _events)
         {

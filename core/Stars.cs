@@ -151,7 +151,15 @@ public sealed partial class World
     {
         if (!StarsEnabled || !Rules.Exists(r => r.Enabled && r.Id == "temperature")) return double.PositiveInfinity;
         bool cooling = false;
-        for (int s = 0; s < N && !cooling; s++) cooling = Alive[s] && StarPhaseOf(s) is StarPhase.WhiteDwarf or StarPhase.NeutronStar;
+        int sources = 0;
+        for (int s = 0; s < N; s++)
+        {
+            if (!Alive[s]) continue;
+            double light = StarLuminosity(s);
+            if (!(light > 0)) continue;
+            _starSlots[sources] = s; _starLight[sources++] = light;
+            cooling |= StarPhaseOf(s) is StarPhase.WhiteDwarf or StarPhase.NeutronStar;
+        }
         if (!cooling) return double.PositiveInfinity;
         double next = double.PositiveInfinity;
         foreach (double edge in new[] { C.ScorchedEdge, C.FrozenEdge, C.WaterBoil, C.WaterFreeze })
@@ -165,11 +173,12 @@ public sealed partial class World
                 double Flux(double at)
                 {
                     double flux = 0;
-                    for (int s = 0; s < N; s++)
+                    for (int k = 0; k < sources; k++)
                     {
-                        if (!Alive[s] || s == i) continue;
+                        int s = _starSlots[k];
+                        if (s == i) continue;
                         double light = StarPhaseOf(s) is StarPhase.WhiteDwarf or StarPhase.NeutronStar
-                            ? RemnantLight(s, StarCoolingAge[s] + Math.Max(0, at - _starUpdated[s])) : StarLuminosity(s);
+                            ? RemnantLight(s, StarCoolingAge[s] + Math.Max(0, at - _starUpdated[s])) : _starLight[k];
                         if (!(light > 0)) continue;
                         double dx = X[i] - X[s], dy = Y[i] - Y[s], d2 = dx * dx + dy * dy;
                         if (s == host) flux += light * 45 * 45 * mean;

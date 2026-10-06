@@ -84,9 +84,12 @@ public sealed partial class World
 
     void InitLayerRules()
     {
-        Rules.Add(new Rule("water", "Temp,Comp,M,WaterFreeze,WaterBoil,WaterIceMin,WaterHoldMass", "Water,WaterYears", 1, w => w.UpdateWater()));
-        Rules.Add(new Rule("life", "Water,WaterYears,Comp,Life*", "Life,RichYears", 1000, w => w.UpdateLife()));
-        Rules.Add(new Rule("civ", "Life,RichYears,Comp,Civ*", "Pop,Tech,Comp,Civ", 100, w => w.UpdateCiv()));
+        Rules.Add(new Rule("water", "Temp,Comp,M,WaterFreeze,WaterBoil,WaterIceMin,WaterHoldMass", "Water,WaterYears", 1, w => w.UpdateWater())
+            { Boundary = RuleBoundary.BeforeStar | RuleBoundary.BeforeCooling | RuleBoundary.After });
+        Rules.Add(new Rule("life", "Water,WaterYears,Comp,Life*", "Life,RichYears", 1000, w => w.UpdateLife())
+            { Boundary = RuleBoundary.BeforeStar | RuleBoundary.BeforeCooling });
+        Rules.Add(new Rule("civ", "Life,RichYears,Comp,Civ*", "Pop,Tech,Comp,Civ", 100, w => w.UpdateCiv())
+            { Boundary = RuleBoundary.BeforeStar | RuleBoundary.BeforeCooling });
         Rules.Add(new Rule("ships", "Pop,Tech,Civ,X,Y,Ship*", "Pop,Tech,Civ,objects", ShipRhythmYears, w => w.UpdateShips()));
     }
 
