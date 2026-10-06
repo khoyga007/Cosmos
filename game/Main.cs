@@ -699,6 +699,7 @@ public partial class Main : Node2D
             Vector2 drag = placing ? _mouse - at : Vector2.Zero;
             string say;
             if (p < 0) say = drag.Length() < LaunchStart ? "đứng yên (không có vật nào nặng hơn ở đây)" : "phóng đi";
+            else if (drag.Length() < LaunchStart && !_ui.CreateCircular) say = "đứng yên";
             else if (drag.Length() < LaunchStart)
             {
                 double dx = x - _w.X[p], dy = y - _w.Y[p];
@@ -745,8 +746,9 @@ public partial class Main : Node2D
         int slot; string did;
         if (drag.Length() < LaunchStart)
         {
-            slot = GodTools.Create(_w, x, y, mass, mix, parent: p, name: name);
-            did = p >= 0 ? $"quay quanh {NameOf(p)}" : "đứng yên";
+            bool orbit = p >= 0 && _ui.CreateCircular;
+            slot = GodTools.Create(_w, x, y, mass, mix, parent: orbit ? p : -1, name: name);
+            did = orbit ? $"quay quanh {NameOf(p)}" : "đứng yên";
         }
         else
         {

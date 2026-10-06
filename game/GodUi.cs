@@ -39,11 +39,12 @@ public partial class GodUi : CanvasLayer
     readonly Button[] _toolButtons = new Button[6];
     HBoxContainer _handOptions = null!;
     HSlider _handRadius = null!, _handStrength = null!;
-    CheckBox _moveCircular = null!, _moveCarry = null!;
+    CheckBox _moveCircular = null!, _moveCarry = null!, _createCircular = null!;
     public float HandRadiusPx => (float)_handRadius.Value;
     public double HandStrength => _handStrength.Value;
     public bool MoveCircular => _moveCircular.ButtonPressed;
     public bool MoveAlone => !_moveCarry.ButtonPressed;
+    public bool CreateCircular => _createCircular.ButtonPressed;
     public void SetMoveCircular(bool on) => _moveCircular.SetPressedNoSignal(on);
 
     // time
@@ -200,6 +201,8 @@ public partial class GodUi : CanvasLayer
         toolRow.AddChild(_moveCircular);
         _moveCarry = new CheckBox { Text = "kéo theo những gì nó đang giữ", ButtonPressed = true, FocusMode = Control.FocusModeEnum.None, Visible = false };
         toolRow.AddChild(_moveCarry);
+        _createCircular = new CheckBox { Text = "bấm là vào quỹ đạo tròn (bỏ tích: đứng yên)", ButtonPressed = true, FocusMode = Control.FocusModeEnum.None, Visible = false };
+        toolRow.AddChild(_createCircular);
         _handOptions = new HBoxContainer { Visible = false };
         _handOptions.AddChild(new Label { Text = "  Tầm" });
         _handRadius = new HSlider { MinValue = 20, MaxValue = 400, Step = 5, Value = 90, FocusMode = Control.FocusModeEnum.None, CustomMinimumSize = new Vector2(110, 0), SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
@@ -255,6 +258,7 @@ public partial class GodUi : CanvasLayer
         for (int i = 0; i < _toolButtons.Length; i++) _toolButtons[i]?.SetPressedNoSignal(i == (int)tool);
         if (_handOptions != null) _handOptions.Visible = tool == Main.Tool.Pull || tool == Main.Tool.Shove;
         if (_moveCircular != null) _moveCircular.Visible = _moveCarry.Visible = tool == Main.Tool.Move;
+        if (_createCircular != null) _createCircular.Visible = tool == Main.Tool.Create;
     }
 
     public void UpdateTimeWarp(int currentWarp)
