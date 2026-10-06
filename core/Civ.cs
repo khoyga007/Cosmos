@@ -243,8 +243,11 @@ public sealed partial class World
             }
             int goal = ShipGoal(i, civ, supply: !direct);
             if (goal < 0) continue;
-            // in a jump the first ship leaves when its world reached the space age, not at the end of the chunk
-            double leftYear = direct && _launchYear[i] >= Year - RuleYears ? _launchYear[i] : Year;
+            // in a jump the first ship leaves when its world reached the space age, not at the end of the chunk.
+            // That year is kept across runs and can be older than this run's window, so it is not weighed against
+            // RuleYears: it stays valid until a ship actually leaves, and Civ.cs clears it only when the run gave
+            // a world no new stage.
+            double leftYear = direct && !double.IsNaN(_launchYear[i]) && _launchYear[i] <= Year ? _launchYear[i] : Year;
             void sent() { while (_civLaunches.Count < Civs.Count) _civLaunches.Add(0); if (_civLaunches[civ]++ == 0) CivEvent(i, civ, "civ.ship.first", civ, goal, Tech[i], leftYear); }
             if (direct) { sent(); Land(goal, civ, Tech[i]); continue; }
 
