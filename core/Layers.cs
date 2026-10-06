@@ -327,7 +327,11 @@ public sealed partial class World
             {
                 if (Life[i] < C.CivLifeMin || RichYears[i] < C.CivRiseYears) continue;
                 Pop[i] = p = C.CivSeed; Tech[i] = 0; Civ[i] = NewCiv(i);
-                dt = Math.Min(dt, RichYears[i] - C.CivRiseYears); // it has been there since the wait was over
+                // The wait was over before this run began whenever the rich years outran it: what dates the birth is
+                // the whole wait since the mark, not the slice this run happens to cover. dt above is a window
+                // (RuleYears), an age is not the same thing, and clamping one with the other pushed every birth
+                // logged after a sparse run onto the window's own edge.
+                dt = Math.Min(Year - Touched[i], RichYears[i] - C.CivRiseYears);
                 CivEvent(i, Civ[i], "civ.start", RichYears[i], room, Share(i, ElementRole.Metal), Year - dt);
             }
             int stage = TechStage(i);
