@@ -180,7 +180,9 @@ public partial class Main : Node2D
     bool _grid = true;
 
     // PLACEHOLDER: the zone each attracting object rules (World.Hill), as a faint ring. Z switches it.
-    // The heaviest object rules everything left over, so it has no ring.
+    // The heaviest object rules everything left over in the core (no galaxy to pull against yet), so its ring is
+    // display only: where the galaxy's tide would take over, the Sun's real figure (about 230 000 AU) scaled by mass^(1/3).
+    const double SunTidalAU = 230000, SunMass = 50;
     bool _zones;
 
     void DrawZones()
@@ -189,7 +191,9 @@ public partial class Main : Node2D
         for (int i = 0; i < _w.N; i++)
         {
             if (!_w.Alive[i] || !_w.Attracts(i)) continue;
-            double h = _w.Hill(i) * _zoom;
+            double h = _w.Hill(i);
+            if (h == double.MaxValue) h = World.SolDist(SunTidalAU * Math.Cbrt(_w.M[i] / SunMass));
+            h *= _zoom;
             if (!(h > 6) || h > far) continue;
             DrawSetTransform(Screen(i), 0, new Vector2(1, _tilt));
             DrawArc(Vector2.Zero, (float)h, 0, MathF.Tau, 96, new Color(0.45f, 0.75f, 1f, i == _sel ? 0.55f : 0.22f), 1f);
