@@ -188,12 +188,12 @@ public sealed partial class World
         SyncStar(k); SyncStar(d);
         double m = M[k] + M[d];
         if (!(m > 0) || StarInitialMass[k] <= 0 && StarInitialMass[d] <= 0) return;
-        // Envelope accretion cannot restore an exhausted core. Unevolved stars still mix fuel by mass.
-        double coreFloor = Math.Max(StarFuel[k] >= GiantEnd ? GiantEnd : StarFuel[k] >= 1 ? 1 : 0,
-            StarFuel[d] >= GiantEnd ? GiantEnd : StarFuel[d] >= 1 ? 1 : 0);
+        // Accretion cannot restore the surviving core; an exhausted swallowed core cannot extinguish it either.
+        double coreFloor = StarFuel[k] >= GiantEnd ? GiantEnd : StarFuel[k] >= 1 ? 1 : 0;
         StarAge[k] = (StarAge[k] * M[k] + StarAge[d] * M[d]) / m;
         StarFuel[k] = Math.Max(coreFloor, (StarFuel[k] * M[k] + StarFuel[d] * M[d]) / m);
         StarCoolingAge[k] = (StarCoolingAge[k] * M[k] + StarCoolingAge[d] * M[d]) / m;
+        // Limitation: mergers/MS sync rewrite the progenitor proxy, so later remnant logs may not retain the original birth mass.
         StarInitialMass[k] = (StarInitialMass[k] > 0 ? StarInitialMass[k] : M[k]) + (StarInitialMass[d] > 0 ? StarInitialMass[d] : M[d]);
         _starUpdated[k] = Year;
     }

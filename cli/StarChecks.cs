@@ -122,6 +122,33 @@ static class StarChecks
         Check(reused == y && merged.StarAge[reused] == 0 && merged.StarFuel[reused] == 0 && merged.StarInitialMass[reused] == 50,
             "reused slot resets stellar age, fuel, initial mass");
 
+        // Selica's blocker: a surviving 1.2-Sun burning core must not inherit the swallowed WD's exhausted floor.
+        var accreted = Single(1.2); Set(accreted, "G", 0); Set(accreted, "StarLifeScale", 1e-8);
+        int wd = accreted.Do(new Command(CmdKind.Create, X: 1e6, Amount: 100, Mix: Gas));
+        Jump(accreted, 20);
+        Set(accreted, "StarLifeScale", accreted.C.StarLifeScale); // settle both clocks at the current year before measuring the mixture
+        bool setup = accreted.StarPhaseOf(0) == StarPhase.MainSequence && accreted.StarPhaseOf(wd) == StarPhase.WhiteDwarf
+            && Math.Abs(accreted.M[wd] / 50 - .612) < 1e-12;
+        double accretedFuel = (accreted.StarFuel[0] * accreted.M[0] + accreted.StarFuel[wd] * accreted.M[wd]) / (accreted.M[0] + accreted.M[wd]);
+        int accretedEvents = accreted.Events.Count;
+        double accretedEjecta = accreted.StellarEjectaMass;
+        accreted.Do(new Command(CmdKind.Move, Target: wd, X: accreted.X[0], Y: accreted.Y[0]));
+        accreted.Advance(0);
+        Check(setup && accreted.Alive[0] && !accreted.Alive[wd] && accreted.StarPhaseOf(0) == StarPhase.MainSequence
+            && Math.Abs(accreted.M[0] / 50 - 1.812) < 1e-12 && Math.Abs(accreted.StarFuel[0] - accretedFuel) < 1e-12
+            && accreted.Events.Count == accretedEvents && accreted.StellarEjectaMass == accretedEjecta,
+            $"1.2-Sun MS swallows .612-Sun WD: {accreted.StarPhaseOf(0)}, mass {accreted.M[0] / 50:F3} Suns, fuel {accreted.StarFuel[0]:F9} (mixed {accretedFuel:F9}), no spurious death/ejecta");
+        var accretedReplay = new World(16, 1); int accretedNext = 0;
+        accretedReplay.Replay(accreted.Journal, ref accretedNext); accretedReplay.Advance(0);
+        Check(accretedReplay.Hash() == accreted.Hash(), $"WD accretion replay {accreted.Hash():X16}/{accretedReplay.Hash():X16}");
+
+        var deadCore = Single(2); Set(deadCore, "G", 0); Set(deadCore, "StarLifeScale", 1e-8); Jump(deadCore, 20);
+        int food = deadCore.Do(new Command(CmdKind.Create, X: 1e6, Amount: World.EarthMass, Mix: Rock));
+        double deadFuel = deadCore.StarFuel[0];
+        deadCore.Do(new Command(CmdKind.Move, Target: food, X: deadCore.X[0], Y: deadCore.Y[0])); deadCore.Advance(0);
+        Check(deadCore.Alive[0] && !deadCore.Alive[food] && deadCore.StarPhaseOf(0) == StarPhase.WhiteDwarf && deadCore.StarFuel[0] >= deadFuel,
+            "surviving white dwarf swallows a planet without rejuvenating its exhausted core");
+
         var orbit = Single(1); Set(orbit, "StarLifeScale", 1e-9);
         int far = orbit.Do(new Command(CmdKind.CreateOrbiting, Target: 0, X: 10000, Amount: World.EarthMass, Mix: Rock));
         Jump(orbit, orbit.StarLifetime(50) * (1 + orbit.C.StarGiantFraction));
