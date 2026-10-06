@@ -21,10 +21,11 @@ public enum CmdKind
     Force,           // the god's hand: every object within radius Vx of (X, Y) gets velocity toward that point, Amount at
                      // the centre fading to 0 at the edge; negative Amount = away. Mass does not matter
     FastForward,     // every object rides its present orbit for Amount years (closed formula: no pull between siblings, no collisions)
+    SetStarState,    // replace Target's numeric stellar snapshot; future evolution starts at the current world year
 }
 
 public record struct Command(CmdKind Kind, int Target = -1, double X = 0, double Y = 0, double Vx = 0, double Vy = 0,
-    double Amount = 0, int Index = 0, double[]? Mix = null, string? Name = null, uint Col = 0);
+    double Amount = 0, int Index = 0, double[]? Mix = null, string? Name = null, uint Col = 0, StellarState? StarState = null);
 
 public sealed partial class World
 {
@@ -101,6 +102,8 @@ public sealed partial class World
                 Life[c.Target] = c.Amount; Touched[c.Target] = Year;
                 if (c.Amount < C.CivLifeMin) RichYears[c.Target] = 0;
                 return c.Target;
+            case CmdKind.SetStarState:
+                return Ok(c.Target) && c.StarState is StellarState state && SetStellarState(c.Target, state) ? c.Target : -1;
             case CmdKind.FastForward:
                 if (!double.IsFinite(c.Amount) || c.Amount <= 0) return -1;
                 Jump(c.Amount * C.YearTime);
