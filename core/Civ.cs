@@ -124,6 +124,7 @@ public sealed partial class World
         {
             if (!Alive[i] || !IsShip(i)) continue;
             if (Ok(ShipTo[i])) Land(ShipTo[i], ShipCiv[i], ShipTech[i]);
+            else CivEvent(Ok(ShipFrom[i]) ? ShipFrom[i] : i, ShipCiv[i], "civ.ship.lost", ShipCiv[i], ShipTo[i], ShipTech[i]);
             Kill(i);
         }
     }
@@ -203,7 +204,12 @@ public sealed partial class World
         {
             if (!Alive[i] || ShipCiv[i] < 0) continue;
             int t = ShipTo[i];
-            if (!Ok(t)) continue;
+            if (!Ok(t))
+            {
+                CivEvent(Ok(ShipFrom[i]) ? ShipFrom[i] : i, ShipCiv[i], "civ.ship.lost", ShipCiv[i], t, ShipTech[i]);
+                Kill(i);
+                continue;
+            }
             if (stars < 0) { stars = 0; for (int s = 0; s < N; s++) if (Alive[s] && M[s] >= C.StarMass) _starSlots[stars++] = s; }
             double dx = X[t] - X[i], dy = Y[t] - Y[i], d = Math.Sqrt(dx * dx + dy * dy);
             if (!(d > 0)) continue;
