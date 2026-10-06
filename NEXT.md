@@ -2,7 +2,15 @@
 
 READ `SPEC.md` FIRST (game, model, engine decisions, round-1 work packages). This file = what is running now.
 
-## ROUND 7 CLOSED 2026-10-06 evening (Claire, resume list done) — RESUME HERE
+## Star-system defect pass 2026-10-06 night (Claire, master d8fbe31) — RESUME HERE
+- Yang: "quay lại fix mấy lỗi ở tầng hệ sao". Done on master, cli 254 OK exit 0, audit 5D/3R, selftest 011B7BC90A48FFC7, uitest D5B228338AAFCA83.
+- HASHES CHANGED for everyone: Consts +3 fields (CosmicBackground, CivDomeTemp, CivDomeTempRange), all hashed by reflection. Branches must rebase; Legacy tables in ElementChecks/StarEventChecks re-captured. Proof: with the 3 fields skipped in Hash() only sol0-life/sol0-edit/sol2000-jump moved.
+- Fixed: events in a jump dated at their own year (life.start, life.stage per mark, civ.start, civ.stage per stage via bisection on lived-years curve, civ.ship.first via `_launchYear`); tech ceiling = last threshold + 1; DomeRoom (heat factor, needs own ice or fed civ `FindFed`); ShipGoal skips dead-end worlds; civ.end A=-1 = swallowed (window wording); floor 2.7 K = `max(star, floor)` for non-star bodies only (T^4 sum tried, moved Earth 5.5e-7 K and broke 6 exact checks -> dropped); comet.spent only named/pulling; ghost label names remnant preset.
+- Ship-stuck NOT reproduced: `cli -- ships` stock Sol 279 and 1395 ships, 0 lost, longest flight 1.1 yr, nearest 1.33 Sun R; g at 1.5R 0.33 < thrust 2. Asked Yang what conditions he saw.
+- Red giant: repro now Sun R 28 (not 826), swallows Mercury only. Still: everything in that jump stamped 1e10 (jump ends on the giant moment); colony years land on chunk ends (5e7, 1e8).
+- Not done: scorched->frozen in one step across nova; object list / jump-to-object for lost objects; Selica's 2 audit gaps (LifeStages literal, conservation probe).
+
+## ROUND 7 CLOSED 2026-10-06 evening (Claire, resume list done)
 - master: starstate merged (406729f) -> remnant presets (1aa0d7c) -> R7 B civtable merged -> Sol scene momentum zeroed. Claire re-ran after each: final cli 252 OK exit 0, audit 5D/3R, selftest PASS, uitest PASS (25 lines).
 - Remnant presets: Create tab buttons Sao lùn trắng 0.6 Sun (birth 2) / Sao neutron 1.4 (birth 10) / Lỗ đen 7.5 (birth 30); `GodTools.MakeRemnant` = Create then SetStarState at end of burning, cooling age 0. Mix = gas 100% (placeholder, real remnants are not gas). Ghost while placing still draws/labels an ordinary star. NOT seen by eye.
 - B hash question: after merge selftest 32AA0B3F10E7016A / uitest F2BD752070D6B108 = identical to master before merge -> default stages bit-exact. Where Ariel's first-report hashes (983C.. / 9FE5..) came from = not found, not reproduced.
@@ -56,7 +64,7 @@ READ `SPEC.md` FIRST (game, model, engine decisions, round-1 work packages). Thi
 - First contact (two peoples meet): Yang will design it "tý nữa". WAIT, his concept. No build.
 - Cosmic events Yang listed: supernova, hypernova, kilonova, gamma ray burst, "..." (list open). Core has only `star.giant`, `star.nova` today. WAIT for his go + scope.
 - Code-drawn visuals = PLACEHOLDER; textures later. Look lives in `Main.BodyCol` + `Main.DrawBody` only (199464e).
-- OPEN defect (Celine, bridge 741111ba): red giant R=826 swallows whole system to Neptune (Sun R inflated ~40x vs orbit scale); bodies swallowed in jump leave no events. Repro `cli -- jump-bench 1e10 0 v`.
+- (R now 28, see top section) Was OPEN defect (Celine, bridge 741111ba): red giant R=826 swallows whole system to Neptune (Sun R inflated ~40x vs orbit scale); bodies swallowed in jump leave no events. Repro `cli -- jump-bench 1e10 0 v`.
 
 ## Civ design — Yang dictating 2026-10-06, IN PROGRESS, NO CODE until he says go
 - Stats per civ: interaction with its world, world population, energy-harnessing level, tech level, development era (prehistoric, stone, bronze, iron, ... Renaissance, industrial, pre-space age, ...; list open).
