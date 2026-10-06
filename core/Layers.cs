@@ -175,6 +175,15 @@ public sealed partial class World
     }
     // Names, metal, ships and colonies: core/Civ.cs.
 
+    // A swallowed world's layers stop here, before the dead-slot filters can hide their ending from the journal.
+    void EndSwallowedWorld(int i)
+    {
+        if (Life[i] > 0) LogEvent(i, "life", "life.end", Temp[i], Water[i], LifeStage(i));
+        if (Pop[i] > 0) CivEvent(i, Civ[i], "civ.end", 0, Temp[i], TechStage(i));
+        Life[i] = RichYears[i] = Pop[i] = Tech[i] = 0;
+        Touched[i] = Year;
+    }
+
     // Called from Merge before the masses are summed: `share` = mass of what hit / mass of the one that stays.
     void Impact(int k, double share)
     {

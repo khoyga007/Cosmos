@@ -21,6 +21,7 @@ public sealed partial class Consts
     public double StarSolarTemperature = 5772;    // [P] Sun effective temperature ~5772 K
     public double StarRadiusPower = 0.8;          // [P] approximate MS radius-mass relation
     public double StarSolarRadius = 1.5 * Math.Cbrt(50 / 0.3); // [P] existing squeezed radius; real Sun ~696340 km
+    public double StarSolarRadiusAU = 1.0 / 215; // [P] real solar radius ~0.00465 AU; giant envelope mapped onto the orbital distance scale
     public double StarLowMass = 0.43;             // [P] low-mass luminosity fit boundary, solar masses
     public double StarLowLightScale = 0.23;       // [P] approximate L/Lsun = 0.23 m^2.3 at low mass
     public double StarLowLightPower = 2.3;         // [P] low-mass luminosity fit exponent
@@ -129,11 +130,14 @@ public sealed partial class World
 
     double Cool(double age, double scale) => scale > 0 ? Math.Pow(1 + Math.Max(0, age) / scale, -C.StarCoolingPower) : 0;
 
+    double GiantRadiusFactor(int i) => Math.Max(Math.Pow(M[i] / C.StarSolarMass, C.StarRadiusPower) * C.StarGiantRadius,
+        Math.Sqrt(GiantLight(M[i])) * Math.Pow(C.StarSolarTemperature / C.StarGiantTemperature, 2));
+
     public double StarRadius(int i) => StarPhaseOf(i) switch
     {
         StarPhase.MainSequence => SolarRadius * Math.Pow(M[i] / C.StarSolarMass, C.StarRadiusPower),
-        StarPhase.RedGiant => SolarRadius * Math.Max(Math.Pow(M[i] / C.StarSolarMass, C.StarRadiusPower) * C.StarGiantRadius,
-            Math.Sqrt(GiantLight(M[i])) * Math.Pow(C.StarSolarTemperature / C.StarGiantTemperature, 2)),
+        // R is both the drawn and contacting envelope: convert real stellar radius to the same squeezed AU scale as orbits.
+        StarPhase.RedGiant => SolDist(GiantRadiusFactor(i) * C.StarSolarRadiusAU) * C.RadiusScale / 1.5,
         StarPhase.BrownDwarf => SolarRadius * C.StarBrownRadius,
         StarPhase.WhiteDwarf => SolarRadius * C.StarWhiteRadius * Math.Cbrt(C.StarWhiteIntercept * C.StarSolarMass / M[i]),
         StarPhase.NeutronStar => SolarRadius * C.StarNeutronRadius,
@@ -143,7 +147,8 @@ public sealed partial class World
 
     public double StarSurfaceTemperature(int i)
     {
-        double r = StarRadius(i) / SolarRadius, light = StarLuminosity(i);
+        // Stefan-Boltzmann uses stellar solar radii, not a draw/orbital distance stretched by the simulation.
+        double r = StarPhaseOf(i) == StarPhase.RedGiant ? GiantRadiusFactor(i) : StarRadius(i) / SolarRadius, light = StarLuminosity(i);
         return r > 0 && light > 0 ? C.StarSolarTemperature * Math.Sqrt(Math.Sqrt(light / (r * r))) : 0;
     }
 

@@ -142,6 +142,10 @@ public sealed partial class World
         for (int e = 0; e < NElem; e++) Comp[k * NElem + e] += Comp[d * NElem + e];
         Impact(k, M[d] / M[k]);
         M[k] = m; SetRadius(k);
+        // victim, survivor slot, swallowed mass, victim generation. Not for dust: a belt falling in would push
+        // everything else out of the bounded log
+        if (M[d] >= C.AttractMass || Life[d] > 0 || Pop[d] > 0) LogEvent(d, "contact", "merge", k, M[d], Gen[d]);
+        EndSwallowedWorld(d);
         Alive[d] = false; M[d] = 0; _free.Push(d); Live--; Merges++;
         Gone(d, k);
     }

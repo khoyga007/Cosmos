@@ -555,6 +555,22 @@ public partial class GodUi : CanvasLayer
             return $"{yr}[color=#ff8844]Thiên thạch va chạm mạnh![/color] Tỉ lệ va chạm {e.A * 100:F2}% khối lượng, cắt giảm sinh quyển từ {e.B * 100:F1}% còn {e.C * 100:F1}%.";
         }
 
+        if (e.RuleId == "contact")
+        {
+            int by = (int)e.A;
+            string eater = by >= 0 && by < w.N && w.Alive[by] ? (w.Name[by] ?? $"Vật thể #{by}") : "một vật khác";
+            return $"{yr}[color=#ff8844]bị {eater} nuốt chửng[/color] ({e.B / World.EarthMass:G3} Trái Đất).";
+        }
+
+        if (e.RuleId == "stars")
+        {
+            if (e.Change == "star.giant") return $"{yr}[color=#ff7755]cạn hydro ở lõi, phình thành sao khổng lồ đỏ[/color], sáng gấp {e.C:G3} lần Mặt Trời.";
+            if (e.Change == "star.nova") return $"{yr}[color=#ffffff][b]nổ tung khi chết[/b][/color] (sao nặng {e.A:G3} Mặt Trời).";
+            if (e.Change == "star.remnant.white") return $"{yr}lõi còn lại thành [color=#eef3ff]sao lùn trắng[/color].";
+            if (e.Change == "star.remnant.neutron") return $"{yr}lõi sụp thành [color=#bacfff]sao neutron[/color].";
+            if (e.Change == "star.remnant.black") return $"{yr}lõi sụp thành [color=#ffb36d]lỗ đen[/color].";
+        }
+
         return $"{yr}[{e.RuleId}] {e.Change}";
     }
 

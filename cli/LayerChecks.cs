@@ -148,7 +148,7 @@ static class LayerChecks
             w.Do(new Command(CmdKind.SeedLife, Target: p, Amount: 0.8));
             w.Do(new Command(CmdKind.Create, X: 45.01, Y: 0, Vx: w.Vx[p], Vy: w.Vy[p], Amount: World.EarthMass * 1e-3, Mix: rock));
             w.Advance(H);
-            var e = w.Events.LastOrDefault();
+            var e = w.Events.LastOrDefault(e => e.RuleId == "impact");
             Check(w.Live == 2 && Math.Abs(w.Life[p] - 0.8 * Math.Exp(-1)) < 1e-6 && e.RuleId == "impact",
                 $"impact of 0.1% mass: life 0.800 -> {w.Life[p]:F3}, event {e.RuleId} share {e.A:E1}");
         }

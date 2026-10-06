@@ -89,9 +89,10 @@ static class StarChecks
         }
 
         var giant = Single(1); Set(giant, "StarLifeScale", 1e-9);
-        int planet = giant.Do(new Command(CmdKind.CreateOrbiting, Target: 0, X: 45, Amount: World.EarthMass, Mix: Rock));
+        int planet = giant.Do(new Command(CmdKind.CreateOrbiting, Target: 0, X: World.SolDist(.387), Amount: World.EarthMass, Mix: Rock));
         double mainRadius = giant.R[0]; Jump(giant, giant.StarLifetime(50));
-        Check(giant.StarPhaseOf(0) == StarPhase.RedGiant && giant.R[0] >= mainRadius * 99.9 && giant.Temp[planet] > giant.C.ScorchedEdge
+        Check(giant.StarPhaseOf(0) == StarPhase.RedGiant && Math.Abs(giant.R[0] / World.SolDist(100 * giant.C.StarSolarRadiusAU) - 1) < .01
+            && giant.R[0] > World.SolDist(.387) && giant.R[0] < 45 && giant.Temp[planet] > giant.C.ScorchedEdge
             && giant.StarSurfaceTemperature(0) <= giant.C.StarGiantTemperature,
             $"giant: radius {mainRadius:F3}->{giant.R[0]:F3}, planet {giant.Temp[planet]:F0}K");
         giant.Advance(0);
@@ -130,13 +131,13 @@ static class StarChecks
         bool setup = accreted.StarPhaseOf(0) == StarPhase.MainSequence && accreted.StarPhaseOf(wd) == StarPhase.WhiteDwarf
             && Math.Abs(accreted.M[wd] / 50 - .612) < 1e-12;
         double accretedFuel = (accreted.StarFuel[0] * accreted.M[0] + accreted.StarFuel[wd] * accreted.M[wd]) / (accreted.M[0] + accreted.M[wd]);
-        int accretedEvents = accreted.Events.Count;
+        int accretedEvents = accreted.Events.Count(e => e.RuleId == "stars");
         double accretedEjecta = accreted.StellarEjectaMass;
         accreted.Do(new Command(CmdKind.Move, Target: wd, X: accreted.X[0], Y: accreted.Y[0]));
         accreted.Advance(0);
         Check(setup && accreted.Alive[0] && !accreted.Alive[wd] && accreted.StarPhaseOf(0) == StarPhase.MainSequence
             && Math.Abs(accreted.M[0] / 50 - 1.812) < 1e-12 && Math.Abs(accreted.StarFuel[0] - accretedFuel) < 1e-12
-            && accreted.Events.Count == accretedEvents && accreted.StellarEjectaMass == accretedEjecta,
+            && accreted.Events.Count(e => e.RuleId == "stars") == accretedEvents && accreted.StellarEjectaMass == accretedEjecta,
             $"1.2-Sun MS swallows .612-Sun WD: {accreted.StarPhaseOf(0)}, mass {accreted.M[0] / 50:F3} Suns, fuel {accreted.StarFuel[0]:F9} (mixed {accretedFuel:F9}), no spurious death/ejecta");
         var accretedReplay = new World(16, 1); int accretedNext = 0;
         accretedReplay.Replay(accreted.Journal, ref accretedNext); accretedReplay.Advance(0);
