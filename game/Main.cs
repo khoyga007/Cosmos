@@ -779,7 +779,7 @@ public partial class Main : Node2D
             if ((_mouse - _downPos).Length() > DragStart)
             {
                 ToWorld(_mouse, out double x, out double y);
-                Toast(GodTools.Move(_w, i, x, y, _ui.MoveCircular) >= 0 ? $"Đã dời {NameOf(i)}" : "Không dời được tới đó");
+                Toast(GodTools.Move(_w, i, x, y, _ui.MoveCircular, _ui.MoveAlone) >= 0 ? $"Đã dời {NameOf(i)}" : "Không dời được tới đó");
                 _ui?.RefreshSelection();
             }
         }

@@ -17,7 +17,7 @@ public enum CmdKind
     Remove,          // Target is taken out of the world
     SetRule,         // rule Name ("temperature", ...) switched on (Amount != 0) or off (0)
     SeedLife,        // Target (a planet or moon) gets life at level Amount (0..1); 0 wipes it. Whether it lasts is up to the rules
-    Move,            // Target is put at (X, Y) with velocity (Vx, Vy); what it holds in orbit goes along
+    Move,            // Target is put at (X, Y) with velocity (Vx, Vy); what it holds in orbit goes along, unless Index is 1 (alone)
     Force,           // the god's hand: every object within radius Vx of (X, Y) gets velocity toward that point, Amount at
                      // the centre fading to 0 at the edge; negative Amount = away. Mass does not matter
     FastForward,     // every object rides its present orbit for Amount years (closed formula: no pull between siblings, no collisions)
@@ -98,7 +98,7 @@ public sealed partial class World
                 if (!Ok(t) || !double.IsFinite(c.X + c.Y + c.Vx + c.Vy)) return -1;
                 // its moons (anything lighter, inside its zone and held by it) keep their place around it;
                 // moving the heaviest object moves all it holds
-                double mx = c.X - X[t], my = c.Y - Y[t], mvx = c.Vx - Vx[t], mvy = c.Vy - Vy[t], zone = Attracts(t) ? Hill(t) : 0;
+                double mx = c.X - X[t], my = c.Y - Y[t], mvx = c.Vx - Vx[t], mvy = c.Vy - Vy[t], zone = Attracts(t) && c.Index != 1 ? Hill(t) : 0;
                 for (int i = 0; i < N; i++)
                 {
                     if (!Alive[i] || i == t || M[i] >= M[t]) continue;

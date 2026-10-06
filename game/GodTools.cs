@@ -239,9 +239,9 @@ public static class GodTools
 
     /// <summary>
     /// Put the target at (x, y). circular = it lands on a circular orbit around whatever rules that spot (at rest
-    /// when nothing heavier is there); otherwise it keeps the velocity it had.
+    /// when nothing heavier is there); otherwise it keeps the velocity it had. alone = what it holds in orbit stays behind.
     /// </summary>
-    public static int Move(World w, int target, double x, double y, bool circular)
+    public static int Move(World w, int target, double x, double y, bool circular, bool alone = false)
     {
         if (target < 0 || target >= w.N || !w.Alive[target]) return -1;
         double vx = w.Vx[target], vy = w.Vy[target];
@@ -257,7 +257,7 @@ public static class GodTools
                 vx = w.Vx[p] - dy / d * v; vy = w.Vy[p] + dx / d * v;
             }
         }
-        return w.Do(new Command(CmdKind.Move, Target: target, X: x, Y: y, Vx: vx, Vy: vy));
+        return w.Do(new Command(CmdKind.Move, Target: target, X: x, Y: y, Vx: vx, Vy: vy, Index: alone ? 1 : 0));
     }
 
     /// <summary>

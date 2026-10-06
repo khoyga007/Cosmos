@@ -93,6 +93,11 @@ static class RailChecks
             w.Do(new Command(CmdKind.Move, Target: ea, X: w.X[ea] + 30, Y: w.Y[ea] - 7, Vx: 0.1, Vy: 0.2));
             Check(Math.Abs(w.X[mo] - w.X[ea] - rx) < 1e-12 && Math.Abs(w.Y[mo] - w.Y[ea] - ry) < 1e-12 && Math.Abs(w.Vx[mo] - w.Vx[ea] - rvx) < 1e-12 && w.X[0] == sunX && w.X[4] == marsX,
                 $"Move(Earth): Moon still {Math.Sqrt(rx * rx + ry * ry):F3} away, Sun and Mars stay");
+            // the Sun: with what it holds (default) or alone (Index 1)
+            var s1 = World.SolSystem(0, 1234); var s2 = World.SolSystem(0, 1234); double ex = s1.X[ea], nx = s1.X[8];
+            s1.Do(new Command(CmdKind.Move, Target: 0, X: 500, Y: 0)); s2.Do(new Command(CmdKind.Move, Target: 0, X: 500, Y: 0, Index: 1));
+            Check(Math.Abs(s1.X[ea] - ex - 500) < 1e-9 && Math.Abs(s1.X[8] - nx - 500) < 1e-9 && s2.X[ea] == ex && s2.X[8] == nx && s2.X[0] == 500,
+                "Move(Sun): Earth and Neptune go along by default, stay behind when moved alone");
             var a = World.SolSystem(0, 1); var b = World.SolSystem(0, 1);
             a.Advance(0); b.Advance(0); b.Advance(0);
             Check(a.Hash() != b.Hash(), $"hash holds the step count: step {a.Step} vs {b.Step}");
