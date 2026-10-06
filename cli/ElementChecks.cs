@@ -8,11 +8,11 @@ using Cosmos.Core;
 
 static class ElementChecks
 {
-    // Real stepping, layers, edits and remnants. Re-captured 2026-10-06: Consts gained three fields (all hashed); with them left out
-    // only sol0-life, sol0-edit and sol2000-jump moved (events now carry their own year, tech ceiling, dome rules).
-    static readonly ulong[] Legacy = { 0xA8A5409EE7031F06, 0x6DADA1B5A0DFE793, 0x8A6D07920D330C95, 0x8B40C7BE31DAEE76,
-        0x2EBF1A9252E4D9D9, 0x3BA2A247DDC969D5, 0xDBAD0EA94D819A73, 0xA4DE01401BFF0FF6, 0xDD1BA97B6DC46C9D,
-        0x77B9FC2B68ADC608, 0xC98E2688995DF287 };
+    // S1 re-capture 2026-10-06: four EXISTING remnant-light/cooling defaults changed (all constants are hashed).
+    // Stellar scenes also settle layer clocks at phase boundaries and use the hot Mestel/NS cooling tracks.
+    static readonly ulong[] Legacy = { 0xFF93E515461EB21B, 0x1691CEFD928A00F2, 0x6E538E7F8250AC54, 0x8E43B74DB17CEB6A,
+        0x06F4793A7DF1D9C8, 0xD0AB98DA2959D1B4, 0x6C45D249D8FD6A1A, 0x4149B47870F8D8B7, 0x16D4AD80223BC008,
+        0x64F7A7B90834F061, 0x0535F96C63617AAE };
 
     public static bool Run()
     {

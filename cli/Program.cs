@@ -13,6 +13,7 @@ if (args.Length > 0 && args[0] == "layers") return LayerChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "stars") return StarChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "events") return StarEventChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "star-state") return StarStateChecks.Run() ? 0 : 1;
+if (args.Length > 0 && args[0] == "nova-stamps") return NovaStampChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "contact") return ContactChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "giant") return GiantChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "contact-bench") { ContactChecks.Bench(); return 0; }
@@ -120,6 +121,7 @@ allOk &= LayerChecks.Run();
 allOk &= StarChecks.Run();
 allOk &= StarEventChecks.Run();
 allOk &= StarStateChecks.Run();
+allOk &= NovaStampChecks.Run();
 allOk &= ContactChecks.Run();
 allOk &= GiantChecks.Run();
 allOk &= ElementChecks.Run();

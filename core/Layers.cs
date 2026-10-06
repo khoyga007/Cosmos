@@ -55,6 +55,9 @@ public sealed partial class World
     public double[] Pop = null!;        // 0 = no civilisation .. 1 = the planet is full
     public double[] Tech = null!;       // 0 upward; stage determined by Stages table
     public double[] Touched = null!;    // year life or population was last changed from outside the rules (seed, impact)
+    // Scratch for the life -> civ handoff within one rule pass; never read on a later pass.
+    double[] _lifeBefore = null!, _lifeDecaySpan = null!;
+    bool _lifeCurveReady;
 
     public static readonly Stage[] DefaultStages = new[]
     {
@@ -72,11 +75,12 @@ public sealed partial class World
     {
         Water = new int[capacity]; WaterYears = new double[capacity]; Life = new double[capacity];
         RichYears = new double[capacity]; Pop = new double[capacity]; Tech = new double[capacity]; Touched = new double[capacity];
+        _lifeBefore = new double[capacity]; _lifeDecaySpan = new double[capacity];
         Stages.Clear(); Stages.AddRange(DefaultStages);
         InitCiv(capacity);
     }
 
-    void ResetLayers(int i) { Water[i] = -1; WaterYears[i] = Life[i] = RichYears[i] = Pop[i] = Tech[i] = Touched[i] = 0; ResetCiv(i); }
+    void ResetLayers(int i) { Water[i] = -1; WaterYears[i] = Life[i] = RichYears[i] = Pop[i] = Tech[i] = Touched[i] = 0; _lifeDecaySpan[i] = double.NaN; ResetCiv(i); }
 
     void InitLayerRules()
     {
@@ -122,8 +126,10 @@ public sealed partial class World
     // after it count; otherwise the same history would end differently depending on how a jump was cut.
     void UpdateLife()
     {
+        _lifeCurveReady = true;
         for (int i = 0; i < N; i++)
         {
+            _lifeDecaySpan[i] = double.NaN;
             if (!Alive[i] || !IsWorld(i)) continue;
             double dt = Math.Min(RuleYears, Year - Touched[i]);
             bool fits = Water[i] == (int)WaterState.Liquid && Share(i, ElementRole.Rock) + Share(i, ElementRole.Metal) >= C.LifeSolidMin && Share(i, ElementRole.Carbon) >= C.LifeCarbonMin;
@@ -137,12 +143,14 @@ public sealed partial class World
             }
             int stage = LifeStage(i);
             double l0 = l;
+            if (!fits) { _lifeBefore[i] = l0; _lifeDecaySpan[i] = dt; }
             // logistic growth toward 1, written so that any dt gives the same curve
             l = fits ? 1 / (1 + (1 / l - 1) * Math.Exp(-C.LifeGrowth * dt)) : l * Math.Exp(-dt / C.LifeDecayYears);
             if (l < C.LifeSeed / 10)
             {
                 Life[i] = 0; RichYears[i] = 0;
-                LogEvent(i, "life", "life.end", Temp[i], Water[i], stage);
+                double at = Math.Clamp(C.LifeDecayYears * Math.Log(l0 / (C.LifeSeed / 10)), 0, dt);
+                LogEvent(i, "life", "life.end", Temp[i], Water[i], stage, Year - dt + at);
                 continue;
             }
             Life[i] = l;
@@ -182,11 +190,37 @@ public sealed partial class World
                 CivEvent(i, Civ[i], "civ.start", RichYears[i], room, Share(i, ElementRole.Metal), Year - dt);
             }
             int stage = TechStage(i);
-            double p0 = p, lived; // lived = population summed over the stretch (people * years), exact for both curves
+            double p0 = p, lived; // lived = population summed over the stretch (people * years)
             // the biosphere feeds the people: population follows what life there is, and starves when it fails
-            double PopAt(double years) => room > 0 ? room / (1 + (room / p0 - 1) * Math.Exp(-C.CivGrowth * years)) : p0 * Math.Exp(-years / C.CivDecayYears);
+            bool decaying = _lifeCurveReady && _lifeDecaySpan[i] >= dt && C.LifeDecayYears > 0 && _lifeBefore[i] >= C.CivLifeMin / 5 && _lifeBefore[i] > 0;
+            double life0 = decaying ? _lifeBefore[i] * Math.Exp(-(_lifeDecaySpan[i] - dt) / C.LifeDecayYears) : 0;
+            double fedYears = decaying && C.CivLifeMin > 0 ? Math.Clamp(C.LifeDecayYears * Math.Log(life0 / (C.CivLifeMin / 5)), 0, dt) : dt;
+            // Logistic population with exponentially falling carrying capacity: solve for 1/pop.
+            // Once the biosphere drops below the feeding mark, only domes (or starvation) remain.
+            double FedPop(double years)
+            {
+                if (C.CivGrowth == 0) return p0;
+                double rate = C.CivGrowth + 1 / C.LifeDecayYears;
+                return life0 * rate * Math.Exp(-years / C.LifeDecayYears)
+                    / (C.CivGrowth + (life0 * rate / p0 - C.CivGrowth) * Math.Exp(-rate * years));
+            }
+            double pFed = decaying ? FedPop(fedYears) : p0;
+            double PopAt(double years)
+            {
+                if (decaying && years <= fedYears) return FedPop(years);
+                double startPop = decaying ? pFed : p0, elapsed = decaying ? years - fedYears : years;
+                return room > 0 ? room / (1 + (room / startPop - 1) * Math.Exp(-C.CivGrowth * elapsed)) : startPop * Math.Exp(-elapsed / C.CivDecayYears);
+            }
             double LivedTo(double years)
             {
+                if (decaying)
+                {
+                    double fed = Math.Min(years, fedYears), elapsed = years - fed, qAfter = PopAt(years);
+                    double total = IntegratePopulation(FedPop, fed);
+                    if (elapsed > 0) total += room > 0 ? (C.CivGrowth > 0 ? room * elapsed + room / C.CivGrowth * Math.Log(pFed / qAfter) : pFed * elapsed)
+                        : C.CivDecayYears * (pFed - qAfter);
+                    return total;
+                }
                 double q = PopAt(years);
                 return room > 0 ? (C.CivGrowth > 0 ? room * years + room / C.CivGrowth * Math.Log(p0 / q) : p0 * years) : C.CivDecayYears * (p0 - q);
             }
@@ -194,7 +228,10 @@ public sealed partial class World
             if (p < C.CivSeed / 10)
             {
                 Pop[i] = 0; Tech[i] = 0;
-                CivEvent(i, Civ[i], "civ.end", room, Temp[i], stage);
+                // Locate the crossing on the same population curve, including a tiny but nonzero dome.
+                double lo = 0, hi = dt;
+                for (int it = 0; it < 50; it++) { double mid = 0.5 * (lo + hi); if (PopAt(mid) >= C.CivSeed / 10) lo = mid; else hi = mid; }
+                CivEvent(i, Civ[i], "civ.end", room, Temp[i], stage, Year - dt + hi);
                 continue;
             }
             Pop[i] = p;
@@ -217,6 +254,22 @@ public sealed partial class World
                 }
             else if (after != stage) CivEvent(i, Civ[i], $"civ.stage.{stage}.{after}", Tech[i], p, Share(i, ElementRole.Metal));
         }
+    }
+
+    // Only the changing biosphere needs quadrature; the fixed-room curves above retain their closed integral.
+    static double IntegratePopulation(Func<double, double> at, double years)
+    {
+        if (!(years > 0)) return 0;
+        double a = at(0), b = at(years / 2), c = at(years), whole = years * (a + 4 * b + c) / 6;
+        double Split(double lo, double hi, double x, double y, double z, double estimate, double tolerance, int depth)
+        {
+            double mid = (lo + hi) / 2, l = at((lo + mid) / 2), r = at((mid + hi) / 2);
+            double left = (mid - lo) * (x + 4 * l + y) / 6, right = (hi - mid) * (y + 4 * r + z) / 6;
+            double error = left + right - estimate;
+            if (depth == 0 || Math.Abs(error) <= 15 * tolerance) return left + right + error / 15;
+            return Split(lo, mid, x, l, y, left, tolerance / 2, depth - 1) + Split(mid, hi, y, r, z, right, tolerance / 2, depth - 1);
+        }
+        return Split(0, years, a, b, c, whole, 1e-9 * Math.Max(1, years), 18);
     }
     // Names, metal, ships and colonies: core/Civ.cs.
 

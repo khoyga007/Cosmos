@@ -63,7 +63,8 @@ public sealed partial class World
             {
                 _deferRocks = defer;
                 double target = Year + years / chunks;
-                if (NextStarBoundary() > target)
+                double nextCooling = NextCoolingBoundary(target);
+                if (Math.Min(NextStarBoundary(), nextCooling) > target)
                 {
                     Ride(t / chunks);
                     double elapsed = began == jumpBegan ? (k == chunks - 1 ? t : t * (k + 1) / chunks) : (target - began) * C.YearTime;
@@ -92,14 +93,18 @@ public sealed partial class World
                     // rock origins. Kepler must never apply the remnant mass retroactively to the old orbit.
                     while (Year < target)
                     {
-                        double at = Math.Min(target, NextStarBoundary());
+                        nextCooling = NextCoolingBoundary(target);
+                        double at = Math.Min(target, Math.Min(NextStarBoundary(), nextCooling));
                         _deferRocks = defer;
                         if (at > Year) { Ride((at - Year) * C.YearTime); Year = at; }
                         bool contact = RailContacts((Year - began) * C.YearTime);
                         if (defer) { PlaceRocks((Year - began) * C.YearTime); _deferRocks = false; }
                         if (contact) MergeRailContacts();
                         _starRule.NextYear = Year;
-                        RunRules();
+                        RunRules(coolingBoundary: at == nextCooling);
+                        // Expansion can put a world inside the new envelope at this very boundary,
+                        // even when it is the last instant of the jump (there is no next chunk).
+                        if (RailContacts((Year - began) * C.YearTime)) MergeRailContacts();
                         if (defer) { StartRockOrbits(); began = Year; PlanRockContacts((jumpBegan + years - Year) * C.YearTime); }
                     }
                 }
@@ -218,7 +223,7 @@ public sealed partial class World
     int RailStar(int i, out double meanInvD2)
     {
         meanInvD2 = 0;
-        if (!_riding) return -1;
+        if (!_riding || _prim == null) return -1;
         for (int k = i, p; (p = _prim![k]) >= 0; k = p)
             if (M[p] >= C.StarMass) { meanInvD2 = _mean![k]; return double.IsNaN(meanInvD2) ? -1 : p; }
         return -1;
