@@ -1120,8 +1120,12 @@ static class Audit
         var e = Hits(core, "\"star\\.|StarNovaRange|StarNovaDamage",
                           @"StarEvents|^\s*(public|internal|private)\s+(static\s+)?(const\s+)?(readonly\s+)?(double|float|int|long|bool|string)\s+Star");
         SayComments("starevent");
-        int rows = Hits(core, @"StarEvents\s*\.\s*Add|StarEvents\s*=\s*new", "$^").Count;
-        Info($"  (starevent: {rows} StarEvents row(s) declared in core; a Consts field declaration is configuration, not a row, and is not counted)");
+        // A row is one Add() call that names an event; the list declaration itself
+        // (`var StarEvents = new List<StarEvent>()`, StarEvents.cs:48) is not a row. Counting the
+        // declaration reported 6 rows on the C tree where the table holds 5 — Celine caught this
+        // running bf7f070, and it is the same mistake as counting a Consts field as an event row.
+        int rows = Hits(core, @"StarEvents\s*\.\s*Add\s*\(", "$^").Count;
+        Info($"  (starevent: {rows} StarEvents.Add row(s) in core; the list declaration and a Consts field declaration are not rows and are not counted)");
         bool starCode = Directory.GetFiles(core, "*.cs").Any(f =>
             Path.GetFileName(f) == "Stars.cs" || File.ReadAllText(f).Contains("StarNova") || File.ReadAllText(f).Contains("\"star."));
         if (!starCode)
