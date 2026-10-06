@@ -238,25 +238,12 @@ public sealed partial class World
             if (giant)
             {
                 Year = giantAt; StarFuel[i] = 1; SetRadius(i);
-                LogEvent(i, "stars", "star.giant", StarInitialMass[i] / C.StarSolarMass, R[i], StarLuminosity(i));
+                ApplyStarEvents(i, StarTransition.Giant);
             }
             if (death)
             {
                 Year = deathAt; StarFuel[i] = end;
-                bool nova = StarInitialMass[i] / C.StarSolarMass >= C.StarWhiteLimit;
-                if (nova)
-                {
-                    LogEvent(i, "stars", "star.nova", StarInitialMass[i] / C.StarSolarMass, M[i], C.StarNovaRange);
-                    for (int j = 0; j < N; j++) if (j != i && Alive[j] && IsWorld(j))
-                    {
-                        double dx = X[j] - X[i], dy = Y[j] - Y[i], distance = Math.Sqrt(dx * dx + dy * dy);
-                        if (distance < C.StarNovaRange && C.StarNovaRange > 0)
-                            Impact(j, C.ImpactScale * C.StarNovaDamage * Math.Pow(1 - distance / C.StarNovaRange, 2));
-                    }
-                }
-                ShedEnvelope(i); SetRadius(i);
-                string code = StarPhaseOf(i) switch { StarPhase.WhiteDwarf => "star.remnant.white", StarPhase.NeutronStar => "star.remnant.neutron", _ => "star.remnant.black" };
-                LogEvent(i, "stars", code, StarInitialMass[i] / C.StarSolarMass, M[i] / C.StarSolarMass, StellarEjectaMass);
+                ApplyStarEvents(i, StarTransition.Death);
                 StarCoolingAge[i] += Math.Max(0, now - Year);
             }
             else if (before >= end) StarCoolingAge[i] += dt;
@@ -265,21 +252,6 @@ public sealed partial class World
             SetRadius(i);
         }
         finally { Year = savedYear; _updatingStars = false; }
-    }
-
-    void ShedEnvelope(int i)
-    {
-        double birth = StarInitialMass[i] / C.StarSolarMass;
-        double final = birth < C.StarWhiteLimit ? C.StarWhiteIntercept + C.StarWhiteSlope * birth
-            : birth <= C.StarNeutronLimit ? C.StarNeutronMass : Math.Max(C.StarBlackMin, birth * C.StarBlackFraction);
-        double keepMass = Math.Clamp(final * C.StarSolarMass, 0, M[i]), lost = M[i] - keepMass, fraction = keepMass / M[i];
-        StellarEjectaMass += lost; StellarEjectaPx += lost * Vx[i]; StellarEjectaPy += lost * Vy[i];
-        for (int e = 0; e < ElementCount; e++)
-        {
-            int o = i * ElementCount + e; double kept = Comp[o] * fraction;
-            StellarEjectaMatter[e] += Comp[o] - kept; Comp[o] = kept;
-        }
-        M[i] = keepMass; // isotropic impulsive loss: velocity unchanged, future gravity changes the orbit
     }
 
     void HashStars(Action<ulong> mix)

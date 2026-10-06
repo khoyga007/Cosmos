@@ -53,13 +53,17 @@ public sealed partial class World
     readonly List<(int, int)> _hits = new();      // pairs that touched in this small step
     ulong _rng;
 
-    public World(int capacity, ulong seed, IEnumerable<Element>? elements = null)
+    public World(int capacity, ulong seed, IEnumerable<Element>? elements = null, IEnumerable<StarEvent>? starEvents = null)
     {
         Elements = Array.AsReadOnly((elements ?? ElementCatalog.Elements).ToArray());
         ElementCount = Elements.Count;
         if (ElementCount == 0) throw new ArgumentException("The element table must not be empty.", nameof(elements));
         _legacyElements = Elements.SequenceEqual(ElementCatalog.Elements);
         IndexElements(); C = new Consts(Elements);
+        var events = (starEvents ?? StarEventCatalog.Events).Select(SnapshotStarEvent).ToArray();
+        if (events.Select(e => e.Id).Distinct(StringComparer.Ordinal).Count() != events.Length) throw new ArgumentException("Star event ids must be unique.");
+        StarEvents = Array.AsReadOnly(events);
+        _legacyStarEvents = events.Length == StarEventCatalog.Events.Count && events.Zip(StarEventCatalog.Events).All(pair => StarEventCatalog.Same(pair.First, pair.Second));
         StellarEjectaMatter = new double[ElementCount];
         X = new double[capacity]; Y = new double[capacity]; Vx = new double[capacity]; Vy = new double[capacity];
         M = new double[capacity]; R = new double[capacity]; Comp = new double[capacity * ElementCount];
@@ -352,7 +356,7 @@ public sealed partial class World
             if (f.GetValue(C) is double d) mix(BitConverter.DoubleToUInt64Bits(d));
             else if (f.GetValue(C) is double[] a) foreach (double x in a) mix(BitConverter.DoubleToUInt64Bits(x));
         }
-        HashRules(mix); HashLayers(mix); HashStars(mix); HashElements(mix);
+        HashRules(mix); HashLayers(mix); HashStars(mix); HashElements(mix); HashStarEvents(mix);
         return h;
     }
 }

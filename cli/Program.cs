@@ -7,9 +7,11 @@ const double H = 0.5;
 if (args.Length > 0 && args[0] == "elements-probe") { ElementChecks.PrintProbe(); return 0; }
 if (args.Length > 0 && args[0] == "elements-bench") { ElementChecks.Bench(); return 0; }
 if (args.Length > 0 && args[0] == "elements") return ElementChecks.Run() ? 0 : 1;
+if (args.Length > 1 && args[0] == "elements-paired") return ElementChecks.PairedBench(args[1]) ? 0 : 1;
 if (args.Length > 0 && args[0] == "rails") return RailChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "layers") return LayerChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "stars") return StarChecks.Run() ? 0 : 1;
+if (args.Length > 0 && args[0] == "events") return StarEventChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "contact") return ContactChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "giant") return GiantChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "contact-bench") { ContactChecks.Bench(); return 0; }
@@ -112,6 +114,7 @@ allOk &= RailChecks.Run();
 allOk &= RuleChecks.Run();
 allOk &= LayerChecks.Run();
 allOk &= StarChecks.Run();
+allOk &= StarEventChecks.Run();
 allOk &= ContactChecks.Run();
 allOk &= GiantChecks.Run();
 allOk &= ElementChecks.Run();
