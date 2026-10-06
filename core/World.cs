@@ -50,6 +50,7 @@ public sealed partial class World
 
     readonly Stack<int> _free = new();
     readonly int[] _att, _near; int _na;          // pulling objects and nearby sweep candidates
+    readonly double[] _attX, _attY, _attR, _attGM; // their position, radius and g*M, gathered once per small step
     readonly List<(int, int)> _hits = new();      // pairs that touched in this small step
     ulong _rng;
 
@@ -69,6 +70,7 @@ public sealed partial class World
         M = new double[capacity]; R = new double[capacity]; Comp = new double[capacity * ElementCount];
         Alive = new bool[capacity]; Name = new string?[capacity]; Col = new uint[capacity]; Par = new int[capacity]; Grp = new int[capacity]; Gen = new int[capacity];
         _att = new int[capacity]; _near = new int[capacity];
+        _attX = new double[capacity]; _attY = new double[capacity]; _attR = new double[capacity]; _attGM = new double[capacity];
         Temp = new double[capacity]; _temperatureBands = new int[capacity]; _starSlots = new int[capacity]; _starLight = new double[capacity];
         InitLayers(capacity);
         InitStars(capacity);
@@ -269,8 +271,14 @@ public sealed partial class World
         double hs = h / Sub, g = C.G;
         for (int sub = 0; sub < Sub; sub++)
         {
+            // The pulling objects are gathered once per small step, with the numbers every kick needs. Positions,
+            // radii and masses are all constant for the whole step (kicks move velocities; Merge runs after), so a
+            // copy is the same value the old inner loop read one object at a time.
             _na = 0;
-            for (int i = 0; i < N; i++) if (Alive[i] && M[i] >= C.AttractMass) _att[_na++] = i;
+            for (int i = 0; i < N; i++) if (Alive[i] && M[i] >= C.AttractMass)
+            {
+                _att[_na] = i; _attX[_na] = X[i]; _attY[_na] = Y[i]; _attR[_na] = R[i]; _attGM[_na] = g * M[i]; _na++;
+            }
 
             // Outside a surface each acceleration is bounded by G*M/R². A candidate can be rejected using
             // distance already computed for gravity, without another scan of every rock/body pair.
@@ -280,31 +288,8 @@ public sealed partial class World
                 int j = _att[k];
                 maxKickDrift += Math.Abs(g) * M[j] / (R[j] * R[j]) * hs * hs;
             }
-            void Kick(int i, bool sweep)
-            {
-                double x = X[i], y = Y[i], ri = R[i], ax = 0, ay = 0;
-                int near = 0;
-                double travel = sweep ? hs * (Math.Sqrt(Vx[i] * Vx[i] + Vy[i] * Vy[i]) + maxAttSpeed) + maxKickDrift : 0;
-                for (int k = 0; k < _na; k++)
-                {
-                    int j = _att[k];
-                    if (j == i) continue;
-                    double dx = X[j] - x, dy = Y[j] - y, d2 = dx * dx + dy * dy, rr = ri + R[j];
-                    if (d2 <= rr * rr) { if (sweep || i < j) _hits.Add((i, j)); continue; }
-                    if (sweep && d2 <= (rr + travel) * (rr + travel)) _near[near++] = j;
-                    double inv = g * M[j] / (d2 * Math.Sqrt(d2));
-                    ax += dx * inv; ay += dy * inv;
-                }
-                Vx[i] += ax * hs; Vy[i] += ay * hs;
-                for (int k = 0; k < near; k++)
-                {
-                    int j = _near[k];
-                    if (SweptContact(x - X[j], y - Y[j], (Vx[i] - Vx[j]) * hs, (Vy[i] - Vy[j]) * hs, ri + R[j]))
-                        _hits.Add((i, j));
-                }
-            }
             // Pulling objects kick first; gravity only reads positions. A rock's sweep then has both final velocities.
-            for (int k = 0; k < _na; k++) Kick(_att[k], false);
+            for (int k = 0; k < _na; k++) KickBody(_att[k], hs);
             for (int k = 0; k < _na; k++)
             {
                 int i = _att[k];
@@ -316,7 +301,7 @@ public sealed partial class World
                         (Vx[i] - Vx[j]) * hs, (Vy[i] - Vy[j]) * hs, R[i] + R[j])) _hits.Add((i, j));
                 }
             }
-            for (int i = 0; i < N; i++) if (Alive[i] && !Attracts(i)) Kick(i, true);
+            for (int i = 0; i < N; i++) if (Alive[i] && !Attracts(i)) KickRock(i, hs, maxAttSpeed, maxKickDrift);
             for (int i = 0; i < N; i++) if (Alive[i]) { X[i] += Vx[i] * hs; Y[i] += Vy[i] * hs; }
 
             if (_hits.Count > 0)
@@ -331,6 +316,47 @@ public sealed partial class World
     }
     // ponytail: two objects that both do NOT pull never collide with each other (rock through rock);
     //           add a grid broad-phase when belts should grind.
+
+    // One kick, two shapes. A pulling body never sweeps and is never its own candidate; a rock always sweeps and is
+    // never in the pulling list. Splitting them removes branches that were dead on every call, and changes no
+    // arithmetic: same terms, same order, same rounding.
+    void KickBody(int i, double hs)
+    {
+        double x = X[i], y = Y[i], ri = R[i], ax = 0, ay = 0;
+        for (int k = 0; k < _na; k++)
+        {
+            int j = _att[k];
+            if (j == i) continue;
+            double dx = _attX[k] - x, dy = _attY[k] - y, d2 = dx * dx + dy * dy, rr = ri + _attR[k];
+            if (d2 <= rr * rr) { if (i < j) _hits.Add((i, j)); continue; }
+            double inv = _attGM[k] / (d2 * Math.Sqrt(d2));
+            ax += dx * inv; ay += dy * inv;
+        }
+        Vx[i] += ax * hs; Vy[i] += ay * hs;
+    }
+
+    void KickRock(int i, double hs, double maxAttSpeed, double maxKickDrift)
+    {
+        double x = X[i], y = Y[i], ri = R[i], ax = 0, ay = 0;
+        int near = 0;
+        double travel = hs * (Math.Sqrt(Vx[i] * Vx[i] + Vy[i] * Vy[i]) + maxAttSpeed) + maxKickDrift;
+        for (int k = 0; k < _na; k++)
+        {
+            int j = _att[k];
+            double dx = _attX[k] - x, dy = _attY[k] - y, d2 = dx * dx + dy * dy, rr = ri + _attR[k];
+            if (d2 <= rr * rr) { _hits.Add((i, j)); continue; }
+            if (d2 <= (rr + travel) * (rr + travel)) _near[near++] = j;
+            double inv = _attGM[k] / (d2 * Math.Sqrt(d2));
+            ax += dx * inv; ay += dy * inv;
+        }
+        Vx[i] += ax * hs; Vy[i] += ay * hs;
+        for (int k = 0; k < near; k++)
+        {
+            int j = _near[k];
+            if (SweptContact(x - X[j], y - Y[j], (Vx[i] - Vx[j]) * hs, (Vy[i] - Vy[j]) * hs, ri + R[j]))
+                _hits.Add((i, j));
+        }
+    }
 
     // Relative straight drift against a circle. The axis test rejects almost all belt/body pairs cheaply.
     static bool SweptContact(double x, double y, double dx, double dy, double r)
