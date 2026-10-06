@@ -58,6 +58,7 @@ public sealed partial class World
     readonly int[] _temperatureBands, _starSlots;
     readonly double[] _starLight;
     public readonly List<Rule> Rules = new();
+    Rule[] _builtinRules = null!; // only this table is known not to read rock positions between jump chunks
     public const int EventCapacity = 1024; // PLACEHOLDER [P], not a content decision by Yang
     readonly List<RuleEvent> _events = new();
     public IReadOnlyList<RuleEvent> Events => _events;
@@ -68,6 +69,7 @@ public sealed partial class World
         Rules.Add(new Rule("temperature", "M,X,Y,StarMass,LuminosityExponent,TemperatureScale,FrozenEdge,ScorchedEdge", "Temp,temperature.band", 0.01,
             w => w.UpdateTemperature()));
         InitLayerRules();
+        _builtinRules = Rules.ToArray();
     }
 
     void ResetTemperature(int i) { Temp[i] = double.NaN; _temperatureBands[i] = -1; }
@@ -86,7 +88,7 @@ public sealed partial class World
         // ponytail: O(objects * stars); enough for the system tier, revisit at galaxy scale.
         for (int i = 0; i < N; i++)
         {
-            if (!Alive[i]) continue;
+            if (!Alive[i] || _deferRocks && !Attracts(i)) continue;
             double flux = 0;
             int host = RailStar(i, out double meanInvD2); // in a jump: the star it orbits counts by its orbit average
             for (int s = 0; s < stars; s++)

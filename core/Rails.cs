@@ -20,6 +20,7 @@ public sealed partial class World
     int[]? _prim, _ord;
     double[]? _mean, _hill, _sm, _bx, _by, _bvx, _bvy, _cx, _cy, _cvx, _cvy;
     Comparer<int>? _heavyFirst;
+    bool _deferRocks;
 
     // A long jump is cut into chunks and the rule table runs after each, so water, life and civilisation see the
     // years go by instead of one leap. Chunks are never shorter than the fastest rule needs, never more than
@@ -30,9 +31,56 @@ public sealed partial class World
         foreach (Rule r in Rules) if (r.Enabled) fastest = Math.Min(fastest, r.RhythmYears);
         double years = t / C.YearTime;
         int chunks = (int)Math.Clamp(Math.Ceiling(years / fastest), 1, Math.Max(1, C.JumpSamples));
+        bool defer = chunks > 1 && Rules.Count == _builtinRules.Length;
+        for (int i = 0; defer && i < Rules.Count; i++) defer &= ReferenceEquals(Rules[i], _builtinRules[i]);
+        bool hasRocks = false;
+        for (int i = 0; defer && i < N; i++) if (Alive[i] && !Attracts(i)) { hasRocks = true; break; }
+        defer &= hasRocks;
+        if (defer)
+        {
+            Ride(0); // choose the same initial primary hierarchy and retain each rock's relative orbit
+            for (int i = 0; i < N; i++) if (Alive[i] && !Attracts(i))
+            {
+                // Rock scratch cells are unused by body-only Ride; keep inertial starts for escape trajectories.
+                _cx![i] = X[i]; _cy![i] = Y[i]; _cvx![i] = Vx[i]; _cvy![i] = Vy[i];
+            }
+        }
         _riding = true;
-        for (int k = 0; k < chunks; k++) { Ride(t / chunks); Year += years / chunks; RunRules(); }
-        _riding = false;
+        _deferRocks = defer;
+        try
+        {
+            for (int k = 0; k < chunks; k++)
+            {
+                Ride(t / chunks);
+                if (defer && k == chunks - 1) { FinishRocks(t); _deferRocks = false; }
+                Year += years / chunks; RunRules();
+            }
+        }
+        finally { _riding = _deferRocks = false; }
+    }
+
+    // ponytail: rocks exert no pull, so omit their lump recoil during body chunks. Their initial primary
+    // is held for this jump; future rules that need rock positions use the untrimmed path above.
+    // No-rock worlds and single-chunk jumps retain the original operation order and exact hashes.
+    void FinishRocks(double t)
+    {
+        for (int i = 0; i < N; i++)
+        {
+            if (!Alive[i] || Attracts(i)) continue;
+            int p = _prim![i];
+            if (p < 0 || !Kepler(ref _bx![i], ref _by![i], ref _bvx![i], ref _bvy![i], C.G * (M[p] + M[i]), t, out _mean![i]))
+            {
+                X[i] = _cx![i] + _cvx![i] * t; Y[i] = _cy![i] + _cvy![i] * t;
+                Vx[i] = _cvx[i]; Vy[i] = _cvy[i];
+                if (p >= 0) OffRails++;
+                _mean![i] = double.NaN;
+            }
+            else
+            {
+                X[i] = X[p] + _bx[i]; Y[i] = Y[p] + _by[i];
+                Vx[i] = Vx[p] + _bvx[i]; Vy[i] = Vy[p] + _bvy[i];
+            }
+        }
     }
 
     // During a jump a planet is looked at once per chunk, at whatever point of its orbit it happens to be. On a
@@ -65,7 +113,7 @@ public sealed partial class World
 
         int na = 0;
         for (int i = 0; i < N; i++) if (Alive[i] && Attracts(i)) ord[na++] = i;
-        if (na == 0) { for (int i = 0; i < N; i++) if (Alive[i]) { X[i] += Vx[i] * t; Y[i] += Vy[i] * t; prim[i] = -1; } return; }
+        if (na == 0) { for (int i = 0; i < N; i++) if (Alive[i] && !_deferRocks) { X[i] += Vx[i] * t; Y[i] += Vy[i] * t; prim[i] = -1; } return; }
         Array.Sort(ord, 0, na, _heavyFirst); // a primary is always heavier than what it holds: it comes first
 
         // who rides around whom. `upTo` = how many of the pulling objects (heaviest first) may be the primary.
@@ -95,19 +143,19 @@ public sealed partial class World
         // lump = an object plus everything that rides around it: mass, centre of mass, its velocity
         for (int i = 0; i < N; i++)
         {
-            if (!Alive[i]) continue;
+            if (!Alive[i] || _deferRocks && !Attracts(i)) continue;
             sm[i] = M[i]; bx[i] = M[i] * X[i]; by[i] = M[i] * Y[i]; bvx[i] = M[i] * Vx[i]; bvy[i] = M[i] * Vy[i];
             cx[i] = cy[i] = cvx[i] = cvy[i] = 0;
         }
         void into(int i, int p) { sm[p] += sm[i]; bx[p] += bx[i]; by[p] += by[i]; bvx[p] += bvx[i]; bvy[p] += bvy[i]; }
-        for (int i = 0; i < N; i++) if (Alive[i] && !Attracts(i)) { prim[i] = primaryOf(i, na); into(i, prim[i]); }
+        for (int i = 0; !_deferRocks && i < N; i++) if (Alive[i] && !Attracts(i)) { prim[i] = primaryOf(i, na); into(i, prim[i]); }
         for (int k = na - 1; k > 0; k--) into(ord[k], prim[ord[k]]); // lightest first: a lump is whole before it is added on
-        for (int i = 0; i < N; i++) if (Alive[i]) { bx[i] /= sm[i]; by[i] /= sm[i]; bvx[i] /= sm[i]; bvy[i] /= sm[i]; }
+        for (int i = 0; i < N; i++) if (Alive[i] && (!_deferRocks || Attracts(i))) { bx[i] /= sm[i]; by[i] /= sm[i]; bvx[i] /= sm[i]; bvy[i] /= sm[i]; }
 
         // every lump: its place seen from its primary, moved along the orbit. Nothing in X.. changes yet.
         for (int i = 0; i < N; i++)
         {
-            if (!Alive[i]) continue;
+            if (!Alive[i] || _deferRocks && !Attracts(i)) continue;
             int p = prim[i];
             if (p < 0) { bx[i] += bvx[i] * t; by[i] += bvy[i] * t; mean[i] = double.NaN; continue; } // the whole system drifts
             bx[i] -= X[p]; by[i] -= Y[p]; bvx[i] -= Vx[p]; bvy[i] -= Vy[p];
@@ -124,7 +172,7 @@ public sealed partial class World
             Vx[i] = ovx + bvx[i] - cvx[i] / sm[i]; Vy[i] = ovy + bvy[i] - cvy[i] / sm[i];
         }
         for (int k = 0; k < na; k++) place(ord[k]);
-        for (int i = 0; i < N; i++) if (Alive[i] && !Attracts(i)) place(i);
+        for (int i = 0; !_deferRocks && i < N; i++) if (Alive[i] && !Attracts(i)) place(i);
     }
 
     // Two-body motion of (x, y, vx, vy) around a centre of strength mu = G * mass, over time t. Closed orbits only:
