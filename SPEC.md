@@ -46,6 +46,7 @@ Only planets + moons carry layers (`IsWorld`: pulls others, not a star). Code `c
 - NOT built: contact between two peoples, war, trade, colony independence, moving a planet with its ships.
 
 ## 3. Engine decisions (Claire's, delegated)
+- PRINCIPLE (Yang 2026-10-06): the game is built so the ENGINE LAYER can be edited freely — adding/removing powers, constants, physics, element groups, rules, civ stats must stay a small local change. Hard-coded counts and per-case code are debt. Weigh every design against this.
 - Godot 4.7.2 .NET (`E:\Godot\Godot_v4.7.2-stable_mono_win64\`) = shell. Sim core = plain C# library `core/`, NO Godot types, runs headless in `cli/`.
 - Sim 2D, one plane per world. Fixed step, seeded stream, sequential → a run repeats exactly (cli "repeat" check must stay green).
 - Pull = exact 1/r^2, no softening. Touch = merge (heavier keeps identity). Every object feels every PULLING object. 8 small steps per `Advance`. Slots stable (dead slot reused, never shifted).
