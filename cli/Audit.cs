@@ -204,7 +204,7 @@ static class Audit
         return w;
     }
 
-    // ---- World.cs:235-253 — what the hash covers
+    // ---- World.cs:235-253 — what the hash covers (Step joined it in master 4718358, World.cs:247)
 
     static void HashChecks()
     {
@@ -244,16 +244,20 @@ static class Audit
         Expect(src.Hash() != same.Hash(),
             $"hash-replay (Commands.cs:75, World.cs:248-252): a journal with its SetConst row removed replays to hash {same.Hash():X16} vs live {src.Hash():X16} ({(src.Hash() == same.Hash() ? "EQUAL, so the difference is invisible" : "differs")}); {src.Journal.Count} journal rows, {dropped.Count} replayed");
 
-        // The one thing the widened hash still does not cover: Step, which Replay keys on (Commands.cs:45).
-        // h = 0 changes no state, so two worlds at different journal positions still hash the same.
+        // Step used to sit outside the widened hash while Replay keys on it (Commands.cs:45), so two worlds at
+        // different journal positions looked alike; master 4718358 mixes it (World.cs:247). The third world is the
+        // control: same state and same step count, so an equal hash there pins the difference above on Step itself.
         var s1 = new World(4, 1);
         s1.Add(0, 0, 0, 0, 3e-4, RockMix, "p");
         var s2 = new World(4, 1);
         s2.Add(0, 0, 0, 0, 3e-4, RockMix, "p");
+        var s3 = new World(4, 1);
+        s3.Add(0, 0, 0, 0, 3e-4, RockMix, "p");
         s1.Advance(0);
         s2.Advance(0); s2.Advance(0);
-        Expect(s1.Hash() != s2.Hash(),
-            $"hash-step (World.cs:235-253 mixes no Step, Commands.cs:45 Replay applies a row only when journal[next].Step == Step): after two zero-length steps world B is at Step {s2.Step} and world A at Step {s1.Step}, same hash {(s1.Hash() == s2.Hash() ? "EQUAL" : "differ")} — a journal row that arrived at step {s1.Step} is applied by A and skipped forever by B, which then blocks every later row");
+        s3.Advance(0); s3.Advance(0);
+        Expect(s1.Hash() != s2.Hash() && s2.Hash() == s3.Hash(),
+            $"hash-step (World.cs:247 mixes Step, Commands.cs:45 Replay applies a row only when journal[next].Step == Step): A at Step {s1.Step} hashes {s1.Hash():X16}, B at Step {s2.Step} hashes {s2.Hash():X16}, a control world also at Step {s3.Step} hashes {s3.Hash():X16} — a journal row A applies and B skips can no longer hide behind an equal hash");
     }
 
     // ---- Commands.cs / World.cs — the god's dial has no domain
@@ -320,7 +324,7 @@ static class Audit
         Run(w, 4);
         int c = w.Add(5, 0, 0, 0, 2e-4, RockMix, "C");
         Expect(b != c,
-            $"slot-identity (World.cs:111 reuses a freed slot, Commands.cs:126 pushes it): B died in a merge, the next Add returned slot {c} = B's slot and it is now '{w.Name[c]}'; a slot index held by the window or a tool silently denotes a different object — the core has no generation counter to detect it");
+            $"slot-identity (World.cs:111 reuses a freed slot, Commands.cs:136 pushes it): B died in a merge, the next Add returned slot {c} = B's slot and it is now '{w.Name[c]}'; a slot index held by the window or a tool silently denotes a different object — the core has no generation counter to detect it");
 
         Expect(w.Water[c] == -1 && w.Life[c] == 0 && double.IsNaN(w.Temp[c]) && w.Par[c] == -1 && w.Grp[c] == 0,
             $"slot-reuse-clean (World.cs:112-115): the reused slot {c} starts with Water {w.Water[c]}, Life {w.Life[c]:F2}, Temp {(double.IsNaN(w.Temp[c]) ? "NaN" : w.Temp[c].ToString("F1"))}, Par {w.Par[c]}, Grp {w.Grp[c]} — nothing leaks from the dead object");
@@ -345,7 +349,7 @@ static class Audit
         Expect(h1 <= 3 * h0,
             $"hill-orphan (World.cs:97-103 falls back to Heaviest()): Remove(Earth) moves the Moon's zone {h0:F4} -> {h1:F4} ({h1 / h0:F1}x) and Kind {k0} -> {k1} with no signal that the parent is gone; Hill() answers about the Sun while looking like the same call");
 
-        // Merge re-parents the children to the survivor (World.cs:139) while Kill clears them (Commands.cs:127):
+        // Merge re-parents the children to the survivor (World.cs:139) while Kill clears them (Commands.cs:137):
         // two different answers to the same event. Check the Merge half is coherent, in a scene with nothing
         // else in it so the outcome is not a guess.
         var mg = new World(8, 1);
@@ -354,7 +358,7 @@ static class Audit
         int heavy = mg.Add(0.01, 0, 0, 0, 2e-3, RockMix, "impact");
         Run(mg, 4);
         Expect(mg.Par[orb] == heavy && mg.Live == 2,
-            $"merge-reparents-moon (World.cs:139): a body heavier than the host merged into it, so the moon's Par is now {mg.Par[orb]} = slot {heavy} (host slot {host}, host alive {mg.Alive[host]}), Kind {(int)mg.KindOf(orb)}, live {mg.Live} of 3; Kill instead clears children to -1 (Commands.cs:127), so the same event answers two ways");
+            $"merge-reparents-moon (World.cs:139): a body heavier than the host merged into it, so the moon's Par is now {mg.Par[orb]} = slot {heavy} (host slot {host}, host alive {mg.Alive[host]}), Kind {(int)mg.KindOf(orb)}, live {mg.Live} of 3; Kill instead clears children to -1 (Commands.cs:137), so the same event answers two ways");
     }
 
     // ---- the swept test the core's own note asks for (World.cs:232)
@@ -405,13 +409,13 @@ static class Audit
 
     static void RailChecks()
     {
-        // an unbound object rides a straight line; OffRails is reset per chunk (Rails.cs:113), not per jump
+        // an unbound object rides a straight line; OffRails is reset per chunk (Rails.cs:118), not per jump
         var w = World.SolSystem(0, 1234);
         w.Add(80, 0, 0, 4.0, 1e-9, RockMix, "escapee"); // escape speed at 80 is sqrt(2*50/80) = 1.12
         w.Do(new Command(CmdKind.FastForward, Amount: 1e6));
         int chunks = (int)Math.Clamp(Math.Ceiling(1e6 / 1.0), 1, Math.Max(1, w.C.JumpSamples));
         Expect(w.OffRails >= chunks,
-            $"rails-offrails-per-chunk (Rails.cs:113 resets OffRails inside Ride): a 1e6-year jump ran {chunks} chunk(s), the escapee was off rails in each, OffRails reports {w.OffRails}; the field answers 'the last chunk', not 'the jump'");
+            $"rails-offrails-per-chunk (Rails.cs:118 resets OffRails inside Ride): a 1e6-year jump ran {chunks} chunk(s), the escapee was off rails in each, OffRails reports {w.OffRails}; the field answers 'the last chunk', not 'the jump'");
 
         // the jump must not lose an object that is bound, and must move it about one turn
         var s = World.SolSystem(0, 1234);
@@ -434,7 +438,7 @@ static class Audit
         Expect(sep < 4 * rr && t.Alive[twin],
             $"rails-coorbital: a twin on Earth's orbit, opposite side, after a 5-year jump sits {sep:F1} from Earth (orbit radius {rr:F1}, start {2 * rr:F1}) and is {(t.Alive[twin] ? "alive" : "gone")}");
 
-        // Ride (Rails.cs:101-177) moves objects along orbits and straight lines and runs no pair test at all,
+        // Ride (Rails.cs:106-182) moves objects along orbits and straight lines and runs no pair test at all,
         // so a jump cannot produce a collision. Two bodies meeting head-on: stepping merges them, a jump does not.
         World Pair()
         {
@@ -448,7 +452,7 @@ static class Audit
         var jp = Pair();
         jp.Do(new Command(CmdKind.FastForward, Amount: 1));
         Expect(st.Live == jp.Live,
-            $"jump-no-contact (Rails.cs:101-177 Ride has no pair test, Rails.cs:163 solves each lump with Kepler, which sends an unbound object down a straight line at Rails.cs:188): the same scene, a 1.5e-4 body 3 units from a 1e-3 body closing at relative speed 1, ends with {st.Live} object(s) under 40 steps but {jp.Live} object(s) after a 1-year jump — the shot is now at x {jp.X[1]:F1}, {jp.Merges} merge(s) during the jump; a jump is also a wall that nothing can hit");
+            $"jump-no-contact (Rails.cs:106-182 Ride has no pair test, Rails.cs:168 solves each lump with Kepler, which sends an unbound object down a straight line at Rails.cs:193): the same scene, a 1.5e-4 body 3 units from a 1e-3 body closing at relative speed 1, ends with {st.Live} object(s) under 40 steps but {jp.Live} object(s) after a 1-year jump — the shot is now at x {jp.X[1]:F1}, {jp.Merges} merge(s) during the jump; a jump is also a wall that nothing can hit");
     }
 
     // ---- Layers.cs
@@ -495,12 +499,13 @@ static class Audit
             $"layers-impact (Layers.cs:179-186): a rock of {1e-4 / World.EarthMass:F2} Earth hit Earth of {pm0 / World.EarthMass:F2} Earth at orbital speed, share {1e-4 / pm0:F3} against the log threshold ImpactScale/10 = {m.C.ImpactScale / 10:E2}, life {before:F4} -> {m.Life[earth]:F4}, {m.Events.Count} event(s); only the mass share counts, the relative speed plays no part");
     }
 
-    // ---- Rails.cs:28-85 — the deferred-rock jump path (Celine's trim, master 969cd49+)
+    // ---- Rails.cs:28-90 — the deferred-rock jump path (Celine's trim 969cd49, one formula for either placement since master 4718358)
 
-    // Jump() takes the trimmed path only while the rule table is exactly the builtin one (Rails.cs:35-36).
-    // One extra rule the jump does not know about turns the same jump back into the full path, with the same
-    // chunk count because its rhythm equals the fastest builtin one, so only the rock handling differs.
-    static void Untrim(World w) => w.Rules.Add(new Rule("audit-noop", "M", "", 0.01, static _ => { }));
+    // Rocks ride the orbit they had at the jump start on either path since master 4718358 (Rails.cs:39-44); a rule
+    // table that is not the builtin one only moves their placement from the end of the jump to after every chunk
+    // (Rails.cs:57-60). This adds one rule whose rhythm equals the fastest builtin one, so the chunk count stays put
+    // and only the rock work differs.
+    static void AddModRule(World w) => w.Rules.Add(new Rule("audit-noop", "M", "", 0.01, static _ => { }));
 
     static double JumpMs(World w, double years)
     {
@@ -539,13 +544,13 @@ static class Audit
         const int n = 5000;
         var trim = World.SolSystem(n, 7);
         var full = World.SolSystem(n, 7);
-        Untrim(full);
+        AddModRule(full);
         double msT = JumpMs(trim, 1e6), msF = JumpMs(full, 1e6);
         Expect(trim.Year > 0 && msT < msF,
-            $"defer-cost (Rails.cs:35-40 decides defer, Rails.cs:117/159/176 leave rocks out of the chunks): one 1e6-year jump over {n} rocks costs {msT:F0} ms on the builtin rule table against {msF:F0} ms in the same scene once one extra no-op rule is added ({msF / Math.Max(msT, 1e-9):F1}x); same years, same chunk count, only the rock work differs");
+            $"defer-cost (Rails.cs:39-44 decides deferral, Rails.cs:122/164/181 leave rocks out of the chunks): one 1e6-year jump over {n} rocks costs {msT:F0} ms on the builtin rule table against {msF:F0} ms in the same scene once one extra no-op rule is added ({msF / Math.Max(msT, 1e-9):F1}x); same years, same chunk count, only the rock work differs");
 
-        // rocks are left out of every rule tick inside the jump, but Rails.cs:56 clears the flag before the last
-        // RunRules, so the temperatures that come out of a jump must match the path that never defers
+        // rocks are left out of every rule tick inside the jump, but Rails.cs:60 clears the flag before the RunRules
+        // that are meant to see them (every chunk once the table is not the builtin one), so the two must agree
         var hot = World.SolSystem(n, 7);
         Run(hot, 20);
         int rock = -1;
@@ -553,22 +558,22 @@ static class Audit
         double before = hot.Temp[rock];
         hot.Do(new Command(CmdKind.FastForward, Amount: 1e4));
         var hot2 = World.SolSystem(n, 7);
-        Untrim(hot2);
+        AddModRule(hot2);
         Run(hot2, 20);
         hot2.Do(new Command(CmdKind.FastForward, Amount: 1e4));
         double rel = Math.Abs(hot.Temp[rock] - hot2.Temp[rock]) / Math.Max(Math.Abs(hot2.Temp[rock]), 1e-9);
         Expect(!double.IsNaN(hot.Temp[rock]) && rel < 0.05,
-            $"defer-rock-temp (Rules.cs:88 skips rocks while _deferRocks; Rails.cs:56 clears it before the last RunRules): after a 1e4-year jump rock {rock} reads {hot.Temp[rock]:F1} K in the trimmed path against {hot2.Temp[rock]:F1} K in the untrimmed one ({rel:P2} apart; {before:F1} K before the jump) — the belt is not left frozen at its pre-jump temperature");
+            $"defer-rock-temp (Rules.cs:88 skips rocks while _deferRocks; Rails.cs:60 clears the flag before the RunRules that see them): after a 1e4-year jump rock {rock} reads {hot.Temp[rock]:F1} K on the builtin table against {hot2.Temp[rock]:F1} K with one extra rule in it — placement once at the end against placement after every chunk ({rel:P2} apart; {before:F1} K before the jump) — the belt is not left frozen at its pre-jump temperature");
 
-        // the trim freezes each rock's primary for the whole jump (Rails.cs:43-47 Ride(0) picks it, Rails.cs:66-85
-        // FinishRocks solves that one arc from the pre-jump state). Is it the same belt? Compare the two paths at
-        // the default chunk cap and at a cap 20x finer: what shrinks with the cap was the coarse reference, what
-        // stays is the trim itself.
+        // each rock rides the primary it had at the jump start, over the time gone by (Rails.cs:45-49 Ride(0) keeps
+        // that orbit, Rails.cs:70-90 PlaceRocks solves the one arc from it), and master 4718358 gives both placements
+        // that same formula. Compare them at the default chunk cap and at a cap 20x finer: what shrinks with the cap
+        // is the coarse reference, what stays is the jump itself.
         static double DriftAt(double cap, out double bodies, out int moved, out int touching, out long merges)
         {
             var a = World.SolSystem(2000, 11);
             var b = World.SolSystem(2000, 11);
-            Untrim(b);
+            AddModRule(b);
             a.Do(new Command(CmdKind.SetConst, Name: "JumpSamples", Amount: cap));
             b.Do(new Command(CmdKind.SetConst, Name: "JumpSamples", Amount: cap));
             a.Do(new Command(CmdKind.FastForward, Amount: 1e4));
@@ -594,13 +599,13 @@ static class Audit
         // gap above cannot be the rule itself
         var c1 = World.SolSystem(2000, 11);
         var c2 = World.SolSystem(2000, 11);
-        Untrim(c2);
+        AddModRule(c2);
         Run(c1, 50); Run(c2, 50);
         double ctrl = 0;
         for (int i = 0; i < c1.N; i++) if (c1.Alive[i]) ctrl = Math.Max(ctrl, Math.Max(Math.Abs(c1.X[i] - c2.X[i]), Math.Abs(c1.Y[i] - c2.Y[i])));
         Info($"  control: 50 ordinary steps with and without the no-op rule: furthest position difference {ctrl:E2}");
         Expect(fine < 1.0,
-            $"defer-divergence (Rails.cs:35-36 decides the trim from the rule table, Rails.cs:43-47/65-84 freeze the rock's primary for the whole jump): the same scene jumped 1e4 years by the trimmed path and by the untrimmed one ends with rocks {coarse:E2} units apart at the default chunk cap and {fine:E2} at cap 4000, {mv2} of 2000 further apart than their own radius, bodies {b2:F4} radii, rocks-touching-a-body {tc2}, merges over the next 20 steps {mg2}; refining the reference 20x does not shrink the gap ({coarse:E2} -> {fine:E2}) and the rule that switches paths is inert over 50 ordinary steps ({ctrl:E2}), so FastForward puts the belt somewhere else wherever any extra rule is installed in the table");
+            $"defer-divergence (Rails.cs:39-44 decides deferral from the rule table alone, Rails.cs:45-49 keeps each rock's jump-start orbit, Rails.cs:70-90 PlaceRocks replays that one arc — one formula for either placement since master 4718358): the same scene jumped 1e4 years with the builtin table and with one extra no-op rule ends with rocks {coarse:E2} units apart at the default chunk cap and {fine:E2} at cap 4000, {mv2} of 2000 further apart than their own radius, bodies {b2:F4} radii, rocks-touching-a-body {tc2}, merges over the next 20 steps {mg2}; refining the reference 20x does not shrink the gap ({coarse:E2} -> {fine:E2}) and the rule that moves placement to every chunk is inert over 50 ordinary steps ({ctrl:E2}) — placing the belt once at the end or after every chunk now agrees to the last bit, so the trim costs time and no longer physics");
     }
 
     // ---- Layers.cs — Touched, the stretch-exact clock (master 969cd49)
@@ -646,7 +651,7 @@ static class Audit
             $"touched-impact-split (Layers.cs:183 Touched = Year on Impact, Layers.cs:101 uses it): after a real hit on Earth, 2e6 years in one jump vs twenty 1e5-year jumps: Life {ib.Life[earth]:F4} vs {im.Life[earth]:F4}, Pop {ib.Pop[earth]:F4} vs {im.Pop[earth]:F4}, Tech {ib.Tech[earth]:F4} vs {im.Tech[earth]:F4}");
     }
 
-    // ---- Commands.cs:95-115 — the two god commands that arrived with master (Move, Force)
+    // ---- Commands.cs:95-125 — the two god commands that arrived with master (Move, Force)
 
     static void GodChecks()
     {
@@ -664,24 +669,38 @@ static class Audit
         Expect(src.Hash() == rep.Hash(),
             $"move-force-replay (Commands.cs:43-46 keys Replay on Step, World.cs:244 mixes Vx/Vy): a journal of {src.Journal.Count} rows holding Push, Move and Force replays to hash {rep.Hash():X16} against the live {src.Hash():X16} ({(src.Hash() == rep.Hash() ? "the same" : "different")}), {next} rows consumed");
 
-        // the hand's falloff is (1 - d/rad), but the loop splits on d2 == 0 (Commands.cs:110)
+        // the hand's falloff is (1 - d/rad); a body dead on the centre has no side to be shoved to, so the core
+        // skips it on purpose (Commands.cs:120, ruled intended in master 4718358). Measured below as a fact, then
+        // filed as a risk and not a defect: it bites only if a Force centre can land exactly on a body.
         var f = new World(8, 1);
         int centre = f.Add(0, 0, 0, 0, 3e-4, RockMix, "centre");
         int near = f.Add(0.001, 0, 0, 0, 3e-4, RockMix, "near");
         int far = f.Add(0.4, 0, 0, 0, 3e-4, RockMix, "far");
         f.Do(new Command(CmdKind.Force, X: 0, Y: 0, Vx: 0.5, Amount: 1));
-        Expect(Math.Abs(f.Vx[centre]) > 1e-9,
-            $"force-centre-hole (Commands.cs:110 skips d2 == 0, Commands.cs:111 k = Amount*(1-d/rad)/d): one Force of radius 0.5 and Amount 1 at (0, 0) moves the body exactly at the centre by {Math.Abs(f.Vx[centre]):E2}, one 0.001 away by {Math.Abs(f.Vx[near]):F4} and one at 0.4 by {Math.Abs(f.Vx[far]):F4} — the object the hand is aimed at is the one object it cannot move, and a neighbour inside a radius of the centre is thrown harder than the far one");
+        Expect(Math.Abs(f.Vx[centre]) < 1e-12 && Math.Abs(f.Vx[near]) > 4 * Math.Abs(f.Vx[far]),
+            $"force-centre-hole (Commands.cs:120 keeps d2 == 0 a no-op, Commands.cs:121 k = Amount*(1-d/rad)/d): one Force of radius 0.5 and Amount 1 at (0, 0) leaves the body exactly at the centre at {Math.Abs(f.Vx[centre]):E2}, moves one 0.001 away by {Math.Abs(f.Vx[near]):F4} and one at 0.4 by {Math.Abs(f.Vx[far]):F4} — the (1 - d/rad) falloff holds everywhere except on the tile the hand is aimed at");
+        Risk($"force-centre-hole: the body the hand is pointed at is the only one it cannot move, and its neighbour 0.001 off-centre is thrown {Math.Abs(f.Vx[near]) / Math.Max(Math.Abs(f.Vx[far]), 1e-12):F1}x harder than one at 0.4 — a hole in the tool's meaning the moment a Force centre lands exactly on a body, by design until then (Commands.cs:120)");
 
-        // Move re-derives nothing: Par still points at a parent the object no longer orbits (Kill clears it)
+        // Move carries what the moved body holds (Commands.cs:95-111, master 4718358): anything lighter, inside its
+        // zone and bound to it keeps its place around it, so Par and Kind stay true. Kill is still the only command
+        // that clears a child (Commands.cs:137).
         var mv = World.SolSystem(0, 1234);
         const int earth = 3, moon = 9;
         double zone = mv.Hill(earth);
+        double r0 = Math.Sqrt(Math.Pow(mv.X[moon] - mv.X[earth], 2) + Math.Pow(mv.Y[moon] - mv.Y[earth], 2));
         mv.Do(new Command(CmdKind.Move, Target: earth, X: mv.X[earth] + 30, Y: mv.Y[earth], Vx: mv.Vx[earth], Vy: mv.Vy[earth]));
-        double dx = mv.X[moon] - mv.X[earth], dy = mv.Y[moon] - mv.Y[earth];
-        double r = Math.Sqrt(dx * dx + dy * dy);
-        Expect(!(mv.Par[moon] >= 0 && r > 10 * zone),
-            $"move-par-stale (Commands.cs:95-100 re-derives nothing, Commands.cs:127 clears children only on Kill, World.cs:76 decides Kind from Par): Move(Earth) 30 units away leaves the Moon {r:F2} units out, {r / zone:F0}x outside its parent's Hill zone ({zone:F4}, World.cs:97-102), while Par still answers {mv.Par[moon]} and KindOf still answers {(int)mv.KindOf(moon)} (2 = Moon) — the rails drop it (primaryOf wants it inside the zone) and the panel keeps calling it a moon");
+        double r = Math.Sqrt(Math.Pow(mv.X[moon] - mv.X[earth], 2) + Math.Pow(mv.Y[moon] - mv.Y[earth], 2));
+        Expect(Math.Abs(r - r0) < 1e-12 && r < zone && mv.Par[moon] == earth,
+            $"move-par-stale (Commands.cs:95-111 carries the lighter bodies the moved object holds, Commands.cs:137 clears children only on Kill, World.cs:76 decides Kind from Par): Move(Earth) 30 units away leaves the Moon {r:F4} units from it against {r0:F4} before and a Hill zone of {zone:F4} (World.cs:97-102), Par answers {mv.Par[moon]} and KindOf {(int)mv.KindOf(moon)} (2 = Moon) — the moon rides along at its own offset and the panel stays right");
+
+        // the same command with the held body as the target: the new loop carries the children of the moved object
+        // only, and nothing else re-derives Par or Kind when the god drags the child itself
+        var mc = World.SolSystem(0, 1234);
+        double zoneC = mc.Hill(earth);
+        mc.Do(new Command(CmdKind.Move, Target: moon, X: mc.X[moon] + 30, Y: mc.Y[moon], Vx: mc.Vx[moon], Vy: mc.Vy[moon]));
+        double rc = Math.Sqrt(Math.Pow(mc.X[moon] - mc.X[earth], 2) + Math.Pow(mc.Y[moon] - mc.Y[earth], 2));
+        Expect(!(mc.Par[moon] == earth && rc > 10 * zoneC),
+            $"move-child-par-stale (Commands.cs:95-111 carries the children of the moved object, so a drag on the child itself re-derives nothing; Commands.cs:137 clears Par only on Kill, World.cs:76 reads Kind from Par): Move(Moon) 30 units out leaves it {rc:F2} units from Earth, {rc / zoneC:F0}x outside the parent's Hill zone ({zoneC:F4}, World.cs:97-102), while Par still answers {mc.Par[moon]} = Earth and KindOf still answers {(int)mc.KindOf(moon)} (2 = Moon) — the rails drop it (primaryOf wants it inside the zone) and the panel keeps calling it a moon");
     }
 
     // ---- core/Civ.cs — a ship, its goal, the people it carries (round 5 hunt)
@@ -825,7 +844,7 @@ static class Audit
         Run(th, 4);
         bool poisoned = !double.IsFinite(th.Vx[ts]) || !double.IsFinite(th.X[ts]) || !double.IsFinite(th.Y[ts]);
         Expect(!poisoned,
-            $"ship-thrust-negative (Civ.cs:22 ShipThrust, Civ.cs:203 closing = Math.Clamp(Math.Sqrt(0.5 * C.ShipThrust * d), 0.02, Math.Max(0.02, C.ShipSpeed)), Civ.cs:219 Vx[i] += wx, Commands.cs:144-146 Consts.Set rejects only a non-finite INPUT): SetConst ShipThrust -1 is accepted, 0.5 * thrust * d is negative, Math.Sqrt turns it into NaN and Math.Clamp passes NaN through (every comparison with NaN is false), so Civ.cs:204/216/219 write NaN into the ship's own cells — Vx {th.Vx[ts]}, X {th.X[ts]}, Y {th.Y[ts]} after 4 steps while the goal keeps Vx {th.Vx[tgoal]}; the ship is then skipped by Civ.cs:201 (!(d > 0) is true for NaN) and can never touch, land or die again — {absorbed}, so only the negative branch escapes");
+            $"ship-thrust-negative (Civ.cs:22 ShipThrust, Civ.cs:203 closing = Math.Clamp(Math.Sqrt(0.5 * C.ShipThrust * d), 0.02, Math.Max(0.02, C.ShipSpeed)), Civ.cs:219 Vx[i] += wx, Commands.cs:154-156 Consts.Set rejects only a non-finite INPUT): SetConst ShipThrust -1 is accepted, 0.5 * thrust * d is negative, Math.Sqrt turns it into NaN and Math.Clamp passes NaN through (every comparison with NaN is false), so Civ.cs:204/216/219 write NaN into the ship's own cells — Vx {th.Vx[ts]}, X {th.X[ts]}, Y {th.Y[ts]} after 4 steps while the goal keeps Vx {th.Vx[tgoal]}; the ship is then skipped by Civ.cs:201 (!(d > 0) is true for NaN) and can never touch, land or die again — {absorbed}, so only the negative branch escapes");
 
         // (11) 30 years of flight is the only clock a ship has
         var yv = new World(8, 1);
