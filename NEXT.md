@@ -9,13 +9,14 @@ READ `SPEC.md` FIRST (game, model, engine decisions, round-1 work packages). Thi
 - Round 1 handed out on bridge thread `cosmos` (SPEC §6): P1 Celine `E:\Cosmos-celine` celine/rules · P2 Ariel `E:\Cosmos-ariel` ariel/godtools · P3 Selica `E:\Cosmos-selica` selica/audit. Agents wake only when Yang prompts them.
 - Claire next: review + merge reports; fast-forward on rails (SPEC §4 OPEN); collect Yang's content for rules 2-4 (life/civ parameters, thresholds).
 
-## 06/10 session 2 — START HERE
-- master = see `git log`: rails fast-forward · Celine P1 merged (f613d7a) · Ariel P2 merged (god tools; selftest + bench re-run by Claire, pass) · LAYERS water/life/civ + SeedLife + impact (content Claire's, Yang: "em tự nghĩ"; SPEC §2b) · jumps run rules in chunks. Full `cli` green (34 OK), `--selftest` pass.
-- Round 2 handed out (SPEC §7, thread `cosmos`): Ariel = window shows year/layers/event log + jump/seed/rule buttons; Celine = review Layers+Rails + trim jump cost; Selica = P3 audit (never started). All need Yang's prompt.
-- Yang's answers 06/10: rules 2-4 content = Claire decides; run.bat = later; temperature placeholders = not looked at; Web-chat ideas (seed life / lộ diện / tua lại) not his, allowed if Claire finds them good → SeedLife built, the other two = next slices; old web folders = keep for now.
-- Until Ariel's round 2 lands the window shows NOTHING of water/life/civ (core only, proven by cli). Do not tell Yang it is visible.
-- Claire next: review round 2; then "lộ diện" slice (civ reacts to the god) — design AFTER Yang has seen life/civ in the window; snapshot/rewind; civ uses metal.
-- Still open with Yang: run `E:/Cosmos/run.bat` (window never seen by anyone: `_Draw`, mouse, Ariel's panels).
+## 06/10 session 3 — START HERE
+- master = see `git log`. Round 2 MERGED: Celine `celine/jumpcost` (rocks solved once per jump, 1e6 yr @50000 rocks ~4.4 s -> ~0.16 s) + Ariel `ariel/godtools` (window: year, layer panel, life/civ marks, Vietnamese event log, jump buttons, SeedLife slider, rule switches). Re-run by Claire: full `cli` 49 OK exit 0; `--selftest` PASS; `--bench=3` ~97 fps @5010.
+- Celine's 7 review defects (CELINE-REVIEW.md) FIXED by Claire, each has a check in `cli/LayerChecks.cs`: threshold crossings / life + civ start placed at their own moment inside a stretch; tech = exact population*years; `Touched[i]` = year of last outside change (seed, impact) caps a rule's dt; CivMetalRef 0 = metal not needed; r0 = 0 in Kepler -> straight line; Hash now covers velocity, Comp, Par, rng, free slots, all Consts (ALL old hash values changed); impact / low seed clears RichYears at once.
+- State of a layer = as of that rule's last run (life every 1000 yr): a seed 2 yr old may show 1 yr of growth. By design.
+- Selica P3 audit: accepted, no commit yet (branch `selica/audit`). Needs Yang's prompt.
+- NOBODY has seen the window (agents headless only). Yang to run `E:/Cosmos/run.bat`; his eyes judge the look.
+- Claire next, AFTER Yang has looked: "lộ diện" slice (civ reacts to the god), snapshot/rewind, civ uses metal. SPEC §4 OPEN list still open.
+- Yang's standing answers 06/10: layer content = Claire decides; Web-chat ideas allowed if good; old web folders = keep.
 
 ## Lessons (process)
 - Yang explaining an idea over several messages = listen only; build on his explicit go. (06/10: core rewritten mid-explanation, Yang objected; commit f0817b1 kept because it matched.)

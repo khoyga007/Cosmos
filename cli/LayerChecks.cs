@@ -83,6 +83,63 @@ static class LayerChecks
                 $"replay: hash {r.Hash():X16} vs live {w.Hash():X16}, {w.Events.Count} events equal; WaterFreeze 300 froze Earth");
         }
 
+        // Celine's review, round 2: seven inputs that used to give wrong or broken state
+        {
+            void Set(World w, string name, double value) => w.Do(new Command(CmdKind.SetConst, Name: name, Amount: value));
+            World Seeded(double samples, double life)
+            {
+                var w = World.SolSystem(0, 1234); Set(w, "JumpSamples", samples);
+                w.Do(new Command(CmdKind.SeedLife, Target: earth, Amount: life)); return w;
+            }
+            bool near(double a, double b, double rel) => Math.Abs(a - b) <= rel * Math.Max(Math.Abs(a), Math.Abs(b));
+
+            // 1 + 2: one history, cut into 1 chunk or 200, ends the same
+            var a = Seeded(1, .001); var b = Seeded(200, .001);
+            Jump(a, 4e5); Jump(b, 4e5);
+            Check(near(a.RichYears[earth], b.RichYears[earth], 1e-6) && near(a.Pop[earth], b.Pop[earth], 0.05) && near(a.Tech[earth], b.Tech[earth], 0.05) && b.Pop[earth] == 0,
+                $"cut 1 / 200: rich years {a.RichYears[earth]:F1} / {b.RichYears[earth]:F1}, pop {a.Pop[earth]:G4} / {b.Pop[earth]:G4}");
+            Jump(a, 3e5); Jump(b, 3e5);
+            Check(near(a.RichYears[earth], b.RichYears[earth], 1e-6) && near(a.Pop[earth], b.Pop[earth], 0.05) && near(a.Tech[earth], b.Tech[earth], 0.05) && b.Pop[earth] > 0.5,
+                $"cut 1 / 200, 3e5 years on: pop {a.Pop[earth]:F4} / {b.Pop[earth]:F4}, tech {a.Tech[earth]:F3} / {b.Tech[earth]:F3}");
+            a = Seeded(1, .8); b = Seeded(200, .8);
+            foreach (var w in new[] { a, b }) { Set(w, "LifeGrowth", 0); Set(w, "CivRiseYears", 0); Jump(w, 100); }
+            Jump(a, 1e4); Jump(b, 1e4);
+            Check(near(a.Pop[earth], b.Pop[earth], 1e-9) && near(a.Tech[earth], b.Tech[earth], 1e-6),
+                $"cut 1 / 200, fixed biosphere: pop {a.Pop[earth]:F6} / {b.Pop[earth]:F6}, tech {a.Tech[earth]:F6} / {b.Tech[earth]:F6}");
+
+            // 3: a seed grows only for the years it has lived
+            var s3 = World.SolSystem(0, 1234); Jump(s3, 999);
+            s3.Do(new Command(CmdKind.SeedLife, Target: earth, Amount: .1)); Jump(s3, 2);
+            double lived = s3.Rules.Find(r => r.Id == "life")!.LastYear - 999; // the life rule last ran at year 1000
+            double want = 1 / (1 + 9 * Math.Exp(-s3.C.LifeGrowth * lived));
+            Check(lived > 0 && lived <= 2 && Math.Abs(s3.Life[earth] - want) < 1e-9, $"seed 0.1 at year 999, life rule ran {lived:F2} years later: {s3.Life[earth]:F7}, expected {want:F7}");
+
+            // 4: CivMetalRef 0 on a planet without metal
+            var s4 = Seeded(200, .8); Set(s4, "CivRiseYears", 0); Set(s4, "LifeGrowth", 0); Set(s4, "CivMetalRef", 0);
+            s4.Do(new Command(CmdKind.AddMatter, Target: earth, Index: 3, Amount: -s4.Comp[earth * World.NElem + 3]));
+            Jump(s4, 1e4);
+            Check(double.IsFinite(s4.Tech[earth]) && s4.Tech[earth] > 0, $"CivMetalRef 0, no metal: tech {s4.Tech[earth]:F4}");
+
+            // 5: two objects on one spot, then a jump
+            var s5 = new World(3, 1);
+            s5.Do(new Command(CmdKind.Create, Amount: 50, Mix: new double[] { 1, 0, 0, 0, 0, 0 }));
+            s5.Do(new Command(CmdKind.Create, Amount: World.EarthMass, Mix: new[] { 0, .01, .66, .32, .005, .005 }));
+            Jump(s5, 1);
+            Check(s5.X.Take(s5.N).Concat(s5.Y.Take(s5.N)).All(double.IsFinite), $"two objects on one spot + jump: x {s5.X[0]:G3}, {s5.X[1]:G3}; off rails {s5.OffRails}");
+
+            // 6: the hash sees a push and a changed constant before any step
+            var s6 = World.SolSystem(0, 1234); ulong h0 = s6.Hash();
+            s6.Do(new Command(CmdKind.Push, Target: earth, Vx: 1)); ulong h1 = s6.Hash();
+            Set(s6, "LifeGrowth", 1); ulong h2 = s6.Hash();
+            Check(h0 != h1 && h1 != h2, $"hash after push / after SetConst: {h0:X16} / {h1:X16} / {h2:X16}");
+
+            // 7: an impact that breaks the rich biosphere clears its count at once
+            var s7 = Seeded(200, 1); Jump(s7, 1e6);
+            s7.Do(new Command(CmdKind.Create, X: s7.X[earth], Y: s7.Y[earth], Vx: s7.Vx[earth], Vy: s7.Vy[earth], Amount: World.EarthMass * .002, Mix: new[] { 0, .01, .66, .32, .005, .005 }));
+            s7.Advance(0);
+            Check(s7.Life[earth] < s7.C.CivLifeMin && s7.RichYears[earth] == 0, $"impact 0.2%: life {s7.Life[earth]:F3}, rich years {s7.RichYears[earth]:F0}");
+        }
+
         // cost of a long jump with the whole rule table
         {
             var w = World.SolSystem(5_000, 1234);

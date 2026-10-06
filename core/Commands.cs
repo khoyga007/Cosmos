@@ -82,7 +82,8 @@ public sealed partial class World
             }
             case CmdKind.SeedLife:
                 if (!Ok(c.Target) || !IsWorld(c.Target) || !(c.Amount >= 0 && c.Amount <= 1)) return -1;
-                Life[c.Target] = c.Amount;
+                Life[c.Target] = c.Amount; Touched[c.Target] = Year;
+                if (c.Amount < C.CivLifeMin) RichYears[c.Target] = 0;
                 return c.Target;
             case CmdKind.FastForward:
                 if (!double.IsFinite(c.Amount) || c.Amount <= 0) return -1;

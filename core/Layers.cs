@@ -44,6 +44,7 @@ public sealed partial class World
     public double[] RichYears = null!;  // years in a row with Life >= CivLifeMin
     public double[] Pop = null!;        // 0 = no civilisation .. 1 = the planet is full
     public double[] Tech = null!;       // 0 upward; stage = whole part, capped at MaxTechStage
+    public double[] Touched = null!;    // year life or population was last changed from outside the rules (seed, impact)
 
     public const int MaxTechStage = 3;  // 1 farming, 2 industry, 3 space [P]
     static readonly double[] LifeStageAt = { 0.01, 0.1, 0.5 }; // 1 microbes, 2 complex, 3 rich biosphere [P]
@@ -51,10 +52,10 @@ public sealed partial class World
     void InitLayers(int capacity)
     {
         Water = new int[capacity]; WaterYears = new double[capacity]; Life = new double[capacity];
-        RichYears = new double[capacity]; Pop = new double[capacity]; Tech = new double[capacity];
+        RichYears = new double[capacity]; Pop = new double[capacity]; Tech = new double[capacity]; Touched = new double[capacity];
     }
 
-    void ResetLayers(int i) { Water[i] = -1; WaterYears[i] = Life[i] = RichYears[i] = Pop[i] = Tech[i] = 0; }
+    void ResetLayers(int i) { Water[i] = -1; WaterYears[i] = Life[i] = RichYears[i] = Pop[i] = Tech[i] = Touched[i] = 0; }
 
     void InitLayerRules()
     {
@@ -87,22 +88,26 @@ public sealed partial class World
         }
     }
 
+    // One run of a clock rule stands for all the years since its last run. Whatever happens inside that stretch
+    // (life starts, a threshold is crossed, the god seeds a planet) is placed at its own moment and only the years
+    // after it count; otherwise the same history would end differently depending on how a jump was cut.
     void UpdateLife()
     {
-        double dt = RuleYears;
         for (int i = 0; i < N; i++)
         {
             if (!Alive[i] || !IsWorld(i)) continue;
+            double dt = Math.Min(RuleYears, Year - Touched[i]);
             bool fits = Water[i] == (int)WaterState.Liquid && Share(i, 2) + Share(i, 3) >= C.LifeSolidMin && Share(i, 4) >= C.LifeCarbonMin;
             double l = Life[i];
             if (l <= 0)
             {
                 if (!fits || WaterYears[i] < C.LifeSparkYears) continue;
-                Life[i] = C.LifeSeed;
+                Life[i] = l = C.LifeSeed;
                 LogEvent(i, "life", "life.start", WaterYears[i], Temp[i], Share(i, 4));
-                continue;
+                dt = Math.Min(dt, WaterYears[i] - C.LifeSparkYears); // it has been alive since the wait was over
             }
             int stage = LifeStage(i);
+            double l0 = l;
             // logistic growth toward 1, written so that any dt gives the same curve
             l = fits ? 1 / (1 + (1 / l - 1) * Math.Exp(-C.LifeGrowth * dt)) : l * Math.Exp(-dt / C.LifeDecayYears);
             if (l < C.LifeSeed / 10)
@@ -112,7 +117,14 @@ public sealed partial class World
                 continue;
             }
             Life[i] = l;
-            RichYears[i] = l >= C.CivLifeMin ? RichYears[i] + dt : 0;
+            if (l < C.CivLifeMin) RichYears[i] = 0;
+            else if (l0 >= C.CivLifeMin) RichYears[i] += dt;
+            else
+            {
+                // crossed the mark inside this stretch: count from the moment of crossing on the growth curve
+                double at = Math.Log((1 / l0 - 1) / (1 / C.CivLifeMin - 1)) / C.LifeGrowth;
+                RichYears[i] = at >= 0 && at <= dt ? dt - at : 0;
+            }
             int after = LifeStage(i);
             if (after != stage) LogEvent(i, "life", $"life.stage.{stage}.{after}", l, Temp[i], Water[i]);
         }
@@ -120,21 +132,31 @@ public sealed partial class World
 
     void UpdateCiv()
     {
-        double dt = RuleYears;
         for (int i = 0; i < N; i++)
         {
             if (!Alive[i] || !IsWorld(i)) continue;
+            double dt = Math.Min(RuleYears, Year - Touched[i]);
             double p = Pop[i], room = Life[i];
             if (p <= 0)
             {
                 if (room < C.CivLifeMin || RichYears[i] < C.CivRiseYears) continue;
-                Pop[i] = C.CivSeed; Tech[i] = 0;
+                Pop[i] = p = C.CivSeed; Tech[i] = 0;
                 LogEvent(i, "civ", "civ.start", RichYears[i], room, Share(i, 3));
-                continue;
+                dt = Math.Min(dt, RichYears[i] - C.CivRiseYears); // it has been there since the wait was over
             }
             int stage = TechStage(i);
+            double p0 = p, lived; // lived = population summed over the stretch (people * years), exact for both curves
             // the biosphere feeds the people: population follows what life there is, and starves when it fails
-            p = room >= C.CivLifeMin / 5 ? room / (1 + (room / p - 1) * Math.Exp(-C.CivGrowth * dt)) : p * Math.Exp(-dt / C.CivDecayYears);
+            if (room > 0 && room >= C.CivLifeMin / 5)
+            {
+                p = room / (1 + (room / p - 1) * Math.Exp(-C.CivGrowth * dt));
+                lived = C.CivGrowth > 0 ? room * dt + room / C.CivGrowth * Math.Log(p0 / p) : p0 * dt;
+            }
+            else
+            {
+                p *= Math.Exp(-dt / C.CivDecayYears);
+                lived = C.CivDecayYears * (p0 - p);
+            }
             if (p < C.CivSeed / 10)
             {
                 Pop[i] = 0; Tech[i] = 0;
@@ -142,7 +164,8 @@ public sealed partial class World
                 continue;
             }
             Pop[i] = p;
-            Tech[i] += C.CivTechRate * p * Math.Min(1, Share(i, 3) / C.CivMetalRef) * dt;
+            double metal = C.CivMetalRef > 0 ? Math.Min(1, Share(i, 3) / C.CivMetalRef) : 1; // 0 = metal not needed
+            Tech[i] += C.CivTechRate * lived * metal;
             int after = TechStage(i);
             if (after != stage) LogEvent(i, "civ", $"civ.stage.{stage}.{after}", Tech[i], p, Share(i, 3));
         }
@@ -155,7 +178,8 @@ public sealed partial class World
     {
         if (Life[k] <= 0 && Pop[k] <= 0) return;
         double keep = Math.Exp(-share / C.ImpactScale), before = Life[k];
-        Life[k] *= keep; Pop[k] *= keep;
+        Life[k] *= keep; Pop[k] *= keep; Touched[k] = Year;
+        if (Life[k] < C.CivLifeMin) RichYears[k] = 0; // the rich biosphere is gone now, not at the next life run
         if (share >= C.ImpactScale / 10) LogEvent(k, "impact", "impact", share, before, Life[k]);
     }
 
@@ -165,7 +189,7 @@ public sealed partial class World
         for (int i = 0; i < N; i++)
         {
             if (!Alive[i]) continue;
-            mix((ulong)Water[i]); number(WaterYears[i]); number(Life[i]); number(RichYears[i]); number(Pop[i]); number(Tech[i]);
+            mix((ulong)Water[i]); number(WaterYears[i]); number(Life[i]); number(RichYears[i]); number(Pop[i]); number(Tech[i]); number(Touched[i]);
         }
     }
 }

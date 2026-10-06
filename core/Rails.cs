@@ -72,7 +72,7 @@ public sealed partial class World
             {
                 X[i] = _cx![i] + _cvx![i] * t; Y[i] = _cy![i] + _cvy![i] * t;
                 Vx[i] = _cvx[i]; Vy[i] = _cvy[i];
-                if (p >= 0) OffRails++;
+                OffRails++;
                 _mean![i] = double.NaN;
             }
             else
@@ -113,7 +113,7 @@ public sealed partial class World
 
         int na = 0;
         for (int i = 0; i < N; i++) if (Alive[i] && Attracts(i)) ord[na++] = i;
-        if (na == 0) { for (int i = 0; i < N; i++) if (Alive[i] && !_deferRocks) { X[i] += Vx[i] * t; Y[i] += Vy[i] * t; prim[i] = -1; } return; }
+        if (na == 0) { for (int i = 0; i < N; i++) if (Alive[i] && !_deferRocks) { X[i] += Vx[i] * t; Y[i] += Vy[i] * t; prim[i] = -1; OffRails++; } return; }
         Array.Sort(ord, 0, na, _heavyFirst); // a primary is always heavier than what it holds: it comes first
 
         // who rides around whom. `upTo` = how many of the pulling objects (heaviest first) may be the primary.
@@ -184,7 +184,7 @@ public sealed partial class World
     {
         meanInvD2 = double.NaN;
         double r0 = Math.Sqrt(x * x + y * y), inva = 2 / r0 - (vx * vx + vy * vy) / mu;
-        if (!(inva > 0) || !(mu > 0)) { x += vx * t; y += vy * t; return false; }
+        if (!(inva > 0) || !(mu > 0) || double.IsInfinity(inva)) { x += vx * t; y += vy * t; return false; } // also r0 = 0: two objects on one spot
         double a = 1 / inva, n = Math.Sqrt(mu * inva * inva * inva);
         double dm = Math.IEEERemainder(n * t, Math.Tau);
         double ec = 1 - r0 * inva, es = (x * vx + y * vy) / (n * a * a); // e*cos(E0), e*sin(E0)
