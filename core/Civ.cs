@@ -25,6 +25,7 @@ public sealed partial class Consts
     public double ShipMass = 1e-12;
 }
 
+/// Home = the world it rose on, -1 once that world is gone.
 public readonly record struct CivInfo(string Name, int Home, double BornYear);
 
 public sealed partial class World
@@ -100,13 +101,14 @@ public sealed partial class World
     // The people of a ship step out on world k.
     void Land(int k, int civ, double tech)
     {
-        if (!IsSolid(k)) return;
+        if (!IsSolid(k)) { CivEvent(k, civ, "civ.ship.lost", civ, k, tech); return; } // flew into a star or a gas world
         if (Pop[k] <= 0)
         {
             Pop[k] = C.CivSeed; Tech[k] = tech; Civ[k] = civ; Touched[k] = Year;
             CivEvent(k, civ, "civ.colony", civ, tech, Life[k]);
         }
         else if (Civ[k] == civ) Tech[k] = Math.Max(Tech[k], tech); // supply: what home has learned
+        else CivEvent(k, civ, "civ.ship.turned", civ, Civ[k], tech); // another people got here first: nobody steps out
     }
 
     // a ship touched a pulling object (called from Merge): it lands or is lost; its mass is not worth adding
@@ -130,13 +132,14 @@ public sealed partial class World
     int ShipGoal(int from, int civ, bool supply)
     {
         int best = -1; double bestD = double.MaxValue; int own = 0;
+        double reach = Math.Max(0.02, C.ShipSpeed) * C.ShipLifeYears * C.YearTime; // further than a ship flies in its life = lost for sure
         for (int j = 0; j < N; j++)
         {
             if (j == from || !Alive[j] || !IsSolid(j)) continue;
             if (Pop[j] > 0) { if (Civ[j] == civ) own++; continue; }
             if (C.CivDome <= 0 && Life[j] < C.CivLifeMin / 5) continue; // nothing to live on there
             double dx = X[j] - X[from], dy = Y[j] - Y[from], d = dx * dx + dy * dy;
-            if (d < bestD) { bestD = d; best = j; }
+            if (d < bestD && d < reach * reach) { bestD = d; best = j; }
         }
         if (best >= 0 || !supply || own == 0) return best;
         int pick = (int)(Next() * own);
@@ -150,12 +153,16 @@ public sealed partial class World
         bool direct = _riding || RuleYears > 4 * ShipRhythmYears; // years went by in one go: no time to watch a ship fly
         if (!direct)
             for (int i = 0; i < N; i++)
-                if (Alive[i] && IsShip(i) && (!Ok(ShipTo[i]) || Year - ShipBorn[i] > C.ShipLifeYears)) Kill(i);
+                if (Alive[i] && IsShip(i) && (!Ok(ShipTo[i]) || Year - ShipBorn[i] > C.ShipLifeYears))
+                {
+                    CivEvent(Ok(ShipFrom[i]) ? ShipFrom[i] : i, ShipCiv[i], "civ.ship.lost", ShipCiv[i], ShipTo[i], ShipTech[i]);
+                    Kill(i);
+                }
 
         int n = N; // ships made below are not worlds; no need to look at them
         for (int i = 0; i < n; i++)
         {
-            if (!Alive[i] || !IsWorld(i) || Civ[i] < 0 || Pop[i] < C.ShipPop || TechStage(i) < MaxTechStage) continue;
+            if (!Alive[i] || !IsWorld(i) || (uint)Civ[i] >= (uint)Civs.Count || Pop[i] < C.ShipPop || TechStage(i) < MaxTechStage) continue;
             int civ = Civ[i];
             if (!direct)
             {
@@ -165,8 +172,8 @@ public sealed partial class World
             }
             int goal = ShipGoal(i, civ, supply: !direct);
             if (goal < 0) continue;
-            if (_civLaunches[civ]++ == 0) CivEvent(i, civ, "civ.ship.first", civ, goal, Tech[i]);
-            if (direct) { Land(goal, civ, Tech[i]); continue; }
+            void sent() { while (_civLaunches.Count < Civs.Count) _civLaunches.Add(0); if (_civLaunches[civ]++ == 0) CivEvent(i, civ, "civ.ship.first", civ, goal, Tech[i]); }
+            if (direct) { sent(); Land(goal, civ, Tech[i]); continue; }
 
             double dx = X[goal] - X[i], dy = Y[goal] - Y[i], d = Math.Sqrt(dx * dx + dy * dy);
             if (!(d > 0)) continue;
@@ -179,6 +186,7 @@ public sealed partial class World
             double off = R[i] * 1.5 + 1e-4;
             int ship = Add(X[i] + ux / u * off, Y[i] + uy / u * off, vx, vy, C.ShipMass, ShipMix, $"Tàu {Civs[civ].Name}");
             if (ship < 0) continue; // the world is full
+            sent();
             ShipCiv[ship] = civ; ShipTo[ship] = goal; ShipFrom[ship] = i; ShipTech[ship] = Tech[i]; ShipBorn[ship] = Year;
         }
     }
@@ -233,7 +241,7 @@ public sealed partial class World
         for (int c = 0; c < Civs.Count; c++)
         {
             foreach (char ch in Civs[c].Name) mix(ch);
-            mix((ulong)Civs[c].Home); number(Civs[c].BornYear); mix((ulong)_civLaunches[c]);
+            mix((ulong)Civs[c].Home); number(Civs[c].BornYear); mix((ulong)(c < _civLaunches.Count ? _civLaunches[c] : 0));
         }
     }
 }

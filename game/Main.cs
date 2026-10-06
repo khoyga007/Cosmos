@@ -27,6 +27,7 @@ public partial class Main : Node2D
     GodUi _ui = null!;
 
     int _sel = -1, _follow = -1, _frame, _createdCount;
+    int _selSeen = -1, _selGen, _followSeen = -1, _followGen;
     public int Selected => _sel;
 
     double _cx, _cy;
@@ -257,6 +258,11 @@ public partial class Main : Node2D
 
         if (_sel >= 0 && !Live(_sel)) Select(-1);
         if (_follow >= 0 && !Live(_follow)) _follow = -1;
+        // a slot that now holds another object is not the thing that was selected or followed
+        if (_sel != _selSeen) { _selSeen = _sel; _selGen = Live(_sel) ? _w.Gen[_sel] : 0; }
+        else if (Live(_sel) && _w.Gen[_sel] != _selGen) _sel = _selSeen = -1;
+        if (_follow != _followSeen) { _followSeen = _follow; _followGen = Live(_follow) ? _w.Gen[_follow] : 0; }
+        else if (Live(_follow) && _w.Gen[_follow] != _followGen) _follow = _followSeen = -1;
         if (_follow >= 0) { _cx = _w.X[_follow]; _cy = _w.Y[_follow]; }
 
         Vector2 c = GetViewportRect().Size / 2;

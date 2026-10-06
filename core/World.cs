@@ -30,6 +30,8 @@ public sealed partial class World
     public readonly Consts C = new();
 
     // objects: structure of arrays. Slots are stable: a dead slot is reused by a later Add, never shifted.
+    // Whoever keeps a slot number across steps (a selection, a script) keeps Gen[slot] with it: a slot with another
+    // Gen holds another object. Inside the core nothing points at a dead slot: Gone clears every such pointer.
     public int N;    // slots in use, dead ones included
     public int Live; // objects alive
     public readonly double[] X, Y, Vx, Vy, M, R, Comp; // Comp = mass per element group, row per object
@@ -38,6 +40,7 @@ public sealed partial class World
     public readonly uint[] Col;  // 0xRRGGBB for the draw layer, 0 = none
     public readonly int[] Par;   // object it was put in orbit around, -1 = none
     public readonly int[] Grp;   // index into Groups, 0 = none
+    public readonly int[] Gen;   // how many objects this slot has held
     public readonly List<string> Groups = new() { "" }; // a group (a belt) = a name; its numbers come from its members
     public long Step, Merges;
 
@@ -50,7 +53,7 @@ public sealed partial class World
     {
         X = new double[capacity]; Y = new double[capacity]; Vx = new double[capacity]; Vy = new double[capacity];
         M = new double[capacity]; R = new double[capacity]; Comp = new double[capacity * NElem];
-        Alive = new bool[capacity]; Name = new string?[capacity]; Col = new uint[capacity]; Par = new int[capacity]; Grp = new int[capacity];
+        Alive = new bool[capacity]; Name = new string?[capacity]; Col = new uint[capacity]; Par = new int[capacity]; Grp = new int[capacity]; Gen = new int[capacity];
         _att = new int[capacity];
         Temp = new double[capacity]; _temperatureBands = new int[capacity]; _starSlots = new int[capacity]; _starLight = new double[capacity];
         InitLayers(capacity);
@@ -109,7 +112,7 @@ public sealed partial class World
     {
         int i;
         if (_free.Count > 0) i = _free.Pop(); else if (N < X.Length) i = N++; else return -1;
-        X[i] = x; Y[i] = y; Vx[i] = vx; Vy[i] = vy; M[i] = m; Alive[i] = true; Name[i] = name; Col[i] = col; Par[i] = par; Grp[i] = grp;
+        X[i] = x; Y[i] = y; Vx[i] = vx; Vy[i] = vy; M[i] = m; Alive[i] = true; Name[i] = name; Col[i] = col; Par[i] = par; Grp[i] = grp; Gen[i]++;
         for (int e = 0; e < NElem; e++) Comp[i * NElem + e] = m * mix[e];
         SetRadius(i); Live++;
         ResetTemperature(i); ResetLayers(i);
@@ -136,7 +139,7 @@ public sealed partial class World
         Impact(k, M[d] / M[k]);
         M[k] = m; SetRadius(k);
         Alive[d] = false; M[d] = 0; _free.Push(d); Live--; Merges++;
-        for (int i = 0; i < N; i++) if (Par[i] == d) Par[i] = k;
+        Gone(d, k);
     }
 
     // ---- scenes

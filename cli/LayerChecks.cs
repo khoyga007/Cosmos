@@ -77,6 +77,36 @@ static class LayerChecks
                 $"CivDome 0: Earth pop {w.Pop[earth]:F3}, worlds left {w.WorldsOf(0)}, colonies ever founded {colonised}, ends logged {w.Chronicle.Count(c => c.Event.Change == "civ.end")}");
         }
 
+        // a ship's goal is removed and its slot given to a new object: the ship is lost and said so, nobody lands on the newcomer
+        {
+            var w = World.SolSystem(0, 1234);
+            Jump(w, 6.95e5);
+            int ship = -1;
+            for (int s = 0; s < 20000 && ship < 0; s++) { w.Advance(H); for (int i = 0; i < w.N; i++) if (w.Alive[i] && w.IsShip(i)) ship = i; }
+            int goal = ship < 0 ? -1 : w.ShipTo[ship], gen = goal < 0 ? 0 : w.Gen[goal], civ = w.Civ[earth];
+            w.Do(new Command(CmdKind.Remove, Target: goal));
+            int fresh = w.Do(new Command(CmdKind.Create, X: 1e5, Y: 0, Amount: World.EarthMass, Mix: new double[] { 0, 0, 0.7, 0.3, 0, 0 }));
+            for (int s = 0; s < 3000; s++) w.Advance(H);
+            Check(ship >= 0 && fresh == goal && w.Gen[fresh] == gen + 1 && w.Pop[fresh] == 0 && w.Chronicle.Any(c => c.Civ == civ && c.Event.Change == "civ.ship.lost"),
+                $"goal slot {goal} removed and reused: newcomer pop {w.Pop[fresh]:G3}, slot generation {gen} -> {w.Gen[fresh]}, ship loss in the chronicle");
+            w.Do(new Command(CmdKind.Remove, Target: earth));
+            Check(w.Civs[civ].Home == -1, $"home world removed: {w.Civs[civ].Name} has home {w.Civs[civ].Home}");
+        }
+
+        // two peoples, one empty world: the first founds a colony, the second is turned away and its chronicle says so
+        {
+            var w = World.SolSystem(0, 1234);
+            w.Civs.Add(new CivInfo("Aa", earth, 0)); w.Civs.Add(new CivInfo("Bb", 2, 0));
+            for (int c = 0; c < 2; c++)
+            {
+                int s = w.Do(new Command(CmdKind.Create, X: 500 + c, Y: 500, Amount: 1e-12, Mix: new double[] { 0, 0, 0, 1, 0, 0 }));
+                w.ShipCiv[s] = c; w.ShipTo[s] = mars; w.ShipFrom[s] = earth; w.ShipTech[s] = 3;
+            }
+            Jump(w, 1);
+            Check(w.Civ[mars] == 0 && w.Pop[mars] > 0 && w.Chronicle.Count(c => c.Civ == 1 && c.Event.Change == "civ.ship.turned") == 1 && w.Live == 10,
+                $"two ships of two peoples at Mars: colony of civ {w.Civ[mars]}, turned away: {w.Chronicle.Count(c => c.Event.Change == "civ.ship.turned")}");
+        }
+
         // stepping: ships are objects. They fly, land, found colonies; the god can remove one; all of it replays.
         {
             var w = World.SolSystem(0, 1234);

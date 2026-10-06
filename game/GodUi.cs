@@ -531,7 +531,7 @@ public partial class GodUi : CanvasLayer
         int slot = e.ObjectSlot;
         string place = slot >= 0 && slot < w.N ? (w.Name[slot] ?? $"Vật thể #{slot}") : "?";
         int civ = slot >= 0 && slot < w.N ? w.Civ[slot] : -1;
-        if (e.Change is "civ.colony" or "civ.ship.first") civ = (int)e.A;
+        if (e.Change is "civ.colony" or "civ.ship.first" or "civ.ship.turned" or "civ.ship.lost") civ = (int)e.A;
         string who = civ >= 0 && civ < w.Civs.Count ? w.Civs[civ].Name : "?";
         bool home = civ >= 0 && civ < w.Civs.Count && w.Civs[civ].Home == slot;
         string head = dated ? $"năm {e.Year:N0}, {place}: " : "";
@@ -542,6 +542,17 @@ public partial class GodUi : CanvasLayer
             int goal = (int)e.B;
             string to = goal >= 0 && goal < w.N && w.Name[goal] != null ? w.Name[goal] : "một thế giới khác";
             return $"{head}[color=#ffd700]{who} phóng con tàu đầu tiên[/color], hướng tới {to}.";
+        }
+        if (e.Change == "civ.ship.turned")
+        {
+            int owner = (int)e.B;
+            return $"{head}Tàu của {who} tới nơi thì {place} đã có văn minh {(owner >= 0 && owner < w.Civs.Count ? w.Civs[owner].Name : "khác")}. Không ai bước xuống.";
+        }
+        if (e.Change == "civ.ship.lost")
+        {
+            int goal = (int)e.B;
+            string to = goal >= 0 && goal < w.N && w.Alive[goal] && w.Name[goal] != null ? $" trên đường tới {w.Name[goal]}" : "; nơi nó hướng tới không còn";
+            return $"{head}[color=#ff8866]{who} mất một con tàu[/color]{to}.";
         }
         if (e.Change == "civ.colony")
             return $"{head}[color=#ffd700]{who} lập thuộc địa[/color]{(e.C < w.C.CivLifeMin / 5 ? " trong vòm kín" : " giữa sinh quyển sẵn có")}.";

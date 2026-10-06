@@ -134,7 +134,21 @@ public sealed partial class World
     void Kill(int d)
     {
         Alive[d] = false; M[d] = 0; _free.Push(d); Live--;
-        for (int i = 0; i < N; i++) if (Par[i] == d) Par[i] = -1;
+        Gone(d, -1);
+    }
+
+    // Object d is no more: whatever pointed at it points at `heir` (what swallowed it) or at nothing.
+    // Without this a later Add reusing the slot would inherit moons, ships on their way and a people's home.
+    void Gone(int d, int heir)
+    {
+        for (int i = 0; i < N; i++)
+        {
+            if (Par[i] == d) Par[i] = heir;
+            if (ShipCiv[i] < 0) continue;
+            if (ShipTo[i] == d) ShipTo[i] = heir;
+            if (ShipFrom[i] == d) ShipFrom[i] = heir;
+        }
+        for (int k = 0; k < Civs.Count; k++) if (Civs[k].Home == d) Civs[k] = Civs[k] with { Home = -1 };
     }
 }
 
