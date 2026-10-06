@@ -142,6 +142,97 @@ static class CivStatsChecks
                 $"Check 6: Replay determinism verified (h1={h1:X16}, h2={h2:X16}, total mass diff={Math.Abs(totalM1 - totalM2):E2})");
         }
 
+        // 7. Check 7: Mass & momentum conservation over 1e8 years with active colonies
+        {
+            var w = World.SolSystem(0, 777);
+            const int home = 3;
+            w.Do(new Command(CmdKind.FastForward, Amount: 1e6));
+            int civ = w.Civ[home];
+            int colony = w.AddOrbiting(0, 46, 0, World.EarthMass * 0.05,
+                w.Mix(("rock", 0.70), ("metal", 0.30)), "Colony7");
+            w.Civ[colony] = civ; w.Pop[colony] = w.C.CivSeed; w.Tech[colony] = w.Tech[home];
+
+            double m0 = 0, px0 = 0, py0 = 0;
+            for (int i = 0; i < w.N; i++)
+            {
+                if (!w.Alive[i]) continue;
+                m0 += w.M[i];
+                px0 += w.M[i] * w.Vx[i];
+                py0 += w.M[i] * w.Vy[i];
+            }
+
+            w.Do(new Command(CmdKind.FastForward, Amount: 1e8));
+
+            double m1 = 0, px1 = 0, py1 = 0;
+            for (int i = 0; i < w.N; i++)
+            {
+                if (!w.Alive[i]) continue;
+                m1 += w.M[i];
+                px1 += w.M[i] * w.Vx[i];
+                py1 += w.M[i] * w.Vy[i];
+            }
+
+            double dm = Math.Abs(m1 - m0);
+            double dpx = Math.Abs(px1 - px0);
+            double dpy = Math.Abs(py1 - py0);
+            Check(dm < 1e-15 && dpx < 1e-14 && dpy < 1e-14,
+                $"Check 7: Conserve mass + momentum over 1e8 yr with colony - dm: {dm:E2}, dpx: {dpx:E2}, dpy: {dpy:E2}");
+        }
+
+        // 8. Check 8: Custom 7th element works seamlessly with StageNeed without modifying core
+        {
+            // Add 7th element 'mithril' tagged with ElementRole.Metal
+            var customCatalog = ElementCatalog.Elements.Append(
+                new Element("mithril", "Bí ngân", 12.0, 0x9900FF, ElementRole.Metal)
+            ).ToArray();
+
+            var w = new World(64, 42, customCatalog);
+            int star = w.Add(0, 0, 0, 0, 50, new double[] { 1, 0, 0, 0, 0, 0, 0 }, "Star");
+
+            // Planet with 10% mithril in slot 6, 0% standard metal in slot 3 (sum = 1.0)
+            double[] mixWithMithril = new double[] { 0, 0.01, 0.85, 0.00, 0.02, 0.02, 0.10 };
+            int pMithril = w.AddOrbiting(star, 45, 0, World.EarthMass, mixWithMithril, "MithrilWorld");
+
+            // Planet without any metal (0% in slot 3 and slot 6, sum = 1.0)
+            double[] mixNoMetal = new double[] { 0, 0.01, 0.95, 0.00, 0.02, 0.02, 0.00 };
+            int pNoMetal = w.AddOrbiting(star, -45, 0, World.EarthMass, mixNoMetal, "NoMetalWorld");
+
+            Check(pMithril >= 0 && pNoMetal >= 0, "MithrilWorld and NoMetalWorld created with valid mixes");
+
+            // Define stage requiring Metal (minShare: 0.05)
+            var metalNeed = StageNeed.ForElement(ElementRole.Metal, minShare: 0.05);
+            var customStage = new Stage("mithril_era", "Kỷ nguyên Bí ngân", 2.0, Needs: new[] { metalNeed });
+            w.Stages.Add(customStage);
+            int stageIdx = w.Stages.Count - 1;
+
+            bool mithrilPass = w.HasNeedsForStage(pMithril, stageIdx);
+            bool noMetalPass = w.HasNeedsForStage(pNoMetal, stageIdx);
+            double levelMithril = w.ResourceLevel(pMithril, metalNeed);
+
+            Check(mithrilPass && !noMetalPass && Math.Abs(levelMithril - 0.10) < 1e-6,
+                $"Check 8: Custom 7th element integration without core edit - MithrilWorld has need: {mithrilPass} (lvl {levelMithril:F2}), NoMetalWorld: {noMetalPass}");
+        }
+
+        // 9. Check 9: Modifying any new Consts via SetConst alters World.Hash()
+        {
+            var w = World.SolSystem(0, 1234);
+            ulong hBase = w.Hash();
+            int r1 = w.Do(new Command(CmdKind.SetConst, Name: "StarlightTempMin", Amount: 65.0));
+            ulong h1 = w.Hash();
+            int r2 = w.Do(new Command(CmdKind.SetConst, Name: "TechMaxCeiling", Amount: 5.0));
+            ulong h2 = w.Hash();
+            int r3 = w.Do(new Command(CmdKind.SetConst, Name: "FootprintMatterScale", Amount: 0.02));
+            ulong h3 = w.Hash();
+            int r4 = w.Do(new Command(CmdKind.SetConst, Name: "FootprintBioWeight", Amount: 0.7));
+            ulong h4 = w.Hash();
+
+            bool cmdsOk = r1 == -2 && r2 == -2 && r3 == -2 && r4 == -2;
+            bool hashesDiverged = hBase != h1 && h1 != h2 && h2 != h3 && h3 != h4;
+
+            Check(cmdsOk && hashesDiverged,
+                $"Check 9: New Consts alter World.Hash() via SetConst - all return -2: {cmdsOk}, hashes distinct: {hashesDiverged}");
+        }
+
         return _ok;
     }
 

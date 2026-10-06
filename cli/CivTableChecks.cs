@@ -19,12 +19,10 @@ static class CivTableChecks
             var w = World.SolSystem(0, 1234);
             bool countOk = w.Stages.Count == 10;
             bool flagsOk = true;
-            for (int k = 0; k <= 5; k++)
-                flagsOk &= !w.Stages[k].UsesMetal && !w.Stages[k].CanLaunchShips && !w.Stages[k].CanDome;
-            for (int k = 6; k <= 7; k++)
-                flagsOk &= w.Stages[k].UsesMetal && !w.Stages[k].CanLaunchShips && !w.Stages[k].CanDome;
+            for (int k = 0; k <= 7; k++)
+                flagsOk &= !w.Stages[k].CanLaunchShips && !w.Stages[k].CanDome;
             for (int k = 8; k <= 9; k++)
-                flagsOk &= w.Stages[k].UsesMetal && w.Stages[k].CanLaunchShips && w.Stages[k].CanDome;
+                flagsOk &= w.Stages[k].CanLaunchShips && w.Stages[k].CanDome;
             Check(countOk && flagsOk, "Default stages: 10 stages with correct thresholds, needs and flags");
         }
 
@@ -33,7 +31,7 @@ static class CivTableChecks
         {
             var w = World.SolSystem(0, 1234);
             // insert 'test' stage at index 2 with threshold 0.8 (between stone_age 0.5 and bronze_age 1.0)
-            w.Stages.Insert(2, new Stage("copper_age", "Thời kỳ Đồ Đồng Sơ Khai", 0.8, UsesMetal: false, CanLaunchShips: false, CanDome: false));
+            w.Stages.Insert(2, new Stage("copper_age", "Thời kỳ Đồ Đồng Sơ Khai", 0.8, CanLaunchShips: false, CanDome: false));
             Check(w.Stages.Count == 11 && w.Stages[2].Id == "copper_age", "Stage inserted between 1 and 2: Stages count is 11");
 
             // Fast forward 1 million years

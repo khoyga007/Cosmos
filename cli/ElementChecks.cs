@@ -8,11 +8,11 @@ using Cosmos.Core;
 
 static class ElementChecks
 {
-    // S1 re-capture 2026-10-06; A2 re-capture 2026-10-07: 10-stage era table and in-situ resource consumption
-    // moved civ jump hashes (sol0-life, sol0-edit, sol2000-jump). All 8 non-civ/physics hashes remain bit-identical.
-    static readonly ulong[] Legacy = { 0xFF93E515461EB21B, 0x1691CEFD928A00F2, 0xB0B37A46B10B7517, 0x033FC71D5409ABF3,
-        0x06F4793A7DF1D9C8, 0xD0AB98DA2959D1B4, 0x714D490EFB18FF37, 0x4149B47870F8D8B7, 0x16D4AD80223BC008,
-        0x64F7A7B90834F061, 0x0535F96C63617AAE };
+    // S1 re-capture 2026-10-06; A2 re-capture 2026-10-07: new Consts fields (EarthRadiusKm, EarthMaxPopulation,
+    // StarlightTempMin, TechMaxCeiling, FootprintBioWeight, FootprintMatterWeight, FootprintMatterScale) hashed by reflection.
+    static readonly ulong[] Legacy = { 0xFFD00BC42151E6A6, 0x4FBBBEAD844AB5DF, 0x3D72350746CF2166, 0xFF1FE39BF4C6E9DF,
+        0x0092E155298710A1, 0x958069674F8D689D, 0x06F91580607F5E10, 0xA439E16F62927B5A, 0x957DB3C8A7C03D49,
+        0xF16C0D051B35BB80, 0xE2A3E8F272467067 };
 
     public static bool Run()
     {
