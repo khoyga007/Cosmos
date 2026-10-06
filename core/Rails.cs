@@ -5,7 +5,8 @@
 //              else the heaviest object.
 //   a body with satellites rides as one lump: the lump's centre of mass orbits the primary, the satellites orbit
 //   the body; the body's own place is worked back from the two (so Earth does not carry the Moon's wobble along).
-// Given up during a jump, on purpose: pull between siblings (Jupiter on Mars), collisions, anything that crosses.
+// Given up during a jump, on purpose: pull between siblings (Jupiter on Mars), unsampled sibling crossings.
+// Primary intersections are found analytically; other pulling pairs are checked at chunk endpoints.
 // There is no rails "mode": after the jump the state is ordinary, the next Advance pulls for real again.
 using System;
 using System.Collections.Generic;
@@ -21,12 +22,21 @@ public sealed partial class World
     double[]? _mean, _hill, _sm, _bx, _by, _bvx, _bvy, _cx, _cy, _cvx, _cvy;
     Comparer<int>? _heavyFirst;
     bool _deferRocks;
+    bool[]? _offRailSeen;
+    readonly List<(int Body, int Primary, double At)> _rockContacts = new();
+
+    void MarkOffRail(int i)
+    {
+        if (!_offRailSeen![i]) { _offRailSeen[i] = true; OffRails++; }
+    }
 
     // A long jump is cut into chunks and the rule table runs after each, so water, life and civilisation see the
     // years go by instead of one leap. Chunks are never shorter than the fastest rule needs, never more than
     // JumpSamples (the cost of a jump is chunks * objects).
     void Jump(double t)
     {
+        _offRailSeen ??= new bool[X.Length];
+        Array.Clear(_offRailSeen); OffRails = 0;
         LandShips(); // a trip is short next to a jump: whoever is flying arrives
         double fastest = double.MaxValue;
         foreach (Rule r in Rules) if (r.Enabled) fastest = Math.Min(fastest, r.RhythmYears);
@@ -42,6 +52,7 @@ public sealed partial class World
         if (defer)
         {
             StartRockOrbits();
+            PlanRockContacts(t);
         }
         _riding = true;
         _deferRocks = defer;
@@ -55,12 +66,20 @@ public sealed partial class World
                 if (NextStarBoundary() > target)
                 {
                     Ride(t / chunks);
-                    if (defer && (shown || k == chunks - 1))
+                    double elapsed = began == jumpBegan ? (k == chunks - 1 ? t : t * (k + 1) / chunks) : (target - began) * C.YearTime;
+                    bool contact = RailContacts(elapsed);
+                    if (defer && (shown || k == chunks - 1 || contact))
                     {
-                        PlaceRocks(began == jumpBegan ? (k == chunks - 1 ? t : t * (k + 1) / chunks) : (target - began) * C.YearTime);
+                        PlaceRocks(elapsed);
                         _deferRocks = false;
                     }
-                    Year = target; RunRules();
+                    Year = target;
+                    if (contact)
+                    {
+                        MergeRailContacts();
+                        if (defer) { StartRockOrbits(); began = Year; PlanRockContacts((jumpBegan + years - Year) * C.YearTime); }
+                    }
+                    RunRules();
                 }
                 else
                 {
@@ -71,15 +90,17 @@ public sealed partial class World
                         double at = Math.Min(target, NextStarBoundary());
                         _deferRocks = defer;
                         if (at > Year) { Ride((at - Year) * C.YearTime); Year = at; }
+                        bool contact = RailContacts((Year - began) * C.YearTime);
                         if (defer) { PlaceRocks((Year - began) * C.YearTime); _deferRocks = false; }
+                        if (contact) MergeRailContacts();
                         _starRule.NextYear = Year;
                         RunRules();
-                        if (defer) { StartRockOrbits(); began = Year; }
+                        if (defer) { StartRockOrbits(); began = Year; PlanRockContacts((jumpBegan + years - Year) * C.YearTime); }
                     }
                 }
             }
         }
-        finally { _riding = _deferRocks = false; }
+        finally { _riding = _deferRocks = false; _hits.Clear(); _rockContacts.Clear(); }
     }
 
     void StartRockOrbits()
@@ -90,6 +111,63 @@ public sealed partial class World
         {
             _cx![i] = X[i]; _cy![i] = Y[i]; _cvx![i] = Vx[i]; _cvy![i] = Vy[i];
         }
+    }
+
+    // One analytic test per rock origin, not one Kepler solve per rock per chunk. Rebuilt after mass/primary changes.
+    void PlanRockContacts(double remaining)
+    {
+        _rockContacts.Clear();
+        for (int i = 0; i < N; i++)
+        {
+            if (!Alive[i] || Attracts(i)) continue;
+            int p = _prim![i];
+            if (p < 0 || !Alive[p]) continue;
+            double at = PrimaryContactTime(_bx![i], _by![i], _bvx![i], _bvy![i], C.G * (M[i] + M[p]), R[i] + R[p]);
+            if (at <= remaining) _rockContacts.Add((i, p, at));
+        }
+    }
+
+    bool RailContacts(double elapsed)
+    {
+        // ponytail: sibling contacts sampled at chunk endpoints; a full Kepler intersection solver is a later tier.
+        for (int k = 0; k < _na; k++)
+        for (int l = k + 1; l < _na; l++)
+        {
+            int i = _att[k], j = _att[l];
+            double x = X[i] - X[j], y = Y[i] - Y[j], r = R[i] + R[j];
+            if (x * x + y * y <= r * r) _hits.Add((i, j));
+        }
+        foreach (var (i, p, at) in _rockContacts)
+            if (at <= elapsed && Alive[i] && Alive[p]) _hits.Add((i, p));
+        return _hits.Count > 0;
+    }
+
+    void MergeRailContacts()
+    {
+        foreach (var (i, p) in _hits) if (Alive[i] && Alive[p]) Merge(i, p);
+        _hits.Clear();
+    }
+
+    // First entry into the primary's surface on the same orbit used by Kepler. Infinity means no entry.
+    static double PrimaryContactTime(double x, double y, double vx, double vy, double mu, double radius)
+    {
+        double r2 = x * x + y * y;
+        if (r2 <= radius * radius) return 0;
+        double r = Math.Sqrt(r2), v2 = vx * vx + vy * vy, inva = 2 / r - v2 / mu;
+        if (!(mu > 0) || !(inva > 0))
+        {
+            // Unbound rails are straight, just as in Kepler's fallback.
+            double dot = x * vx + y * vy, disc = dot * dot - v2 * (r2 - radius * radius);
+            return v2 > 0 && dot < 0 && disc >= 0 ? (-dot - Math.Sqrt(disc)) / v2 : double.PositiveInfinity;
+        }
+        double a = 1 / inva, angular = x * vy - y * vx;
+        double e = Math.Sqrt(Math.Max(0, 1 - angular * angular / (mu * a)));
+        if (a * (1 - e) > radius || e == 0) return double.PositiveInfinity;
+        double e0 = Math.Atan2((x * vx + y * vy) / Math.Sqrt(mu * a), 1 - r / a);
+        double entry = -Math.Acos(Math.Clamp((1 - radius / a) / e, -1, 1));
+        double delta = (entry - e * Math.Sin(entry) - e0 + e * Math.Sin(e0)) % Math.Tau;
+        if (delta < 0) delta += Math.Tau;
+        return delta / Math.Sqrt(mu * inva * inva * inva);
     }
 
     // Rocks exert no pull, so they are no part of any lump: the bodies ride as if the rocks were not there, the
@@ -106,7 +184,7 @@ public sealed partial class World
             {
                 X[i] = _cx![i] + _cvx![i] * t; Y[i] = _cy![i] + _cvy![i] * t;
                 Vx[i] = _cvx[i]; Vy[i] = _cvy[i];
-                OffRails++;
+                MarkOffRail(i);
                 _mean![i] = double.NaN;
             }
             else
@@ -143,11 +221,12 @@ public sealed partial class World
         }
         int[] prim = _prim, ord = _ord!;
         double[] mean = _mean!, hill = _hill!, sm = _sm!, bx = _bx!, by = _by!, bvx = _bvx!, bvy = _bvy!, cx = _cx!, cy = _cy!, cvx = _cvx!, cvy = _cvy!;
-        OffRails = 0;
 
         int na = 0;
         for (int i = 0; i < N; i++) if (Alive[i] && Attracts(i)) ord[na++] = i;
-        if (na == 0) { for (int i = 0; i < N; i++) if (Alive[i] && !_deferRocks) { X[i] += Vx[i] * t; Y[i] += Vy[i] * t; prim[i] = -1; OffRails++; } return; }
+        _na = na;
+        Array.Copy(ord, _att, na);
+        if (na == 0) { for (int i = 0; i < N; i++) if (Alive[i] && !_deferRocks) { X[i] += Vx[i] * t; Y[i] += Vy[i] * t; prim[i] = -1; MarkOffRail(i); } return; }
         Array.Sort(ord, 0, na, _heavyFirst); // a primary is always heavier than what it holds: it comes first
 
         // who rides around whom. `upTo` = how many of the pulling objects (heaviest first) may be the primary.
@@ -172,6 +251,8 @@ public sealed partial class World
             int i = ord[k], p = primaryOf(i, k);
             double dx = X[i] - X[p], dy = Y[i] - Y[p];
             prim[i] = p; hill[i] = Math.Sqrt(dx * dx + dy * dy) * Math.Cbrt(M[i] / (3 * M[p]));
+            if (PrimaryContactTime(dx, dy, Vx[i] - Vx[p], Vy[i] - Vy[p], C.G * (M[i] + M[p]), R[i] + R[p]) <= t)
+                _hits.Add((i, p));
         }
 
         // lump = an object plus everything that rides around it: mass, centre of mass, its velocity
@@ -193,7 +274,7 @@ public sealed partial class World
             int p = prim[i];
             if (p < 0) { bx[i] += bvx[i] * t; by[i] += bvy[i] * t; mean[i] = double.NaN; continue; } // the whole system drifts
             bx[i] -= X[p]; by[i] -= Y[p]; bvx[i] -= Vx[p]; bvy[i] -= Vy[p];
-            if (!Kepler(ref bx[i], ref by[i], ref bvx[i], ref bvy[i], C.G * (M[p] + sm[i]), t, out mean[i])) OffRails++;
+            if (!Kepler(ref bx[i], ref by[i], ref bvx[i], ref bvy[i], C.G * (M[p] + sm[i]), t, out mean[i])) MarkOffRail(i);
             cx[p] += sm[i] * bx[i]; cy[p] += sm[i] * by[i]; cvx[p] += sm[i] * bvx[i]; cvy[p] += sm[i] * bvy[i];
         }
 
