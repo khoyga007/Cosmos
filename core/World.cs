@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Cosmos.Core;
 
@@ -49,9 +50,22 @@ public sealed partial class World
     public long Step, Merges;
 
     readonly Stack<int> _free = new();
-    readonly int[] _att, _near; int _na;          // pulling objects and nearby sweep candidates
+    readonly int[] _att; int _na;                 // pulling objects
     readonly double[] _attX, _attY, _attR, _attGM; // their position, radius and g*M, gathered once per small step
     readonly List<(int, int)> _hits = new();      // pairs that touched in this small step
+    // A rock reads only its own state and the gathered puller numbers, and adds up into its own acceleration, so
+    // the rock pass is split into fixed index chunks that can run at once: no sum runs across rocks, and every
+    // rock adds in the same order as before. Each chunk owns its scratch, and the chunk hits are appended in
+    // chunk order afterwards, which is the sequential order exactly. The split, and so the result, does not
+    // depend on how many threads run it.
+    const int MaxRockChunks = 16, MinRocksPerChunk = 512;
+    readonly int[][] _chunkNear;
+    readonly List<(int, int)>[] _chunkHits;
+    readonly Action<int> _kickChunk;
+    int _chunks;
+    double _subHs, _subMaxAttSpeed, _subMaxKickDrift;
+    /// <summary>Threads for the rock pass; 0 = one per processor.</summary>
+    public int Threads;
     ulong _rng;
 
     public World(int capacity, ulong seed, IEnumerable<Element>? elements = null, IEnumerable<StarEvent>? starEvents = null)
@@ -69,8 +83,11 @@ public sealed partial class World
         X = new double[capacity]; Y = new double[capacity]; Vx = new double[capacity]; Vy = new double[capacity];
         M = new double[capacity]; R = new double[capacity]; Comp = new double[capacity * ElementCount];
         Alive = new bool[capacity]; Name = new string?[capacity]; Col = new uint[capacity]; Par = new int[capacity]; Grp = new int[capacity]; Gen = new int[capacity];
-        _att = new int[capacity]; _near = new int[capacity];
+        _att = new int[capacity];
         _attX = new double[capacity]; _attY = new double[capacity]; _attR = new double[capacity]; _attGM = new double[capacity];
+        _chunkNear = new int[MaxRockChunks][]; _chunkHits = new List<(int, int)>[MaxRockChunks];
+        for (int c = 0; c < MaxRockChunks; c++) { _chunkNear[c] = new int[capacity]; _chunkHits[c] = new List<(int, int)>(); }
+        _kickChunk = KickChunk;
         Temp = new double[capacity]; _temperatureBands = new int[capacity]; _starSlots = new int[capacity]; _starLight = new double[capacity];
         InitLayers(capacity);
         InitStars(capacity);
@@ -301,7 +318,18 @@ public sealed partial class World
                         (Vx[i] - Vx[j]) * hs, (Vy[i] - Vy[j]) * hs, R[i] + R[j])) _hits.Add((i, j));
                 }
             }
-            for (int i = 0; i < N; i++) if (Alive[i] && !Attracts(i)) KickRock(i, hs, maxAttSpeed, maxKickDrift);
+            // The rock pass is the whole cost at 5250 objects, and it is embarrassingly parallel: see the note on
+            // _chunkNear. Chunks are fixed by N, so the hits come back in sequential order whatever the thread count.
+            _subHs = hs; _subMaxAttSpeed = maxAttSpeed; _subMaxKickDrift = maxKickDrift;
+            _chunks = Math.Clamp(N / MinRocksPerChunk, 1, MaxRockChunks);
+            if (_chunks == 1) _kickChunk(0);
+            else Parallel.For(0, _chunks, new ParallelOptions { MaxDegreeOfParallelism = Threads > 0 ? Threads : Environment.ProcessorCount }, _kickChunk);
+            for (int c = 0; c < _chunks; c++)
+            {
+                var chunk = _chunkHits[c];
+                if (chunk.Count == 0) continue;
+                _hits.AddRange(chunk); chunk.Clear();
+            }
             for (int i = 0; i < N; i++) if (Alive[i]) { X[i] += Vx[i] * hs; Y[i] += Vy[i] * hs; }
 
             if (_hits.Count > 0)
@@ -335,7 +363,18 @@ public sealed partial class World
         Vx[i] += ax * hs; Vy[i] += ay * hs;
     }
 
-    void KickRock(int i, double hs, double maxAttSpeed, double maxKickDrift)
+    // One index chunk of the rock pass. Anything it touches is the rock's own state, the gathered puller numbers
+    // (constant for the sub-step) or this chunk's own scratch, so chunks never meet.
+    void KickChunk(int c)
+    {
+        int lo = (int)((long)c * N / _chunks), hi = (int)((long)(c + 1) * N / _chunks);
+        int[] near = _chunkNear[c];
+        var hits = _chunkHits[c];
+        for (int i = lo; i < hi; i++)
+            if (Alive[i] && !Attracts(i)) KickRock(i, _subHs, _subMaxAttSpeed, _subMaxKickDrift, near, hits);
+    }
+
+    void KickRock(int i, double hs, double maxAttSpeed, double maxKickDrift, int[] nearBuf, List<(int, int)> hits)
     {
         double x = X[i], y = Y[i], ri = R[i], ax = 0, ay = 0;
         int near = 0;
@@ -344,17 +383,17 @@ public sealed partial class World
         {
             int j = _att[k];
             double dx = _attX[k] - x, dy = _attY[k] - y, d2 = dx * dx + dy * dy, rr = ri + _attR[k];
-            if (d2 <= rr * rr) { _hits.Add((i, j)); continue; }
-            if (d2 <= (rr + travel) * (rr + travel)) _near[near++] = j;
+            if (d2 <= rr * rr) { hits.Add((i, j)); continue; }
+            if (d2 <= (rr + travel) * (rr + travel)) nearBuf[near++] = j;
             double inv = _attGM[k] / (d2 * Math.Sqrt(d2));
             ax += dx * inv; ay += dy * inv;
         }
         Vx[i] += ax * hs; Vy[i] += ay * hs;
         for (int k = 0; k < near; k++)
         {
-            int j = _near[k];
+            int j = nearBuf[k];
             if (SweptContact(x - X[j], y - Y[j], (Vx[i] - Vx[j]) * hs, (Vy[i] - Vy[j]) * hs, ri + R[j]))
-                _hits.Add((i, j));
+                hits.Add((i, j));
         }
     }
 

@@ -4,6 +4,7 @@
 // Mọi số là median của nhiều vòng paired: mỗi vòng DỰNG LẠI cảnh từ seed rồi mới đo, nên cảnh không
 // bị tiến hoá (đá merge dần làm nhẹ đi) giữa các vòng. Vòng đầu chậm vì cache bị median loại.
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using Cosmos.Core;
 
@@ -88,6 +89,60 @@ static class AdvanceBench
         Console.WriteLine($"  difference     : {on - off,9:F4} ms/Advance ({(on - off) / on * 100:F1}%)");
     }
 
+    // D. CÙNG một cảnh, chỉ đổi số luồng: hash phải bằng nhau TUYỆT ĐỐI. Đây là bằng chứng bit-exact của
+    //    vòng đá song song, mạnh hơn selftest vì nó chạy đúng cảnh 5250/20250 vật mà không qua journal.
+    //    Threads đặt qua reflection để CHÍNH file này biên dịch được cả trên core master (không có Threads).
+    static ulong HashAfter(int rocks, int steps, int threads)
+    {
+        var w = World.SolSystem(rocks, 1234);
+        typeof(World).GetProperty("Threads")?.SetValue(w, threads);
+        for (int i = 0; i < steps; i++) w.Advance(H);
+        return w.Hash();
+    }
+
+    static void ThreadHash(int steps)
+    {
+        Console.WriteLine($"# D. same scene, hash vs thread count, {steps} steps — every row of a block must match");
+        Console.WriteLine($"{"rocks",7} {"N",7} {"threads",8} {"hash",18} {"live",6} {"step",6}");
+        foreach (int rocks in new[] { 100, 3000, 5000, 20000 })
+        {
+            var seen = new List<string>();
+            foreach (int t in new[] { 1, 2, 3, 4, 8, 0 })
+            {
+                var w = World.SolSystem(rocks, 1234);
+                typeof(World).GetProperty("Threads")?.SetValue(w, t);
+                for (int i = 0; i < steps; i++) w.Advance(H);
+                string tag = $"{w.Hash():X16}";
+                Console.WriteLine($"{rocks,7} {w.N,7} {(t == 0 ? "auto" : t.ToString()),8} {tag,18} {w.Live,6} {w.Step,6}");
+                if (!seen.Contains(tag)) seen.Add(tag);
+            }
+            Console.WriteLine(seen.Count == 1 ? $"  OK  all thread counts agree: {seen[0]}" : $"  FAIL {seen.Count} distinct hashes: {string.Join(" ", seen)}");
+        }
+    }
+
+    // E. ms/Advance theo số luồng, ở đúng hai cỡ Claire yêu cầu.
+    static void ThreadsBench(int steps, int rounds)
+    {
+        Console.WriteLine($"# E. ms/Advance by thread count — paired {rounds} x {steps} steps");
+        Console.WriteLine($"{"rocks",7} {"N",7} {"threads",8} {"ms/Advance",12} {"vs 1 thr",9}");
+        foreach (int rocks in new[] { 5000, 20000 })
+        {
+            double one = 0;
+            foreach (int t in new[] { 1, 2, 4, 8, 0 })
+            {
+                int tt = t;
+                double ms = Bench(() =>
+                {
+                    var w = World.SolSystem(rocks, 1234);
+                    typeof(World).GetProperty("Threads")?.SetValue(w, tt);
+                    return w;
+                }, steps, rounds, out int n);
+                if (one == 0) one = ms;
+                Console.WriteLine($"{rocks,7} {n,7} {(t == 0 ? "auto" : t.ToString()),8} {ms,12:F4} {one / ms,8:F2}x");
+            }
+        }
+    }
+
     public static void Run(string[] a)
     {
         string what = a.Length > 1 ? a[1] : "all";
@@ -97,5 +152,7 @@ static class AdvanceBench
         if (what is "rocks" or "all") Rocks(steps, rounds);
         if (what is "pull" or "all") Pull(steps, rounds);
         if (what is "rules" or "all") Rules(steps, rounds);
+        if (what is "thash" or "all") ThreadHash(steps);
+        if (what is "threads" or "all") ThreadsBench(steps, rounds);
     }
 }
