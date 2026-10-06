@@ -73,6 +73,11 @@ public partial class Main : Node2D
             if (a.StartsWith("--bench=")) _bench = int.Parse(a[8..]);
         }
 
+        if (_uitest)
+        {
+            GetTree().Root.Size = new Vector2I(1280, 800);
+        }
+
         if (_selftest)
         {
             SetProcess(false);
@@ -149,6 +154,16 @@ public partial class Main : Node2D
         if (follow) _follow = i;
         _ui?.RefreshSelection();
         if (_panel != null) _panel.Text = PanelText();
+    }
+
+    public void JumpTo(int i)
+    {
+        if (!Live(i)) return;
+        _follow = -1;
+        _cx = _w.X[i];
+        _cy = _w.Y[i];
+        Select(i);
+        Toast($"Đã chuyển tới {NameOf(i)}");
     }
 
     public void FollowSelected() { if (Live(_sel)) { _follow = _sel; Toast($"Bám theo {NameOf(_sel)}"); } }
@@ -908,7 +923,7 @@ public partial class Main : Node2D
 
     // Headless check of the mouse and keyboard paths (`-- --uitest`): feeds the same events a hand would, on the
     // real panels, and reads back what the world got. No window, nobody has to click through it.
-    void RunUiTest()
+    async void RunUiTest()
     {
         bool ok = true;
         void Say(bool good, string line) { ok &= good; GD.Print($"{(good ? "OK    " : "FAILED")} ui: {line}"); }
@@ -1052,6 +1067,49 @@ public partial class Main : Node2D
                 $"create preset {5 + k}: {(Live(dead) ? _w.StarPhaseOf(dead).ToString() : "nothing")}, {(Live(dead) ? _w.M[dead] / _w.C.StarSolarMass : 0):F2} Suns, panel names it");
             Key(Godot.Key.Escape);
             if (Live(dead)) GodTools.Remove(_w, dead);
+        }
+        _ui.ApplyPreset(2);
+
+        // object list: clicking Neptune jumps view, selects it; deleting removes row; slot reuse guarded
+        _ui.ShowCelestialTab();
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        var rowNep = _ui.FindObjectButton("Sao Hải Vương");
+        Say(rowNep != null, "object list: Sao Hải Vương present in list");
+        if (rowNep != null)
+        {
+            // negative check: click empty space beside list leaves selection unchanged
+            int selBefore = _sel;
+            Vector2 emptyAt = new Vector2(rowNep.GetGlobalRect().Position.X - 4, rowNep.GetGlobalRect().GetCenter().Y);
+            GetViewport().PushInput(new InputEventMouseMotion { Position = emptyAt, GlobalPosition = emptyAt });
+            GetViewport().PushInput(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = true, Position = emptyAt, GlobalPosition = emptyAt });
+            GetViewport().PushInput(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = false, Position = emptyAt, GlobalPosition = emptyAt });
+            Say(_sel == selBefore, "object list: click empty space beside list leaves selection unchanged");
+
+            // click row: real mouse events via PushInput only (motion + down + up)
+            Vector2 rowAt = rowNep.GetGlobalRect().GetCenter();
+            GetViewport().PushInput(new InputEventMouseMotion { Position = rowAt, GlobalPosition = rowAt });
+            GetViewport().PushInput(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = true, Position = rowAt, GlobalPosition = rowAt });
+            GetViewport().PushInput(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = false, Position = rowAt, GlobalPosition = rowAt });
+
+            bool nepJumping = _sel == 8 && Math.Abs(_cx - _w.X[8]) < 1e-6 && Math.Abs(_cy - _w.Y[8]) < 1e-6;
+            Say(nepJumping, $"object list click: camera centered at Sao Hải Vương ({_cx:F2}, {_cy:F2}) and selected");
+
+            // delete Neptune -> row disappears
+            int liveBeforeNepDel = _w.Live;
+            Key(Godot.Key.Delete);
+            _ui.RefreshObjectListIfNeeded();
+            bool nepDeleted = _w.Live == liveBeforeNepDel - 1 && !_w.Alive[8] && _ui.FindObjectButton("Sao Hải Vương") == null;
+            Say(nepDeleted, "object list: Delete removes Sao Hải Vương and row disappears");
+
+            // slot reuse: create a new object taking slot 8 with Gen > 0, stale handler with old Gen must not jump
+            _ui.ApplyPreset(0);
+            int newSlot = GodTools.Create(_w, 555.0, 777.0, 1e-4 * World.EarthMass, _ui.GetCreateMix(), name: "Thiên thạch test");
+            bool reusedSlot8 = newSlot == 8 && _w.Gen[8] > 0;
+            double preCx = _cx, preCy = _cy; int preSel = _sel;
+            _ui.OnObjectRowClicked(8, gen: 0); // old gen = 0
+            bool guardOk = reusedSlot8 && _cx == preCx && _cy == preCy && _sel == preSel;
+            Say(guardOk, $"object list: reused slot {newSlot} with stale gen did not jump or select");
+            if (newSlot >= 0 && Live(newSlot)) GodTools.Remove(_w, newSlot);
         }
         _ui.ApplyPreset(2);
 
