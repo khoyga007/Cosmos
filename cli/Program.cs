@@ -28,6 +28,7 @@ if (args.Length > 1 && args[0] == "jump-bench")
     if (args.Length > 3) foreach (var e in jw.Events) Console.WriteLine($"  {e.Year:G6} #{e.ObjectSlot} {jw.Name[e.ObjectSlot]} {e.RuleId} {e.Change} {e.A:G4} {e.B:G4} {e.C:G4}");
     return 0;
 }
+if (args.Length > 0 && args[0] == "advance-bench") { AdvanceBench.Run(args); return 0; }
 if (args.Length > 0 && args[0] == "kinds") return KindChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "guards") return GuardChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "civtable") return CivTableChecks.Run() ? 0 : 1;
