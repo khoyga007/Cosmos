@@ -14,24 +14,27 @@ static class CivTableChecks
         _ok = true;
         const int earth = 3;
 
-        // 1. 4 default stages: properties, thresholds, flags match expected
+        // 1. 10 default stages: properties, thresholds, flags match expected
         {
             var w = World.SolSystem(0, 1234);
-            bool countOk = w.Stages.Count == 4;
-            bool flagsOk = !w.Stages[0].UsesMetal && !w.Stages[0].CanLaunchShips && !w.Stages[0].CanDome
-                        && !w.Stages[1].UsesMetal && !w.Stages[1].CanLaunchShips && !w.Stages[1].CanDome
-                        && w.Stages[2].UsesMetal && !w.Stages[2].CanLaunchShips && !w.Stages[2].CanDome
-                        && w.Stages[3].UsesMetal && w.Stages[3].CanLaunchShips && w.Stages[3].CanDome;
-            Check(countOk && flagsOk, "Default stages: 4 stages with correct thresholds and flags (primitive, farming, industry, space)");
+            bool countOk = w.Stages.Count == 10;
+            bool flagsOk = true;
+            for (int k = 0; k <= 5; k++)
+                flagsOk &= !w.Stages[k].UsesMetal && !w.Stages[k].CanLaunchShips && !w.Stages[k].CanDome;
+            for (int k = 6; k <= 7; k++)
+                flagsOk &= w.Stages[k].UsesMetal && !w.Stages[k].CanLaunchShips && !w.Stages[k].CanDome;
+            for (int k = 8; k <= 9; k++)
+                flagsOk &= w.Stages[k].UsesMetal && w.Stages[k].CanLaunchShips && w.Stages[k].CanDome;
+            Check(countOk && flagsOk, "Default stages: 10 stages with correct thresholds, needs and flags");
         }
 
         // 2. Acceptance test: Inserting a 'test' stage between 1 and 2
         // Civilization advances through it and generates events civ.stage.1.2 and civ.stage.2.3
         {
             var w = World.SolSystem(0, 1234);
-            // insert 'test' stage at index 2 with threshold 1.5
-            w.Stages.Insert(2, new Stage("copper_age", "Thời kỳ Đồ Đồng", 1.5, UsesMetal: true, CanLaunchShips: false, CanDome: false));
-            Check(w.Stages.Count == 5 && w.Stages[2].Id == "copper_age", "Stage inserted between 1 and 2: Stages count is 5");
+            // insert 'test' stage at index 2 with threshold 0.8 (between stone_age 0.5 and bronze_age 1.0)
+            w.Stages.Insert(2, new Stage("copper_age", "Thời kỳ Đồ Đồng Sơ Khai", 0.8, UsesMetal: false, CanLaunchShips: false, CanDome: false));
+            Check(w.Stages.Count == 11 && w.Stages[2].Id == "copper_age", "Stage inserted between 1 and 2: Stages count is 11");
 
             // Fast forward 1 million years
             w.Do(new Command(CmdKind.FastForward, Amount: 1e6));
@@ -51,10 +54,10 @@ static class CivTableChecks
             ulong h0 = wDefault.Hash();
             wDefault.Do(new Command(CmdKind.FastForward, Amount: 1e6));
             ulong hEnd = wDefault.Hash();
-            bool hasSpaceAge = wDefault.Events.Any(e => e.ObjectSlot == earth && e.Change == "civ.stage.2.3");
-            bool noStage34 = !wDefault.Events.Any(e => e.ObjectSlot == earth && e.Change == "civ.stage.3.4");
-            Check(hasSpaceAge && noStage34 && hEnd != h0,
-                $"Default 4 stages without insertion: ends at stage 3 (civ.stage.2.3 logged, no 3.4), hash deterministic {hEnd:X16}");
+            bool hasSpaceAge = wDefault.Events.Any(e => e.ObjectSlot == earth && e.Change == "civ.stage.8.9");
+            bool noStage910 = !wDefault.Events.Any(e => e.ObjectSlot == earth && e.Change == "civ.stage.9.10");
+            Check(hasSpaceAge && noStage910 && hEnd != h0,
+                $"Default 10 stages without insertion: ends at stage 9 (civ.stage.8.9 logged, no 9.10), hash deterministic {hEnd:X16}");
         }
 
         // 4. CivInfo.Stats: named stats container participates in hash deterministically

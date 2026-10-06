@@ -507,7 +507,22 @@ public partial class Main : Node2D
                 if (_w.Pop[i] > 0)
                 {
                     sb.Append($"[color=#ffd700]Văn minh {info.Name}[/color] — {(home ? "quê hương" : $"thuộc địa (quê hương: {(Live(info.Home) ? NameOf(info.Home) : "đã mất")})")}\n");
-                    sb.Append($"dân số {_w.Pop[i] * 100:F2}% — {GodUi.TechStageVi[_w.TechStage(i)]} (công nghệ {_w.Tech[i]:F1}){(_w.Life[i] < _w.C.CivLifeMin / 5 ? " — sống trong vòm kín" : "")}\n");
+                    int stage = _w.TechStage(i);
+                    string stageName = stage < GodUi.TechStageVi.Length ? GodUi.TechStageVi[stage] : $"Cấp {stage}";
+                    double people = _w.PeopleCount(i);
+                    double watts = _w.PowerWatts(i);
+                    double kScale = _w.KardashevScale(i);
+                    double footprint = _w.CivFootprint(i);
+                    bool isDome = _w.Life[i] < _w.C.CivLifeMin / 5;
+
+                    sb.Append($"[color=#aaccff]Thời đại:[/color] [b]{stageName}[/b]   [color=#aaccff]Công nghệ:[/color] {_w.Tech[i]:F2}/4.0\n");
+                    sb.Append($"[color=#aaccff]Dân số:[/color] {GodUi.FormatPeople(people)} ({_w.Pop[i] * 100:F1}%){(isDome ? " [color=#88ccff](vòm kín)[/color]" : "")}\n");
+                    sb.Append($"[color=#aaccff]Năng lượng:[/color] {GodUi.FormatWatts(watts)} (Kardashev {kScale:F2})   [color=#aaccff]Tác động:[/color] {footprint * 100:F1}%\n");
+                    if (isDome && !home)
+                    {
+                        bool supplyOk = info.Home >= 0 && Live(info.Home) && _w.Civ[info.Home] == civ && _w.Pop[info.Home] > 0;
+                        sb.Append(supplyOk ? "[color=#66ff66]Tiếp tế quê hương: Ổn định[/color]\n" : "[color=#ff5555]Mất nguồn tiếp tế: Thuộc địa đang lụi tàn[/color]\n");
+                    }
                 }
                 else sb.Append($"[color=#888888]Văn minh {info.Name} từng sống ở đây.[/color]\n");
                 sb.Append($"ra đời năm {info.BornYear:N0}, đang sống trên {_w.WorldsOf(civ)} thế giới\n");

@@ -8,14 +8,38 @@ using System.Collections.Generic;
 
 namespace Cosmos.Core;
 
+public enum ResourceRole
+{
+    Gas,
+    Ice,
+    Rock,
+    Metal,
+    Carbon,
+    Radio,
+    Water,
+    Biosphere,
+    Starlight
+}
+
+public sealed record StageNeed(
+    ResourceRole Role,
+    double MinShare = 0,
+    double ConsumeRate = 0
+);
+
 public sealed record Stage(
     string Id,
     string NameVi,
     double TechThreshold,
+    double WattsPerCapita = 100,
+    IReadOnlyList<StageNeed>? Needs = null,
     bool UsesMetal = false,
     bool CanLaunchShips = false,
     bool CanDome = false
-);
+)
+{
+    public IReadOnlyList<StageNeed> Needs { get; init; } = Needs ?? Array.Empty<StageNeed>();
+}
 
 public sealed partial class Consts
 {
@@ -40,6 +64,10 @@ public sealed partial class Consts
     public double CivDecayYears = 500;     // population falls by e in this many years once the biosphere fails
     public double CivTechRate = 1e-4;      // tech per year at full population on a metal-rich planet
     public double CivMetalRef = 0.3;       // share of metal that gives the full tech rate
+    public double EarthRadiusKm => 6371.0;   // km: WGS84 mean Earth radius [P]
+    public double EarthRadiusRef => 0.05177; // simulation length units: calibrated Earth radius [P]
+    public double EarthMaxPopulation => 1e10;// people at Pop=1 on Earth-sized biosphere carrying capacity [P]
+    public double CivSupplyRate => 1e-8;    // share of mass in ice shipped from home to dry dome per year [P]
 
     public double ImpactScale = 1e-3;      // a hit by this share of the planet's mass cuts life and population by e
 }
@@ -61,10 +89,30 @@ public sealed partial class World
 
     public static readonly Stage[] DefaultStages = new[]
     {
-        new Stage("primitive", "Chưa phát triển", 0, UsesMetal: false, CanLaunchShips: false, CanDome: false),
-        new Stage("farming", "Thời kỳ Nông nghiệp", 1, UsesMetal: false, CanLaunchShips: false, CanDome: false),
-        new Stage("industry", "Thời kỳ Công nghiệp", 2, UsesMetal: true, CanLaunchShips: false, CanDome: false),
-        new Stage("space", "Kỷ nguyên Không gian", 3, UsesMetal: true, CanLaunchShips: true, CanDome: true)
+        new Stage("prehistoric", "Thời kỳ Tiền sử", 0.0, WattsPerCapita: 100,
+            Needs: new[] { new StageNeed(ResourceRole.Water, 0.001), new StageNeed(ResourceRole.Biosphere, 0.01) }),
+        new Stage("stone_age", "Thời kỳ Đồ Đá", 0.5, WattsPerCapita: 150,
+            Needs: new[] { new StageNeed(ResourceRole.Rock, 0.05), new StageNeed(ResourceRole.Biosphere, 0.05) }),
+        new Stage("bronze_age", "Thời kỳ Đồ Đồng", 1.0, WattsPerCapita: 250,
+            Needs: new[] { new StageNeed(ResourceRole.Metal, 0.02, ConsumeRate: 1e-9), new StageNeed(ResourceRole.Rock, 0.05) }),
+        new Stage("iron_age", "Thời kỳ Đồ Sắt", 1.5, WattsPerCapita: 400,
+            Needs: new[] { new StageNeed(ResourceRole.Metal, 0.05, ConsumeRate: 2e-9), new StageNeed(ResourceRole.Carbon, 0.001, ConsumeRate: 1e-9) }),
+        new Stage("medieval", "Thời kỳ Trung Cổ", 2.0, WattsPerCapita: 600,
+            Needs: new[] { new StageNeed(ResourceRole.Metal, 0.05), new StageNeed(ResourceRole.Biosphere, 0.1) }),
+        new Stage("renaissance", "Thời kỳ Phục Hưng", 2.3, WattsPerCapita: 1000,
+            Needs: new[] { new StageNeed(ResourceRole.Metal, 0.08), new StageNeed(ResourceRole.Carbon, 0.002, ConsumeRate: 1e-9) }),
+        new Stage("industrial", "Thời kỳ Công nghiệp", 2.6, WattsPerCapita: 3000,
+            Needs: new[] { new StageNeed(ResourceRole.Metal, 0.10, ConsumeRate: 5e-8), new StageNeed(ResourceRole.Carbon, 0.003, ConsumeRate: 1e-8) },
+            UsesMetal: true),
+        new Stage("atomic_age", "Thời kỳ Nguyên tử", 2.85, WattsPerCapita: 8000,
+            Needs: new[] { new StageNeed(ResourceRole.Metal, 0.10, ConsumeRate: 5e-8), new StageNeed(ResourceRole.Radio, 0.0005, ConsumeRate: 1e-9) },
+            UsesMetal: true),
+        new Stage("space", "Kỷ nguyên Tiền Vũ trụ", 3.0, WattsPerCapita: 20000,
+            Needs: new[] { new StageNeed(ResourceRole.Metal, 0.10, ConsumeRate: 5e-8), new StageNeed(ResourceRole.Ice, 0.001, ConsumeRate: 1e-8) },
+            UsesMetal: true, CanLaunchShips: true, CanDome: true),
+        new Stage("interplanetary", "Kỷ nguyên Vũ trụ", 3.5, WattsPerCapita: 100000,
+            Needs: new[] { new StageNeed(ResourceRole.Metal, 0.10, ConsumeRate: 5e-8), new StageNeed(ResourceRole.Radio, 0.001, ConsumeRate: 2e-9) },
+            UsesMetal: true, CanLaunchShips: true, CanDome: true)
     };
 
     public readonly List<Stage> Stages = new();
@@ -107,6 +155,70 @@ public sealed partial class World
     }
 
     public double Share(int i, int elem) => Comp[i * ElementCount + elem] / M[i];
+
+    public double ResourceLevel(int i, ResourceRole role)
+    {
+        return role switch
+        {
+            ResourceRole.Gas => Share(i, ElementRole.Gas),
+            ResourceRole.Ice => Share(i, ElementRole.Ice),
+            ResourceRole.Rock => Share(i, ElementRole.Rock),
+            ResourceRole.Metal => Share(i, ElementRole.Metal),
+            ResourceRole.Carbon => Share(i, ElementRole.Carbon),
+            ResourceRole.Radio => Share(i, ElementRole.Radio),
+            ResourceRole.Water => Water[i] == (int)WaterState.Liquid ? Share(i, ElementRole.Ice) : 0.0,
+            ResourceRole.Biosphere => Life[i],
+            ResourceRole.Starlight => !double.IsNaN(Temp[i]) && Temp[i] > 50.0 ? 1.0 : 0.0,
+            _ => 0.0
+        };
+    }
+
+    public bool HasNeedsForStage(int i, int stageIndex)
+    {
+        if (stageIndex < 0 || stageIndex >= Stages.Count) return false;
+        var needs = Stages[stageIndex].Needs;
+        if (needs == null || needs.Count == 0) return true;
+        for (int k = 0; k < needs.Count; k++)
+        {
+            var need = needs[k];
+            if (need.MinShare > 0 && ResourceLevel(i, need.Role) < need.MinShare)
+                return false;
+        }
+        return true;
+    }
+
+    public double PeopleCount(int i)
+    {
+        if (!Alive[i] || Pop[i] <= 0) return 0;
+        double rRef = C.EarthRadiusRef;
+        double areaRatio = rRef > 0 ? Math.Pow(R[i] / rRef, 2.0) : 1.0;
+        return Pop[i] * C.EarthMaxPopulation * areaRatio * CivRoom(i);
+    }
+
+    public double PowerWatts(int i)
+    {
+        if (!Alive[i] || Pop[i] <= 0) return 0;
+        int stage = TechStage(i);
+        double wpc = stage < Stages.Count ? Stages[stage].WattsPerCapita : 100.0;
+        return PeopleCount(i) * wpc;
+    }
+
+    public double KardashevScale(int i)
+    {
+        double p = PowerWatts(i);
+        if (!(p > 1e6)) return 0;
+        return (Math.Log10(p) - 6.0) / 10.0;
+    }
+
+    public double CivFootprint(int i)
+    {
+        if (!Alive[i] || Pop[i] <= 0 || (uint)Civ[i] >= (uint)Civs.Count) return 0;
+        int civ = Civ[i];
+        double consumed = Civs[civ].Stats.TryGetValue("consumed_matter", out double c) ? c : 0;
+        double massShare = M[i] > 0 ? (consumed / M[i]) : 0;
+        double bioLoad = Life[i] > 0 ? Math.Clamp(Pop[i] / Life[i], 0, 1) : 1.0;
+        return Math.Clamp(0.5 * bioLoad + 0.5 * Math.Min(1.0, massShare * 1000.0), 0, 1);
+    }
 
     void UpdateWater()
     {
@@ -239,10 +351,19 @@ public sealed partial class World
             }
             Pop[i] = p;
             double metal = C.CivMetalRef > 0 ? Math.Min(1, Share(i, ElementRole.Metal) / C.CivMetalRef) : 1; // 0 = metal not needed
-            // nothing to learn past the last stage: tech stops one full step above its threshold (a new row in Stages moves the ceiling)
-            double tech0 = Tech[i], rate = C.CivTechRate * metal, top = Stages.Count > 0 ? Stages[^1].TechThreshold + 1 : 0;
-            if (tech0 < top) Tech[i] = Math.Min(top, tech0 + rate * lived);
-            if (stage < Stages.Count && Stages[stage].UsesMetal) UseMetal(i, lived);
+            double tech0 = Tech[i], rate = C.CivTechRate * metal;
+            double top = Stages.Count > 0 ? Stages[^1].TechThreshold + 0.5 : 0;
+            double cap = top;
+            for (int s = stage + 1; s < Stages.Count; s++)
+            {
+                if (!HasNeedsForStage(i, s))
+                {
+                    cap = Math.BitDecrement(Stages[s].TechThreshold);
+                    break;
+                }
+            }
+            if (tech0 < cap) Tech[i] = Math.Min(cap, tech0 + rate * lived);
+            ConsumeResources(i, lived, stage);
             int after = TechStage(i);
             _launchYear[i] = double.NaN;
             if (after > stage && rate > 0)

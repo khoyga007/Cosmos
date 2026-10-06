@@ -98,6 +98,22 @@ public partial class GodUi : CanvasLayer
     }
 
     public static string Years(double y) => !double.IsFinite(y) ? "vô hạn" : y >= 1e9 ? $"{y / 1e9:G3} tỉ năm" : y >= 1e6 ? $"{y / 1e6:G3} triệu năm" : $"{y:N0} năm";
+    public static string FormatPeople(double people)
+    {
+        if (people >= 1e9) return $"{people / 1e9:F2} tỉ";
+        if (people >= 1e6) return $"{people / 1e6:F2} triệu";
+        if (people >= 1e3) return $"{people / 1e3:F1} nghìn";
+        return $"{people:N0}";
+    }
+    public static string FormatWatts(double watts)
+    {
+        if (watts >= 1e15) return $"{watts / 1e15:F2} PW";
+        if (watts >= 1e12) return $"{watts / 1e12:F2} TW";
+        if (watts >= 1e9) return $"{watts / 1e9:F2} GW";
+        if (watts >= 1e6) return $"{watts / 1e6:F2} MW";
+        if (watts >= 1e3) return $"{watts / 1e3:F1} kW";
+        return $"{watts:F0} W";
+    }
     public static readonly string[] WaterVi = { "Không có", "Băng tuyết", "Nước lỏng", "Hơi nước" };
     public static readonly string[] LifeStageVi = { "Chưa có", "Vi sinh vật", "Đa bào phức tạp", "Sinh quyển trù phú" };
     public static readonly string[] TechStageVi = Array.ConvertAll(World.DefaultStages, s => s.NameVi);
