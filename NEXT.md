@@ -65,3 +65,7 @@ READ `SPEC.md` FIRST (game, model, engine decisions, round-1 work packages). Thi
 - Resources (Yang): civs must plausibly use ALL six element groups + water/biosphere/starlight (table given to Yang in chat: rock tools/building; carbon fuel pre-electric + greenhouse; metal from bronze on; ice = water, in space O2 + rocket fuel; radio = fission; gas = fusion, late). Six groups coarse = OK for the abstract version.
 - Yang: FTL cannot be explained by the six -> ADD fictional element(s). Name/number/source undecided. NElem is a const 6 with literal 6-long mixes everywhere (scenes, checks, UI): adding one = wide mechanical edit.
 - Fictional elements (Yang): SEVERAL, each with its own role later; they are BORN IN COSMIC EVENTS (supernova, hypernova, kilonova, gamma ray burst, ... — the events the team builds next). Names, count, which event makes which, roles: undecided. Design consequence: element count must become easy to extend (not a hard 6), and cosmic events must leave real matter behind (ejecta/remnant composition).
+
+## Round 7 — foundation only (sent bridge da35f5cc, base 236b4db)
+- A Celine `celine/elements`: element table replaces `NElem = 6`. B Ariel `ariel/civtable`: stage table + named civ stats slot. C Celine: star event table + single `Eject()`. Selica: hard-code sweep, "edits outside table = 0" audits, review.
+- Old hashes must stay bit-equal. Claire merges A -> B -> C, re-runs herself. Claire writes no code this round (Yang: save quota).
