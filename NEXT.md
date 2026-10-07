@@ -150,3 +150,11 @@ Wiring: core event (place, year, size) -> window plays the effect; event/element
 - Claire proposal (heard, not approved): capability graph. Node = capability (heat control, metalwork, memory/writing, electricity, nuclear, spaceflight..), each with Needs (element shares, prereq nodes) like StageNeed today. Civ unlocks nodes its environment+body allow; era LABEL = derived from Kardashev + unlocked set. Human 10-era table = default path inside the graph.
 - Yang answers: (1) body + environment BOTH species parameters at birth AND derived from the home planet (both). (2) Human = first, default template; all other species = free composition from parameters (no fixed species list).
 - Open (Yang): parameter list (body plan, senses, habitat, lifespan, social structure...), how birth params and planet interact (planet constrains/biases, species picks within), node list.
+
+## Reference: Macht: Cosmic Engine (Yang played 2026-10-08)
+Yang verdict: messy, vibe-coded, worse than Cosmos. Specific complaints (traps to avoid in Cosmos):
+- civ meaningless (no visible why/cause; stages/events with no player-readable meaning)
+- many control panels with no meaning (panel count != depth; each panel must answer a player question)
+- tutorial incomprehensible
+Macht pitch for comparison: 1:1 galaxy ~1e11 stars, zoom intergalactic->planet surface, VR, Kepler orbits, DNA editing, god-mode wars. Unverified (search summary only; dev = Kaan solo vs Kestro Games listing conflict).
+Cosmos TODO from this: before adding any panel, state the question it answers; civ events must surface a readable cause (log line "why"); tutorial = Yang test, not agents. Yang's eyes judge.
