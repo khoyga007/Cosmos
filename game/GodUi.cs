@@ -158,22 +158,28 @@ public partial class GodUi : CanvasLayer
     static bool Number(string text, out double value) =>
         double.TryParse(text.Trim().Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out value) && double.IsFinite(value);
 
+    const int SidePref = 362, SideMin = 260, SideMargin = 10;
+
     public override void _Ready()
     {
         BuildTimeBar();
 
-        // right panel: full height, fixed width, clear of the time bar
+        // right panel: full height, responsive width, clear of the time bar
         var side = new PanelContainer { MouseFilter = Control.MouseFilterEnum.Stop };
         side.AnchorLeft = 1; side.AnchorRight = 1; side.AnchorTop = 0; side.AnchorBottom = 1;
-        side.OffsetLeft = -372; side.OffsetRight = -10; side.OffsetTop = 10; side.OffsetBottom = -10;
+        side.OffsetTop = SideMargin; side.OffsetBottom = -SideMargin; side.OffsetRight = -SideMargin;
         AddChild(side);
         _side = side;
 
         var margin = new MarginContainer();
         foreach (string m in new[] { "margin_left", "margin_right", "margin_top", "margin_bottom" }) margin.AddThemeConstantOverride(m, 6);
         side.AddChild(margin);
+
         _tabs = new TabContainer();
         _tabs.GetTabBar().FocusMode = Control.FocusModeEnum.None;
+        _tabs.ClipTabs = true;
+        _tabs.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
+        _tabs.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         margin.AddChild(_tabs);
 
         BuildCreateTab();
@@ -187,22 +193,58 @@ public partial class GodUi : CanvasLayer
             if (idx == 2) RefreshObjectListIfNeeded();
         };
 
+        LayoutSidePanel();
+        GetTree().Root.SizeChanged += LayoutSidePanel;
+
         ApplyPreset(2);
         UpdateCreating(false);
         UpdatePaused(false);
         RefreshSelection();
     }
 
+    void LayoutSidePanel()
+    {
+        if (_side == null) return;
+        float vw = GetTree().Root.Size.X;
+        int w = Math.Clamp(SidePref, SideMin, (int)(vw * 0.45f));
+        _side.OffsetLeft = -(w + SideMargin);
+    }
+
     public void TogglePanel() => _side.Visible = !_side.Visible;
     public Rect2 GetSideRect() => _side.GetGlobalRect();
 
-    VBoxContainer Tab(string title)
+    VBoxContainer Tab(string title, bool scrollable = false)
     {
-        var pad = new MarginContainer { Name = title };
+        var pad = new MarginContainer();
         foreach (string m in new[] { "margin_left", "margin_right", "margin_top", "margin_bottom" }) pad.AddThemeConstantOverride(m, 8);
-        _tabs.AddChild(pad);
+        pad.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+
+        Control root;
+        if (scrollable)
+        {
+            var scroll = new ScrollContainer
+            {
+                Name = title,
+                HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+                VerticalScrollMode = ScrollContainer.ScrollMode.Auto,
+                SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+                SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            };
+            scroll.AddChild(pad);
+            root = scroll;
+        }
+        else
+        {
+            pad.Name = title;
+            pad.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
+            root = pad;
+        }
+        _tabs.AddChild(root);
+
         var v = new VBoxContainer();
         v.AddThemeConstantOverride("separation", 8);
+        v.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        v.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
         pad.AddChild(v);
         return v;
     }
@@ -311,7 +353,7 @@ public partial class GodUi : CanvasLayer
 
     void BuildCreateTab()
     {
-        var v = Tab("Tạo");
+        var v = Tab("Tạo", scrollable: true);
 
         _btnCreate = Btn("", () => _main.SetCreating(!_main.Creating));
         _btnCreate.CustomMinimumSize = new Vector2(0, 40);
@@ -319,11 +361,12 @@ public partial class GodUi : CanvasLayer
         v.AddChild(Note("Con trỏ mang theo vật thể mới. Bấm vào không gian: nó tự quay tròn quanh vật đang thống trị chỗ đó. Giữ và kéo: phóng nó đi, đường vàng cho thấy trước quỹ đạo."));
 
         v.AddChild(new HSeparator());
-        var grid = new GridContainer { Columns = 2 };
+        var grid = new GridContainer { Columns = 2, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         for (int i = 0; i < Presets.Length; i++)
         {
             int idx = i;
-            var b = Btn(Presets[i].Name, () => { ApplyPreset(idx); if (!_main.Creating) _main.SetCreating(true); }, 168);
+            var b = Btn(Presets[i].Name, () => { ApplyPreset(idx); if (!_main.Creating) _main.SetCreating(true); });
+            b.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
             grid.AddChild(b);
         }
         v.AddChild(grid);
@@ -395,7 +438,7 @@ public partial class GodUi : CanvasLayer
 
     void BuildObjectTab()
     {
-        var v = Tab("Vật thể");
+        var v = Tab("Vật thể", scrollable: true);
         _lblTarget = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
         v.AddChild(_lblTarget);
 
@@ -403,7 +446,7 @@ public partial class GodUi : CanvasLayer
         _objBody.AddThemeConstantOverride("separation", 8);
         v.AddChild(_objBody);
 
-        var row = new HBoxContainer();
+        var row = new FlowContainer();
         row.AddChild(Btn("Bám theo (F)", _main.FollowSelected));
         row.AddChild(Btn("Về quỹ đạo tròn", _main.CircularizeSelected));
         row.AddChild(Btn("Tạo vành đai (vật chất: tab Tạo)", _main.RingSelected));
@@ -431,7 +474,7 @@ public partial class GodUi : CanvasLayer
         _sliderSeed = new HSlider { MinValue = 0.05, MaxValue = 1, Step = 0.05, Value = 0.5, FocusMode = Control.FocusModeEnum.None };
         _sliderSeed.ValueChanged += _ => UpdateObjectTab();
         _objBody.AddChild(_sliderSeed);
-        var rowSeed = new HBoxContainer();
+        var rowSeed = new FlowContainer();
         _btnSeed = Btn("Gieo sự sống", () => Seed(_sliderSeed.Value));
         _btnWipe = Btn("Diệt sạch sự sống", () => Seed(0));
         rowSeed.AddChild(_btnSeed); rowSeed.AddChild(_btnWipe);
@@ -776,12 +819,26 @@ public partial class GodUi : CanvasLayer
         {
             if (e.Change == "star.giant") return $"{yr}[color=#ff7755]cạn hydro ở lõi, phình thành sao khổng lồ đỏ[/color], sáng gấp {e.C:G3} lần Mặt Trời.";
             if (e.Change == "star.nova") return $"{yr}[color=#ffffff][b]nổ tung khi chết[/b][/color] (sao nặng {e.A:G3} Mặt Trời).";
+            if (e.Change == "star.hypernova") return $"{yr}[color=#ffffff][b]nổ siêu tân tinh cực mạnh (hypernova)[/b][/color] (sao nặng {e.A:G3} Mặt Trời).";
             if (e.Change == "star.remnant.white") return $"{yr}lõi còn lại thành [color=#eef3ff]sao lùn trắng[/color].";
             if (e.Change == "star.remnant.neutron") return $"{yr}lõi sụp thành [color=#bacfff]sao neutron[/color].";
             if (e.Change == "star.remnant.black") return $"{yr}lõi sụp thành [color=#ffb36d]lỗ đen[/color].";
+            if (e.Change == "star.kilonova.nsns") return $"{yr}[color=#ffd700][b]kilonova[/b][/color]: sáp nhập hai sao neutron (sao nặng {e.A:G3} Mặt Trời).";
+            if (e.Change == "star.kilonova.nsbh") return $"{yr}[color=#ffaa55][b]kilonova[/b][/color]: sao neutron sáp nhập vào lỗ đen (sao nặng {e.A:G3} Mặt Trời).";
+            if (e.Change == "grb.long") return $"{yr}[color=#ff55ff][b]chớp tia gamma dài[/b][/color] (năng lượng {e.A:G3} J).";
+            if (e.Change == "grb.short") return $"{yr}[color=#ff77ff][b]chớp tia gamma ngắn[/b][/color] (năng lượng {e.A:G3} J).";
+            return $"{yr}[color=#ff99cc]bùng phát năng lượng[/color] ({e.Change}), năng lượng {e.A:G3} J, bán kính ảnh hưởng {e.C:G3} m.";
         }
 
         if (e.RuleId == "comets" && e.Change == "comet.spent") return $"{yr}băng đã bốc hơi hết, chỉ còn lại lõi đá.";
+
+        if (e.RuleId == "roche")
+        {
+            if (e.Change == "roche.ring")
+                return $"{yr}[color=#ffaa44]lực thuỷ triều xé vật thể ({e.A / World.EarthMass:G3} Trái Đất), bắt giữ {e.B / World.EarthMass:G3} Trái Đất thành vành đai[/color] (sinh {e.C:N0} mảnh).";
+            if (e.Change == "roche.stream")
+                return $"{yr}[color=#ffaa44]lực thuỷ triều xé vật thể ({e.A / World.EarthMass:G3} Trái Đất) thành dòng mảnh vụn[/color] (sinh {e.C:N0} mảnh).";
+        }
 
         return $"{yr}[{e.RuleId}] {e.Change}";
     }
@@ -802,7 +859,7 @@ public partial class GodUi : CanvasLayer
         if (e.Change == "civ.ship.first")
         {
             int goal = (int)e.B;
-            string to = goal >= 0 && goal < w.N && w.Name[goal] != null ? w.Name[goal] : "một thế giới khác";
+            string to = goal >= 0 && goal < w.N && w.Name[goal] != null ? w.Name[goal]! : "một thế giới khác";
             return $"{head}[color=#ffd700]{who} phóng con tàu đầu tiên[/color], hướng tới {to}.";
         }
         if (e.Change == "civ.ship.turned")
@@ -843,7 +900,25 @@ public partial class GodUi : CanvasLayer
         _eventsCount = count; _eventsLastYear = last;
         if (count == 0) { _txtEvents.Text = "Chưa có sự kiện nào. Thử nhảy tới 1 triệu năm."; return; }
         var sb = new System.Text.StringBuilder();
-        for (int i = count - 1; i >= Math.Max(0, count - 100); i--) sb.AppendLine(TranslateEvent(_w, _w.Events[i])).AppendLine();
+        int end = Math.Max(0, count - 200); // scan window for grouping
+        int i = count - 1;
+        int lines = 0;
+        while (i >= end && lines < 100)
+        {
+            var e = _w.Events[i];
+            int run = 1;
+            while (i - run >= end)
+            {
+                var prev = _w.Events[i - run];
+                if (prev.RuleId == e.RuleId && prev.Change == e.Change && prev.ObjectSlot == e.ObjectSlot && prev.Year == e.Year) run++;
+                else break;
+            }
+            string line = TranslateEvent(_w, e);
+            if (run > 1) line += $" [b]×{run}[/b]";
+            sb.AppendLine(line).AppendLine();
+            i -= run;
+            lines++;
+        }
         _txtEvents.Text = sb.ToString();
     }
 }
