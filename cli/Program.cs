@@ -42,6 +42,8 @@ if (args.Length > 0 && args[0] == "civstats") return CivStatsChecks.Run() ? 0 : 
 if (args.Length > 0 && args[0] == "ships") return ShipChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "conserve") return ConserveChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "cosmic") return CosmicChecks.Run() ? 0 : 1;
+if (args.Length > 0 && args[0] == "roche") return RocheChecks.Run() ? 0 : 1;
+if (args.Length > 0 && args[0] == "rules") return RuleChecks.Run() ? 0 : 1;
 bool allOk = true;
 void Check(bool ok, string line) { allOk &= ok; Console.WriteLine($"{(ok ? "OK    " : "FAILED")} {line}"); }
 
@@ -59,6 +61,8 @@ foreach (int n in new[] { 2_000, 5_000, 20_000, 50_000 })
 // merge: two bodies fall onto each other; mass, momentum and matter must be kept
 {
     var w = new World(8, 1);
+    // This probe owns contact/merge, independently of the tidal breakup law.
+    w.Do(new Command(CmdKind.SetRule, Name: "roche", Amount: 0));
     int a = w.Add(-1, 0, 0.02, 0, 3e-4, new double[] { 0, 0, 1, 0, 0, 0 }, "A");
     int b = w.Add(1, 0, -0.02, 0, 1e-4, new double[] { 0, 1, 0, 0, 0, 0 }, "B");
     double px = w.M[a] * w.Vx[a] + w.M[b] * w.Vx[b], py = w.M[a] * w.Vy[a] + w.M[b] * w.Vy[b];
@@ -142,6 +146,7 @@ allOk &= CivStatsChecks.Run();
 allOk &= ShipChecks.Run();
 allOk &= ConserveChecks.Run();
 allOk &= CosmicChecks.Run();
+allOk &= RocheChecks.Run();
 allOk &= Audit.Run();
 return allOk ? 0 : 1;
 

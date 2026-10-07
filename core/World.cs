@@ -292,66 +292,90 @@ public sealed partial class World
         if (!double.IsFinite(h) || h < 0 || !double.IsFinite(C.YearTime) || C.YearTime <= 0)
             throw new ArgumentOutOfRangeException(nameof(h), "Advance requires finite non-negative time and positive YearTime.");
         SteerShips(h);
-        double hs = h / Sub, g = C.G;
+        _rocheChanges = 0;
+        CollectRocheCandidates(h);
+        CheckRocheHere();
+        if (_rocheChanges > 0) CollectRocheCandidates(h);
+        double hs = h / Sub, g = C.G, began = Year;
         for (int sub = 0; sub < Sub; sub++)
         {
-            // The pulling objects are gathered once per small step, with the numbers every kick needs. Positions,
-            // radii and masses are all constant for the whole step (kicks move velocities; Merge runs after), so a
-            // copy is the same value the old inner loop read one object at a time.
-            _na = 0;
-            for (int i = 0; i < N; i++) if (Alive[i] && M[i] >= C.AttractMass)
+            double remaining = hs, elapsed = 0;
+            do
             {
-                _att[_na] = i; _attX[_na] = X[i]; _attY[_na] = Y[i]; _attR[_na] = R[i]; _attGM[_na] = g * M[i]; _na++;
-            }
-
-            // Outside a surface each acceleration is bounded by G*M/R². A candidate can be rejected using
-            // distance already computed for gravity, without another scan of every rock/body pair.
-            double maxKickDrift = 0, maxAttSpeed = 0;
-            for (int k = 0; k < _na; k++)
-            {
-                int j = _att[k];
-                maxKickDrift += Math.Abs(g) * M[j] / (R[j] * R[j]) * hs * hs;
-            }
-            // Pulling objects kick first; gravity only reads positions. A rock's sweep then has both final velocities.
-            for (int k = 0; k < _na; k++) KickBody(_att[k], hs);
-            for (int k = 0; k < _na; k++)
-            {
-                int i = _att[k];
-                maxAttSpeed = Math.Max(maxAttSpeed, Math.Sqrt(Vx[i] * Vx[i] + Vy[i] * Vy[i]));
-                for (int l = k + 1; l < _na; l++)
+                var entry = NextRocheEntry(remaining);
+                double slice = entry.Body >= 0 ? entry.Time : remaining;
+                AdvanceSlice(slice, g);
+                elapsed += slice; remaining -= slice;
+                if (entry.Body >= 0 && Alive[entry.Body] && Alive[entry.Host]
+                    && Gen[entry.Body] == entry.BodyGen && Gen[entry.Host] == entry.HostGen)
                 {
-                    int j = _att[l];
-                    if (SweptContact(X[i] - X[j], Y[i] - Y[j],
-                        (Vx[i] - Vx[j]) * hs, (Vy[i] - Vy[j]) * hs, R[i] + R[j])) _hits.Add((i, j));
+                    Year = began + (sub * hs + elapsed) / C.YearTime;
+                    try { BreakRoche(entry.Body, entry.Host); CollectRocheCandidates(h - (sub * hs + elapsed)); }
+                    finally { Year = began; }
                 }
-            }
-            // The rock pass is the whole cost at 5250 objects, and it is embarrassingly parallel: see the note on
-            // _chunkNear. Chunks are fixed by N, so the hits come back in sequential order whatever the thread count.
-            _subHs = hs; _subMaxAttSpeed = maxAttSpeed; _subMaxKickDrift = maxKickDrift;
-            _chunks = Math.Clamp(N / MinRocksPerChunk, 1, MaxRockChunks);
-            if (_chunks == 1) _kickChunk(0);
-            else Parallel.For(0, _chunks, new ParallelOptions { MaxDegreeOfParallelism = Threads > 0 ? Threads : Environment.ProcessorCount }, _kickChunk);
-            for (int c = 0; c < _chunks; c++)
-            {
-                var chunk = _chunkHits[c];
-                if (chunk.Count == 0) continue;
-                _hits.AddRange(chunk); chunk.Clear();
-            }
-            // Position drift is independent per object too, but it may only run once EVERY chunk has finished
-            // reading the pullers' X/Vx for its sweep, so it needs a barrier of its own: it cannot be folded into
-            // the rock chunks. This costs one more Parallel.For per sub-step, so it is measured, not assumed.
-            if (_chunks == 1) _driftChunk(0);
-            else Parallel.For(0, _chunks, new ParallelOptions { MaxDegreeOfParallelism = Threads > 0 ? Threads : Environment.ProcessorCount }, _driftChunk);
-
-            if (_hits.Count > 0)
-            {
-                foreach (var (a, b) in _hits) if (Alive[a] && Alive[b]) Merge(a, b);
-                _hits.Clear();
-            }
+                if (entry.Body < 0) break;
+            } while (remaining > 0);
         }
         Step++;
         Year += h / C.YearTime;
         RunRules();
+    }
+
+    void AdvanceSlice(double hs, double g)
+    {
+        // The pulling objects are gathered once per small step, with the numbers every kick needs. Positions,
+        // radii and masses are all constant for the whole step (kicks move velocities; Merge runs after), so a
+        // copy is the same value the old inner loop read one object at a time.
+        _na = 0;
+        for (int i = 0; i < N; i++) if (Alive[i] && M[i] >= C.AttractMass)
+        {
+            _att[_na] = i; _attX[_na] = X[i]; _attY[_na] = Y[i]; _attR[_na] = R[i]; _attGM[_na] = g * M[i]; _na++;
+        }
+
+        // Outside a surface each acceleration is bounded by G*M/R². A candidate can be rejected using
+        // distance already computed for gravity, without another scan of every rock/body pair.
+        double maxKickDrift = 0, maxAttSpeed = 0;
+        for (int k = 0; k < _na; k++)
+        {
+            int j = _att[k];
+            maxKickDrift += Math.Abs(g) * M[j] / (R[j] * R[j]) * hs * hs;
+        }
+        // Pulling objects kick first; gravity only reads positions. A rock's sweep then has both final velocities.
+        for (int k = 0; k < _na; k++) KickBody(_att[k], hs);
+        for (int k = 0; k < _na; k++)
+        {
+            int i = _att[k];
+            maxAttSpeed = Math.Max(maxAttSpeed, Math.Sqrt(Vx[i] * Vx[i] + Vy[i] * Vy[i]));
+            for (int l = k + 1; l < _na; l++)
+            {
+                int j = _att[l];
+                if (SweptContact(X[i] - X[j], Y[i] - Y[j],
+                    (Vx[i] - Vx[j]) * hs, (Vy[i] - Vy[j]) * hs, R[i] + R[j])) _hits.Add((i, j));
+            }
+        }
+        // The rock pass is the whole cost at 5250 objects, and it is embarrassingly parallel: see the note on
+        // _chunkNear. Chunks are fixed by N, so the hits come back in sequential order whatever the thread count.
+        _subHs = hs; _subMaxAttSpeed = maxAttSpeed; _subMaxKickDrift = maxKickDrift;
+        _chunks = Math.Clamp(N / MinRocksPerChunk, 1, MaxRockChunks);
+        if (_chunks == 1) _kickChunk(0);
+        else Parallel.For(0, _chunks, new ParallelOptions { MaxDegreeOfParallelism = Threads > 0 ? Threads : Environment.ProcessorCount }, _kickChunk);
+        for (int c = 0; c < _chunks; c++)
+        {
+            var chunk = _chunkHits[c];
+            if (chunk.Count == 0) continue;
+            _hits.AddRange(chunk); chunk.Clear();
+        }
+        // Position drift is independent per object too, but it may only run once EVERY chunk has finished
+        // reading the pullers' X/Vx for its sweep, so it needs a barrier of its own: it cannot be folded into
+        // the rock chunks. This costs one more Parallel.For per sub-step, so it is measured, not assumed.
+        if (_chunks == 1) _driftChunk(0);
+        else Parallel.For(0, _chunks, new ParallelOptions { MaxDegreeOfParallelism = Threads > 0 ? Threads : Environment.ProcessorCount }, _driftChunk);
+
+        if (_hits.Count > 0)
+        {
+            foreach (var (a, b) in _hits) if (Alive[a] && Alive[b]) Merge(a, b);
+            _hits.Clear();
+        }
     }
     // ponytail: two objects that both do NOT pull never collide with each other (rock through rock);
     //           add a grid broad-phase when belts should grind.
@@ -446,7 +470,7 @@ public sealed partial class World
             if (f.GetValue(C) is double d) mix(BitConverter.DoubleToUInt64Bits(d));
             else if (f.GetValue(C) is double[] a) foreach (double x in a) mix(BitConverter.DoubleToUInt64Bits(x));
         }
-        HashRules(mix); HashLayers(mix); HashStars(mix); HashElements(mix); HashStarEvents(mix); HashEscape(mix); HashBursts(mix);
+        HashRules(mix); HashLayers(mix); HashStars(mix); HashElements(mix); HashStarEvents(mix); HashEscape(mix); HashBursts(mix); HashRoche(mix);
         return h;
     }
 }

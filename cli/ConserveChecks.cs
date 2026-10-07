@@ -176,6 +176,11 @@ static class ConserveChecks
         double mass = w.EscapedMass, px = w.EscapedPx, py = w.EscapedPy, gmax = 0;
         var matter = (double[])w.EscapedMatter.Clone();
         for (int e = 0; e < w.ElementCount; e++) matter[e] -= w.NucleosynthesisDelta[e];
+        foreach (var r in w.RocheReservoirs)
+        {
+            mass += r.Mass; px += r.Px; py += r.Py;
+            for (int e = 0; e < w.ElementCount; e++) matter[e] += r.Matter[e];
+        }
         for (int i = 0; i < w.N; i++)
         {
             if (!w.Alive[i]) continue;

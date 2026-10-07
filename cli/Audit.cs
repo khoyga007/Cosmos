@@ -593,8 +593,9 @@ static class Audit
         m.Do(new Command(CmdKind.SeedLife, Target: earth, Amount: 0.5));
         double before = m.Life[earth], pm0 = m.M[earth];
         int rock = m.Add(m.X[earth] + 0.01, m.Y[earth], m.Vx[earth], m.Vy[earth], 1e-4, RockMix, "impactor");
+        int rockGeneration = m.Gen[rock];
         Run(m, 6);
-        Expect(m.Alive[rock] == false && m.Life[earth] < before,
+        Expect((!m.Alive[rock] || m.Gen[rock] != rockGeneration) && m.Life[earth] < before,
             $"layers-impact (Layers.cs:179-186): a rock of {1e-4 / World.EarthMass:F2} Earth hit Earth of {pm0 / World.EarthMass:F2} Earth at orbital speed, share {1e-4 / pm0:F3} against the log threshold ImpactScale/10 = {m.C.ImpactScale / 10:E2}, life {before:F4} -> {m.Life[earth]:F4}, {m.Events.Count} event(s); only the mass share counts, the relative speed plays no part");
     }
 
