@@ -1,5 +1,17 @@
 # Ariel batch — independent game-readiness review
 
+## Re-review ab5411c
+
+Replacement snapshot `ab5411cd75f3299f8e77421e4e637ad298d23f7e`, parent `78dfe2e`, changes only three CLI files. Core and game trees are byte-identical to the independently reviewed predecessor, so its Human/life/Species findings carry forward.
+
+All eighteen corrected fixture values match the independent capture below; fresh targeted `events` and `elements` both exit 0. The benchmark implements the preregistered seven fresh pairs, both paths warmed twice, alternating order, initialization outside timers, median of paired speedups, finite state and Earth layer checks. The 5x threshold remains.
+
+**Independent fresh Release full suite: 470 OK / 0 FAILED / exit 0.** Jump median paired speedup **5.20x**, passes 5x; finite state/layers agree. Audit remains **4 defect / 3 risk**, non-strict, unchanged accepted debt. Log: `E:/Temp/cosmos-final-review/full-cli-ab5411c.log`. Review OK: no remaining implementation or fixture blocker in this batch. Claire owns statistical-method acceptance and merge. Celine has neither merged nor pushed; C7 core remains deferred until after Yang's game test.
+
+The predecessor results below remain evidence, including the failing single sample; the replacement does not delete that history.
+
+## Predecessor 78dfe2e review
+
 Reviewed exact chain A3 `67b581b2d4e2359cce8069978d78f08bfc8ee572` → S1 `82ba34e08bbd5a77c1d24af7c3e7059389622bf2` → S2 `b8a194e1b0fa29ecb314ed4f91e29530d08747dc` → life-timescale `78dfe2ed330504243ace3d823e0b41f08b642987` in detached worktrees. No Ariel source edits.
 
 **Original three blocker groups closed. Final game-test gate still red on full CLI.**
