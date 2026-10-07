@@ -18,6 +18,7 @@ public sealed partial class Consts
     public double CivDome = 0.05;        // population a space-age people can keep where no biosphere feeds them (domes)
     public double CivDomeTemp = 288;     // K: where a dome is cheapest to keep [P]
     public double CivDomeTempRange = 250; // K away from that at which no dome holds; in between its room shrinks in line [P]
+    public double CivMetalUse = 5e-8;    // share of the planet's mass turned from metal into rock per year, retained for hash compatibility
 
     public double ShipPop = 0.03;        // a space-age world with at least this population sends ships
     public double ShipsPerWorld = 2;     // ships one world keeps in flight at a time
@@ -25,6 +26,8 @@ public sealed partial class Consts
     public double ShipThrust = 2;        // velocity change per unit of time its engine can make
     public double ShipLifeYears = 30;    // a ship that has not landed by then is lost
     public double ShipMass = 1e-12;
+    public double CivLifespanRef = 80.0;
+    public double CivLifespanExp = 0.5;
 }
 
 /// Home = the world it rose on, -1 once that world is gone.

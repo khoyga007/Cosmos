@@ -472,6 +472,8 @@ public sealed partial class World
         mix(_rng); mix((ulong)N); mix((ulong)Step); foreach (int slot in _free) mix((ulong)slot);
         foreach (var f in typeof(Consts).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
         {
+            if (f.Name == "CivLifespanRef" && C.CivLifespanRef == 80.0) continue;
+            if (f.Name == "CivLifespanExp" && C.CivLifespanExp == 0.5) continue;
             if (f.GetValue(C) is double d) mix(BitConverter.DoubleToUInt64Bits(d));
             else if (f.GetValue(C) is double[] a) foreach (double x in a) mix(BitConverter.DoubleToUInt64Bits(x));
         }

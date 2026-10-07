@@ -195,13 +195,10 @@ public static class CapGraph
         return vRef > 0 ? (vEsc / vRef) : 1.0;
     }
 
-    public const double CivLifespanRef = 80.0;
-    public const double CivLifespanExp = 0.5;
-
     public static double KnowledgeRateMultiplier(World w, Species species)
     {
         double span = Math.Max(0.1, species.Lifespan);
-        return Math.Pow(span / CivLifespanRef, CivLifespanExp);
+        return Math.Pow(span / w.C.CivLifespanRef, w.C.CivLifespanExp);
     }
 
     public static bool CanUnlock(CapNode node, World w, int slot, Species species, IReadOnlySet<string> opened)
@@ -236,9 +233,8 @@ public static class CapGraph
             }
             if (need.RequiresOxygen)
             {
-                // Terrestrial atmosphere / oxygen from gas, ice/water, or biosphere
-                bool hasOxygen = w.Share(slot, ElementRole.Gas) >= 0.001
-                              || w.Share(slot, ElementRole.Ice) >= 0.001
+                // Terrestrial oxidizer / atmospheric gas or photosynthetic biosphere
+                bool hasOxygen = w.Share(slot, ElementRole.Gas) >= 0.01
                               || (slot < w.Life.Length && w.Life[slot] > 0);
                 if (!hasOxygen) return false;
             }
@@ -250,8 +246,9 @@ public static class CapGraph
             }
             if (need.RequiresVentHeat)
             {
-                // Vent heat requires sufficient terrestrial rock/temperature
+                // Vent heat requires sufficient terrestrial rock and active thermal source (valid non-freezing temperature)
                 if (w.Share(slot, ElementRole.Rock) < 0.20) return false;
+                if (double.IsNaN(w.Temp[slot]) || w.Temp[slot] < 100.0) return false;
             }
         }
 
@@ -292,7 +289,7 @@ public static class CapGraph
 
     public static string DeriveEraLabel(Species species, IReadOnlySet<string> opened, double tech, World w, int slot)
     {
-        if (species.Id == "human")
+        if (World.IsHuman(species))
         {
             int stage = 0;
             for (int k = w.Stages.Count - 1; k >= 0; k--)

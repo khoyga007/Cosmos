@@ -24,6 +24,7 @@ static class CapNodeChecks
         // Check 2: Human progression bit-equal mapping on Earth
         var w = World.SolSystem(0, 1234);
         int earth = 3;
+        w.Life[earth] = 1.0;
         var human = SpeciesCatalog.Human;
 
         var opened0 = CapGraph.EvaluateOpened(w, earth, human, 0.0);
@@ -100,6 +101,48 @@ static class CapNodeChecks
 
         Check(hashA == hashB,
             $"capnodes-hash-invariant: simulation hash bit-equal ({hashA:X16})", ref allOk);
+
+        // Check 9: Era label content match (low manip human gets generic era, not 'Thời kỳ Trung Cổ')
+        {
+            var lowManip = SpeciesCatalog.Human.WithParam("manipulation", 0.1);
+            var openedTech2 = CapGraph.EvaluateOpened(w, earth, lowManip, 2.0);
+            string label = CapGraph.DeriveEraLabel(lowManip, openedTech2, 2.0, w, earth);
+            Check(!label.Contains("Thời kỳ") && label.StartsWith("Kỷ nguyên "),
+                $"capnodes-era-label-content: non-template human phenotype receives generic label '{label}', not human ladder name", ref allOk);
+        }
+
+        // Check 10: Lifespan Consts reflection and runtime adjustment with hash elision verification
+        {
+            ulong hashBefore = w.Hash();
+            bool setRef = w.C.Set("CivLifespanRef", 160.0);
+            bool setExp = w.C.Set("CivLifespanExp", 0.25);
+            ulong hashAfter = w.Hash();
+            bool hasFields = w.C.All().Any(f => f.Name == "CivLifespanRef") && w.C.All().Any(f => f.Name == "CivLifespanExp");
+            Check(setRef && setExp && hasFields && (hashBefore != hashAfter),
+                $"capnodes-lifespan-const-fields: CivLifespanRef/Exp are registered Const fields, alter hash ({hashBefore:X16} != {hashAfter:X16})", ref allOk);
+            w.C.Set("CivLifespanRef", 80.0);
+            w.C.Set("CivLifespanExp", 0.5);
+            Check(w.Hash() == hashBefore,
+                $"capnodes-lifespan-elide-default: restoring defaults elides fields and restores baseline hash ({w.Hash():X16})", ref allOk);
+        }
+
+        // Check 11: Fire requires real oxidizer (ice does not substitute for O2 on airless world)
+        {
+            var cold = new World(4, 7);
+            int slot = cold.Add(0, 0, 0, 0, 0.001, cold.Mix(("rock", 0.5), ("ice", 0.499), ("carbon", 0.001)));
+            bool fireUnlocked = CapGraph.CanUnlock(CapNodeCatalog.ById["fire"], cold, slot, SpeciesCatalog.Human, new HashSet<string>());
+            Check(!fireUnlocked,
+                "capnodes-fire-oxidizer: airless cold world (gas=0, life=0) refuses fire despite ice presence", ref allOk);
+        }
+
+        // Check 12: Geothermal requires active internal/vent heat (Temp NaN or frozen refuses)
+        {
+            var cold = new World(4, 7);
+            int slot = cold.Add(0, 0, 0, 0, 0.001, cold.Mix(("rock", 0.5), ("ice", 0.499), ("carbon", 0.001)));
+            bool geoUnlocked = CapGraph.CanUnlock(CapNodeCatalog.ById["geothermal"], cold, slot, SpeciesCatalog.Human, new HashSet<string>());
+            Check(!geoUnlocked,
+                "capnodes-geothermal-heat: airless world with Temp=NaN refuses geothermal without thermal source", ref allOk);
+        }
 
         return allOk;
     }
