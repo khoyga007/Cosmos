@@ -1163,6 +1163,72 @@ public partial class Main : Node2D
         fresh.Replay(_w.Journal, ref next);
         Say(fresh.Hash() == _w.Hash(), $"replay of {_w.Journal.Count} commands: {fresh.Hash():X16} vs {_w.Hash():X16}");
 
+        // resize: panel must stay inside viewport at multiple sizes
+        var testSizes = new[] { new Vector2I(900, 600), new Vector2I(1280, 720), new Vector2I(1920, 1080) };
+        foreach (var sz in testSizes)
+        {
+            GetTree().Root.Size = sz;
+            // Allow the layout callback to fire
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            Rect2 vp = new(Vector2.Zero, sz);
+            Rect2 side = _ui.GetSideRect();
+            bool inside = side.Position.X >= -1 && side.Position.Y >= -1 && side.End.X <= sz.X + 1 && side.End.Y <= sz.Y + 1;
+            bool minWidth = side.Size.X >= 250; // SideMin - some margin
+            Say(inside && minWidth, $"resize {sz.X}x{sz.Y}: panel rect ({side.Position.X:F0},{side.Position.Y:F0})-({side.End.X:F0},{side.End.Y:F0}), inside={inside}, width={side.Size.X:F0} >= 250");
+        }
+        GetTree().Root.Size = new Vector2I(1280, 800); // restore
+
+        // event text audit: every event emitted by core must have VN text (no raw ids)
+        {
+            var testCases = new (string RuleId, string Change)[]
+            {
+                ("contact", "merge"),
+                ("temperature", "band.0.1"),
+                ("water", "water.1.2"),
+                ("life", "life.start"),
+                ("life", "life.end"),
+                ("life", "life.stage.0.1"),
+                ("impact", "impact"),
+                ("comets", "comet.spent"),
+                ("roche", "roche.ring"),
+                ("roche", "roche.stream"),
+                ("stars", "star.giant"),
+                ("stars", "star.nova"),
+                ("stars", "star.hypernova"),
+                ("stars", "star.remnant.white"),
+                ("stars", "star.remnant.neutron"),
+                ("stars", "star.remnant.black"),
+                ("stars", "star.kilonova.nsns"),
+                ("stars", "star.kilonova.nsbh"),
+                ("stars", "grb.long"),
+                ("stars", "grb.short"),
+                ("civ", "civ.start"),
+                ("civ", "civ.end"),
+                ("civ", "civ.stage.0.1"),
+                ("civ", "civ.ship.first"),
+                ("civ", "civ.colony"),
+                ("civ", "civ.ship.turned"),
+                ("civ", "civ.ship.lost"),
+            };
+            var missing = new System.Collections.Generic.List<string>();
+            foreach (var (rId, ch) in testCases)
+            {
+                var ev = new RuleEvent(1000.0, 0, rId, ch, 1.0, 2.0, 3.0);
+                string text = GodUi.TranslateEvent(_w, ev);
+                if (text.Contains($"[{rId}] {ch}"))
+                    missing.Add($"{rId}/{ch}");
+            }
+            // Also audit runtime logged events
+            foreach (var ev in _w.Events)
+            {
+                string text = GodUi.TranslateEvent(_w, ev);
+                if (text.Contains($"[{ev.RuleId}] {ev.Change}"))
+                    missing.Add($"{ev.RuleId}/{ev.Change}");
+            }
+            var unique = missing.Distinct().ToArray();
+            Say(unique.Length == 0, $"core event audit ({testCases.Length} catalog cases + {_w.Events.Count} runtime): {(unique.Length == 0 ? "100% translated" : $"{unique.Length} missing: {string.Join(", ", unique)}")}");
+        }
+
         GD.Print(ok ? "PASS: uitest" : "FAIL: uitest");
         GetTree().Quit(ok ? 0 : 1);
     }
