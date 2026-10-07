@@ -2,6 +2,13 @@
 
 READ `SPEC.md` FIRST (game, model, engine decisions, round-1 work packages). This file = what is running now.
 
+## C6 Roche performance debt — Claire decision 2026-10-08
+- Selected core `8e2b2f5`; delivery waits Claire's diff review/merge. The experimental limit cache `67194c8` is discarded.
+- Roche candidate collection is about0.22ms at5250 stock objects. It normally runs once per Advance, plus topology/housekeeping rebuilds; this is not0.22ms for each of the8 substeps. Entry queries cost far less.
+- Gate chosen by Claire: median7 component cost stock≤0.25ms and10-body collection≤0.02ms. Paired-ratio median7 cost remains a reported metric; the10% relative-cost experiment failed10.02%/15.22% and is retained in C6-REPORT.md. Existing element5% and jump5× gates stay separate.
+- Debt accepted for now: integrate Roche rejection into the existing gravity pass to avoid a separate scan. Do this after species work; no further micro-optimization now.
+- Bound unresolved reservoirs, ring spreading/dust collisions and detailed three-body tidal timing remain the explicit model limits documented in C6-REPORT.md.
+
 ## Scale design — Yang 2026-10-06, IDEA ONLY, no code until he says go (phase 5)
 - galaxy map = one continuous real-time space, no per-system scene; inter-system distance = REAL (45 u ≈ 1 AU → nearest star ≈ 1.2e7 u). Systems gravitationally isolated (neighbour pull ~1e-11) → per-system chunks/threads, per-system local coords, camera-relative draw.
 - system count = symbolic, player picks at map gen (Stellaris slider); core takes it as parameter, cap from measurement.

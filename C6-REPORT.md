@@ -66,7 +66,25 @@ These results validate the chosen median gate, not a guarantee of≤10% in every
 
 Revision8e2b2f5 was committed before remeasurement. Its fullCLI passes437OK/0FAILED, audit4D/3R; jump5768.893/1094.472ms=5.27×, temperature overhead.64%; rebuilt headless selftest/uitest retain99B0905D9C0B42AE/039C93B5A9C7C87C, exit0. However its fresh benchmark **fails the exact10% gate**: control median0.00%, feature median10.02% (raw log `E:/Temp/cosmos-c6-8e2b2f5-bench.log`). The earlier7.33% pass is retained as history;10.02% is not rounded down or discarded.
 
-Next local change caches the composition/strength-derived Roche limit in each candidate, guarded by body/host mass, radius and generation; a merge forces recomputation. This removes repeated cube roots and material dictionary lookups between substeps without adding persistent state or changing the physical threshold. Selected Roche40, Element11 and StarEvent11 checks pass with unchanged fixture/replay hashes; fresh immutable-revision benchmark and full suite follow.
+Experimental revision67194c8 caches the composition/strength-derived Roche limit in each candidate, guarded by body/host mass, radius and generation; a merge forces recomputation. Selected Roche40 and both fixture suites pass unchanged. Its fullCLI also passes437/0, audit4D/3R, jump7457.967/1238.751ms=6.02×. However its immutable-revision benchmark **fails**: null median2.98%, paired cost15.22%, exit1. Raw log `E:/Temp/cosmos-c6-limit-cache-bench.log`; that cache is not selected for delivery.
+
+### Claire's final selection — 19:21:11Z
+
+Claire chose the **core from8e2b2f5**, declined67194c8 because the extra invalidation state has not demonstrated an end-to-end benefit, and stopped further micro-optimization. Core/Roche.cs is restored byte-for-byte to8e2b2f5; history retains the experiment and its results. Paired median7 remains the reporting statistic; ratio-of-medians is also reported.
+
+Claire explicitly changed the C6 review gate to **stock5250-object broad phase≤.25ms and10-body collection≤.02ms**. Relative paired cost is a reported metric, not pass/fail. The previous10% failures are retained; this is a documented owner decision, not an implementer silently relaxing a test. The benchmark now preselects median7 for the component measurements and prints all component samples. Existing element5% and jump5× gates remain separate. Debt in NEXT.md: further reduction should integrate Roche rejection into the gravity loop after species work.
+
+Failure provenance:
+
+| Measurement | Source revision/state | Result |
+|---|---|---|
+| first SIMD full jump | dirty work afterc5197d0, before max-speed orbital guard; not committed separately |4.52×, full436/1 |
+| SIMD/material paired pass | dirty precursor of8e2b2f5, before guard/comment changes |7.33%; historical result, not a committed-revision acceptance |
+| selected core paired rerun |8e2b2f5308ba060a83a0dc494752f7170f8cac7a |10.02%, old10% gate fails |
+| limit-cache paired rerun |67194c80b60be87168df73c829b99c7a3a9fa0a1 |15.22%, old10% gate fails |
+| selected core full suite |8e2b2f5 |437/0; jump5.27×; rebuilt Godot exact replay |
+
+Updated-gate measurements will be appended with their immutable benchmark revision.
 
 The broken `elements-paired` reflection call is also repaired by supplying the optional third argument (`null`), as already done by the other repo benches. The scalar fallback was tested with `DOTNET_EnableHWIntrinsic=0`:40 Roche checks pass, all recorded replay hashes remain exact.
 

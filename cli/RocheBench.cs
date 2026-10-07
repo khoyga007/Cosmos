@@ -8,7 +8,7 @@ using Cosmos.Core;
 static class RocheBench
 {
     // Interleave short blocks so machine load affects both worlds at almost the same time.
-    // A null pair runs identical disabled rules; its median must be within 3% before judging cost.
+    // Paired cost is a reported metric. Claire's gates are component medians: stock <=.25ms, bodies <=.02ms.
     public static bool Run()
     {
         var flags=BindingFlags.NonPublic|BindingFlags.Instance;
@@ -24,7 +24,18 @@ static class RocheBench
             var watch=Stopwatch.StartNew();for(int n=0;n<repeats;n++)action();
             return watch.Elapsed.TotalMilliseconds/repeats;
         }
-        Console.WriteLine($"roche breakdown: N{scene.N}, candidates{count}, collect {Measure(()=>collect(.5,false,true),1000):F6} ms; 8entry {Measure(()=>{for(int n=0;n<8;n++)_=entry(.5/8);},10000):F6} ms");
+        double ComponentMedian(Action action)
+        {
+            var samples=new double[7];
+            for(int n=0;n<samples.Length;n++)samples[n]=Measure(action,1000);
+            Array.Sort(samples);Console.WriteLine($"roche component samples ms: {string.Join(',',samples.Select(x=>x.ToString("F6")))}");
+            return samples[3];
+        }
+        double broad=ComponentMedian(()=>collect(.5,false,true));
+        var bodies=World.SolSystem(0,1234);for(int n=0;n<100;n++)bodies.Advance(.5);
+        var bodyCollect=typeof(World).GetMethod("CollectRocheCandidates",flags)!.CreateDelegate<Action<double,bool,bool>>(bodies);
+        double bodyCost=ComponentMedian(()=>bodyCollect(.5,false,true));
+        Console.WriteLine($"roche breakdown: N{scene.N}, candidates{count}, collect median7 {broad:F6} ms; bodies N{bodies.N} median7 {bodyCost:F6} ms; 8entry {Measure(()=>{for(int n=0;n<8;n++)_=entry(.5/8);},10000):F6} ms");
         double Paired(bool active)
         {
             var ratios=new double[7];var random=new Random(42);
@@ -45,8 +56,8 @@ static class RocheBench
             return ratios[3];
         }
         double control=Paired(false), cost=Paired(true);
-        bool stable=Math.Abs(control-1)<=.03, affordable=cost<=1.10;
-        Console.WriteLine($"{(stable&&affordable?"OK    ":"FAILED")} roche cost: null within3%={stable}, enabled overhead<=10%={affordable}; baseline element5% gate is separate");
-        return stable&&affordable;
+        bool stable=Math.Abs(control-1)<=.03, pass=broad<=.25 && bodyCost<=.02;
+        Console.WriteLine($"{(pass?"OK    ":"FAILED")} roche cost: stock broad<=.25ms={broad<=.25}, bodies<=.02ms={bodyCost<=.02}; paired cost metric {100*(cost-1):F2}%, null within3%={stable}; element5% gate is separate");
+        return pass;
     }
 }

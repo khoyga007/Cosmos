@@ -40,7 +40,7 @@ public sealed partial class World
     public IReadOnlyList<RocheReservoir> RocheReservoirs => _rocheReservoirs.AsReadOnly();
     public IReadOnlyList<RocheDisruption> RocheDisruptions => _rocheDisruptions.AsReadOnly();
     public double RocheDissipatedEnergy { get; private set; }
-    readonly List<(int Body, int Host, int BodyGen, int HostGen, double Limit, double BodyMass, double HostMass, double BodyRadius, double HostRadius)> _rocheCandidates = new();
+    readonly List<(int Body, int Host, int BodyGen, int HostGen)> _rocheCandidates = new();
     readonly Dictionary<int, (double Mass, double Radius, int Generation, double Density, double K, double Strength)> _rocheMaterialCache = new();
     double _rocheEarthRadiusRef;
     readonly List<(int Body, int Host, int BodyGen, int HostGen, double Year)> _rocheRockEntries = new();
@@ -166,8 +166,9 @@ public sealed partial class World
                 }
                 void Include(int body)
                 {
-                    if (Alive[body] && M[body]<M[p] && !IsShip(body) && StarPhaseOf(body)==StarPhase.None)
-                        AddRocheCandidate(body,p);
+                    if (Alive[body] && M[body]<M[p] && !IsShip(body) && StarPhaseOf(body)==StarPhase.None
+                        && RocheLimitCore(body,p,true)>R[p]+R[body])
+                        _rocheCandidates.Add((body,p,Gen[body],Gen[p]));
                 }
             }
             // Preserve the scalar source/host order, including simultaneous first entries.
@@ -192,20 +193,15 @@ public sealed partial class World
                     double eccentricity = Math.Sqrt(Math.Max(0, 1 + 2 * energy * angular * angular / (mu * mu)));
                     double peri = angular * angular / (mu * (1 + eccentricity));
                     if (peri > host.Upper && r > host.Upper) continue;
-                    AddRocheCandidate(i,p); continue;
+                    _rocheCandidates.Add((i, p, Gen[i], Gen[p])); continue;
                 }
                 // Reject over the whole integrator call. Acceleration outside contact is surface-bounded.
+                double contact = R[p] + R[i];
                 double reach = host.Upper + bodyDrift + host.Drift + acceleratedDrift;
-                if (dx * dx + dy * dy <= reach * reach) AddRocheCandidate(i,p);
+                if (dx * dx + dy * dy <= reach * reach && RocheLimitCore(i,p,true) > contact)
+                    _rocheCandidates.Add((i, p, Gen[i], Gen[p]));
             }
         }
-    }
-
-    void AddRocheCandidate(int body, int host)
-    {
-        double limit=RocheLimitCore(body,host,true);
-        if (limit>R[body]+R[host])
-            _rocheCandidates.Add((body,host,Gen[body],Gen[host],limit,M[body],M[host],R[body],R[host]));
     }
 
     (double Time, int Body, int Host, int BodyGen, int HostGen) NextRocheEntry(double seconds)
@@ -216,10 +212,7 @@ public sealed partial class World
         {
             int i = pair.Body, p = pair.Host;
             if (!Alive[i] || !Alive[p] || Gen[i] != pair.BodyGen || Gen[p] != pair.HostGen) continue;
-            // Limits stay fixed during kicks/drifts. A merge can change mass/radius, so invalidate locally.
-            double radius = M[i]==pair.BodyMass && M[p]==pair.HostMass && R[i]==pair.BodyRadius && R[p]==pair.HostRadius
-                ? pair.Limit : RocheLimitCore(i,p,true);
-            if (!(radius > R[p] + R[i])) continue;
+            double radius = RocheLimitCore(i, p, true); if (!(radius > R[p] + R[i])) continue;
             double dx = X[i] - X[p], dy = Y[i] - Y[p];
             // Once the intact bodies overlap, the ordinary contact path owns the outcome.
             double contact = R[p] + R[i];
