@@ -4,6 +4,17 @@ Sandbox god game: real physics + emergent stories. Star-system level first (Sol 
 Dwarf Fortress way: write parameters + rules, objects interact by themselves, stories emerge. No scripted scenarios.
 Godot 4.7.2 .NET window over a plain C# simulation core. UI text is Vietnamese.
 
+## Inspiration
+
+Cosmos grew out of games the author loves and wanted to combine:
+
+- **Stellaris** — civilizations, species and their rise across the stars.
+- **WorldBox** — the god-sandbox feel: poke the world, watch what happens.
+- **Space Engine** — a universe at real scale that you can explore.
+- **Universe Sandbox** — physics as a toy: orbits, collisions, planets you can break.
+
+The aim is to put the physics-first sandbox and the living-civilization story in one world, where the stories come out of the rules.
+
 ## Features
 
 **Physics**
