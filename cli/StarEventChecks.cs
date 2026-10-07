@@ -9,11 +9,10 @@ static class StarEventChecks
     {
         bool ok = true;
         void Check(bool pass, string line) { ok &= pass; Console.WriteLine($"{(pass ? "OK    " : "FAILED")} star-events: {line}"); }
-        // S1 re-capture 2026-10-06; A2 re-capture 2026-10-07; life-timescale re-capture 2026-10-08: new Consts fields hashed by reflection.
+        // S1 re-capture 2026-10-06; A2 re-capture 2026-10-07; C6/rebase fresh capture 2026-10-08: new Consts fields & C6 Roche on base.
         double[] births = { 1.23, 2.0000000000000004, 7.999999999, 8.0, 20.0, 20.0000001, 31.123 };
-        // life-timescale capture: LifeSparkYears 1e8, LifeGrowth 2e-8, CivRiseYears 3.5e9.
-        ulong[] legacy = { 0x2B0C8B4863F1D1BA, 0x78E48859FD9A0397, 0x9F5D29B5B0EC8DAB, 0xA736C9E82D44E81A,
-            0x99B76C2932F883B1, 0x20A9706E37849BDD, 0xE7F7AC745567415D };
+        ulong[] legacy = { 0x89D797BDF91DA090, 0xAFA16CBAD36AB034, 0xB5B49F0C980349EA, 0x1309AE888DF43879,
+            0xFD484FE9BC27BA16, 0x28219D4E31380FA4, 0x77753EA5494C4736 };
         bool exact = true; var got = new List<string>();
         for (int n = 0; n < births.Length; n++)
         {
@@ -23,7 +22,7 @@ static class StarEventChecks
             w.Do(new Command(CmdKind.FastForward, Amount: w.StarLifetime(births[n] * 50) * 1.2));
             exact &= w.Hash() == legacy[n]; got.Add($"0x{w.Hash():X16}");
         }
-        Check(exact, "seven C5 arbitrary/boundary progenitor regression hashes match" + (exact ? "" : $"; now: {string.Join(", ", got)}"));
+        Check(exact, "seven C6 arbitrary/boundary progenitor regression hashes match" + (exact ? "" : $"; now: {string.Join(", ", got)}"));
         bool Refused(IEnumerable<StarEvent> rows)
         {
             try { _ = new World(4, 1, starEvents: rows); return false; }

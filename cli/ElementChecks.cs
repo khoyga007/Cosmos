@@ -8,17 +8,16 @@ using Cosmos.Core;
 
 static class ElementChecks
 {
-    // S1 re-capture 2026-10-06; A2 re-capture 2026-10-07; life-timescale re-capture 2026-10-08: new Consts fields hashed by reflection.
-    // life-timescale capture: LifeSparkYears 1e8, LifeGrowth 2e-8, CivRiseYears 3.5e9.
-    static readonly ulong[] Legacy = { 0xC6F638FC5469EDB0, 0x05CD389CF8F8D249, 0x2AD8585A5480B17F, 0x2A3000DD980E5819,
-        0x10AE79561090E7E3, 0xC10E663BE5F6E1E3, 0x1C8112284EDE4538, 0xF2B8CB6EB086D031, 0x6ADA7DF90555CECF,
-        0xF362B722A9CE4938, 0xC5D58FB4FE8DF26F };
+    // S1 re-capture 2026-10-06; A2 re-capture 2026-10-07; C6/rebase fresh capture 2026-10-08: new Consts fields & C6 Roche on base.
+    static readonly ulong[] Legacy = { 0xBBC63D2996FAE88F, 0x4063F53F08CB21B2, 0x4A51313215F96FC5, 0x32DDE80C54679D92,
+        0x82F35AA059FE5804, 0x3AFDAA9CB3C047FC, 0x4E91B3C52D73C0CF, 0x16BA0A372AE8C21B, 0xA2CA19CD75B36BE4,
+        0xAC47DAE6B6B08CD7, 0x7DFF61BCBEAA658D };
 
     public static bool Run()
     {
         bool ok = true;
         void Check(bool pass, string line) { ok &= pass; Console.WriteLine($"{(pass ? "OK    " : "FAILED")} elements: {line}"); }
-        Check(Probe().Values.SequenceEqual(Legacy), "eleven C5 default-table regression hashes match the recorded capture");
+        Check(Probe().Values.SequenceEqual(Legacy), "eleven C6 default-table regression hashes match the recorded capture");
         var source = ElementCatalog.Elements.ToList();
         source.Add(new Element("test", "Test", 4, 0x123456, ElementRole.None));
         var table = source.ToArray(); var w = new World(16, 5, source); source.Clear();
