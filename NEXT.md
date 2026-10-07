@@ -165,3 +165,6 @@ Yang verdict: messy, vibe-coded, worse than Cosmos. Specific complaints (traps t
 - tutorial incomprehensible
 Macht pitch for comparison: 1:1 galaxy ~1e11 stars, zoom intergalactic->planet surface, VR, Kepler orbits, DNA editing, god-mode wars. Unverified (search summary only; dev = Kaan solo vs Kestro Games listing conflict).
 Cosmos TODO from this: before adding any panel, state the question it answers; civ events must surface a readable cause (log line "why"); tutorial = Yang test, not agents. Yang's eyes judge.
+
+## Idea (Yang test 2026-10-08): change G keeps orbits?
+God sets G x100 in window -> rocks keep old v (circular v ~ sqrt(G M/r) now 10x higher) -> plunge to tight eccentric orbits, collide (1687), Roche around white dwarf. Physics-correct, but surprising. Candidate god option: "SetConst G + rescale velocities by sqrt(Gnew/Gold)" (keeps orbit shapes). NOT built; Yang decides. Setting G back does NOT undo (merged/destroyed rocks stay); no rewind yet (journal replay only).
