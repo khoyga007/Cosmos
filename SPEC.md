@@ -215,3 +215,14 @@ Decisions (Yang):
 - Display: "draw more than simulated". Dust/cloud sprites derived from real fragments + reservoir density, RENDER-ONLY: own RNG (never sim RNG), no mass, no collisions, not in Hash. Ordering: visuals LAST (after Alpha), per NEXT.md. Old CosmosSandbox dust layer is NOT revived; only its look idea (gas = cloud, rocks = real small bodies).
 - LOD idea (open): fine detail only where observed (layer frames); needs deterministic, conserving split-on-zoom. Hard; not promised.
 Open Qs for Yang: threshold for what counts as a body that can break (AttractMass?), crater vs merge below Q*, do pieces inherit spin.
+
+## §12 Cloud collapse / star+planet formation (DRAFT, Yang 2026-10-08, NOT scheduled; backlog)
+Yang wish: drop a cloud of matter, it gathers by itself into star(s)/planets.
+Code today (read, not run): objects with M >= Consts.AttractMass (1e-7 ~ 0.0007 Earth) pull each other; contact -> Merge (heavier keeps identity; M, p, Comp summed). So a cloud of >=AttractMass bodies already accretes N-body style (billiard-ball accretion). Kind by mass (Consts.StarMass); NOT verified: a merged-up body ignites / starts star life cycle correctly.
+Gaps (all real physics, none modeled):
+1. Sub-AttractMass particles do not pull each other and do not merge among themselves; dust-only cloud never collapses.
+2. No gas: no pressure, no thermal support, no Jeans criterion M_J (collapse only if cloud mass > M_J(T, rho)).
+3. No accretion disc (SPEC §6 non-goal): angular momentum is not redistributed, so no flat protoplanetary disc; spin of merged bodies is not tracked at all.
+Candidate slices (order): (a) check/test: ignition + life cycle for a body merged past StarMass, with composition from Comp; (b) god tool "create cloud" (N bodies, mass dist, velocity dispersion + net rotation) via Command; (c) gas parcels as macro-particles with Jeans-gated collapse -> real star birth; (d) disc: angular momentum bookkeeping (spin L per object), merge conserves L (C6 already conserves L in breakup) -> discs/orbits emerge from rotation; (e) planetesimal growth threshold (gravitational focusing) so cloud of small bodies can bootstrap.
+Constraints: Hash discipline (new Consts are FIELDS), replay via Command, mass/p/L/Comp conserved, budget on N objects (same as C6 budget/reservoir idea, compress below resolution), render-only visuals last.
+Open Qs for Yang: realism target (billiard accretion enough vs real gas collapse)? does the cloud tool live in god window (needs UI, after Alpha)? star birth visible live or only after time jump?
