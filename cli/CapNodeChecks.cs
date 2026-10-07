@@ -111,19 +111,43 @@ static class CapNodeChecks
                 $"capnodes-era-label-content: non-template human phenotype receives generic label '{label}', not human ladder name", ref allOk);
         }
 
-        // Check 10: Lifespan Consts reflection and runtime adjustment with hash elision verification
+        // Check 10: Lifespan Consts reflection, validation and block elision (Celine consolidated findings)
         {
-            ulong hashBefore = w.Hash();
-            bool setRef = w.C.Set("CivLifespanRef", 160.0);
-            bool setExp = w.C.Set("CivLifespanExp", 0.25);
-            ulong hashAfter = w.Hash();
+            ulong hashBaseline = w.Hash();
             bool hasFields = w.C.All().Any(f => f.Name == "CivLifespanRef") && w.C.All().Any(f => f.Name == "CivLifespanExp");
-            Check(setRef && setExp && hasFields && (hashBefore != hashAfter),
-                $"capnodes-lifespan-const-fields: CivLifespanRef/Exp are registered Const fields, alter hash ({hashBefore:X16} != {hashAfter:X16})", ref allOk);
+
+            // Ref-only override
+            w.C.Set("CivLifespanRef", 160.0);
+            w.C.Set("CivLifespanExp", 0.5);
+            ulong hashRefOnly = w.Hash();
+
+            // Exp-only override
+            w.C.Set("CivLifespanRef", 80.0);
+            w.C.Set("CivLifespanExp", 160.0);
+            ulong hashExpOnly = w.Hash();
+
+            // Both override
+            w.C.Set("CivLifespanRef", 160.0);
+            w.C.Set("CivLifespanExp", 0.25);
+            ulong hashBoth = w.Hash();
+
+            // Refuse 0, negative, NaN, Infinity for CivLifespanRef
+            bool setZeroRefused = !w.C.Set("CivLifespanRef", 0.0);
+            bool setNegRefused = !w.C.Set("CivLifespanRef", -10.0);
+            bool setNanRefused = !w.C.Set("CivLifespanRef", double.NaN);
+            bool setInfRefused = !w.C.Set("CivLifespanRef", double.PositiveInfinity);
+
+            // Restore defaults
             w.C.Set("CivLifespanRef", 80.0);
             w.C.Set("CivLifespanExp", 0.5);
-            Check(w.Hash() == hashBefore,
-                $"capnodes-lifespan-elide-default: restoring defaults elides fields and restores baseline hash ({w.Hash():X16})", ref allOk);
+            ulong hashRestored = w.Hash();
+
+            bool overridesDistinct = (hashRefOnly != hashExpOnly) && (hashRefOnly != hashBoth) && (hashExpOnly != hashBoth) && (hashRefOnly != hashBaseline);
+            bool validationOk = setZeroRefused && setNegRefused && setNanRefused && setInfRefused && (w.C.CivLifespanRef == 80.0);
+            bool elisionOk = (hashRestored == hashBaseline);
+
+            Check(hasFields && overridesDistinct && validationOk && elisionOk,
+                $"capnodes-lifespan-const-block: block hashing prevents crossed collision (RefOnly={hashRefOnly:X16} != ExpOnly={hashExpOnly:X16}), validates Ref>0, restores baseline ({hashRestored:X16})", ref allOk);
         }
 
         // Check 11: Fire requires real oxidizer (ice does not substitute for O2 on airless world)

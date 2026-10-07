@@ -472,10 +472,15 @@ public sealed partial class World
         mix(_rng); mix((ulong)N); mix((ulong)Step); foreach (int slot in _free) mix((ulong)slot);
         foreach (var f in typeof(Consts).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
         {
-            if (f.Name == "CivLifespanRef" && C.CivLifespanRef == 80.0) continue;
-            if (f.Name == "CivLifespanExp" && C.CivLifespanExp == 0.5) continue;
+            if (f.Name == "CivLifespanRef" || f.Name == "CivLifespanExp") continue;
             if (f.GetValue(C) is double d) mix(BitConverter.DoubleToUInt64Bits(d));
             else if (f.GetValue(C) is double[] a) foreach (double x in a) mix(BitConverter.DoubleToUInt64Bits(x));
+        }
+        if (C.CivLifespanRef != 80.0 || C.CivLifespanExp != 0.5)
+        {
+            mix(0x4C4946455350414EUL); // "LIFESPAN" tag
+            mix(BitConverter.DoubleToUInt64Bits(C.CivLifespanRef));
+            mix(BitConverter.DoubleToUInt64Bits(C.CivLifespanExp));
         }
         HashRules(mix); HashLayers(mix); HashStars(mix); HashElements(mix); HashStarEvents(mix); HashEscape(mix); HashBursts(mix); HashRoche(mix);
         return h;

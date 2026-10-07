@@ -4,6 +4,17 @@ using System.Diagnostics;
 using Cosmos.Core;
 
 const double H = 0.5;
+if (args.Length > 0 && args[0] == "human-probe")
+{
+    var w = World.SolSystem(0, 1234);
+    Console.WriteLine($"initial hash={w.Hash():X16}");
+    w.Do(new Command(CmdKind.FastForward, Amount: 1e6));
+    Console.WriteLine($"human1e6 hash={w.Hash():X16}, civs={w.Civs.Count}, tech={w.Tech[3]:R}, pop={w.Pop[3]:R}, consumed={w.ConsumedMatter[3]:R}, metal={w.Comp[3 * w.ElementCount + w.Elem("metal")]:R}, events={w.Events.Count}");
+    w.Do(new Command(CmdKind.Push, Target: 3, Vx: .01, Vy: -.01));
+    for (int k = 0; k < 20; k++) w.Advance(.5);
+    Console.WriteLine($"push20 hash={w.Hash():X16}, year={w.Year:R}, X={w.X[3]:R}, Y={w.Y[3]:R}");
+    return 0;
+}
 if (args.Length > 0 && args[0] == "elements-probe") { ElementChecks.PrintProbe(); return 0; }
 if (args.Length > 0 && args[0] == "elements-bench") { ElementChecks.Bench(); return 0; }
 if (args.Length > 0 && args[0] == "audit-tables") return Audit.RunTables() ? 0 : 1;
