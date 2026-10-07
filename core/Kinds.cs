@@ -199,13 +199,12 @@ public sealed partial class World
                 double gasLoss = gas - newGas;
                 if (gasLoss > 0)
                 {
-                    ScaleMatter(i, ElementRole.Gas, decay);
-                    M[i] -= gasLoss;
-                    SetRadius(i);
+                    EscapeRole(i, ElementRole.Gas, decay);
                 }
             }
 
             // Comets: small bodies with ice inside the snowline
+            if (!Alive[i]) continue;
             if (Attracts(i)) continue;
 
             double ice = Matter(i, ElementRole.Ice);
@@ -257,22 +256,11 @@ public sealed partial class World
             double loss = Math.Min(ice, maxSublimation * dt);
             if (loss <= 0) continue;
 
-            LoseMatter(i, ElementRole.Ice, loss);
-            double newM = 0;
-            for (int e = 0; e < ElementCount; e++) newM += Comp[i * ElementCount + e];
-
-            if (Matter(i, ElementRole.Ice) <= 1e-18 || newM <= 1e-15)
+            EscapeRole(i, ElementRole.Ice, Math.Max(0, 1 - loss / ice), trimResidual: true);
+            if (!Alive[i] || Matter(i, ElementRole.Ice) == 0)
             {
-                ScaleMatter(i, ElementRole.Ice, 0);
-                M[i] = newM;
-                SetRadius(i);
                 // thousands of nameless belt rocks drying out at once would push everything else out of the journal
-                if (Name[i] != null || Attracts(i)) LogEvent(i, "comets", "comet.spent", Year, newM, R[i]);
-            }
-            else
-            {
-                M[i] = newM;
-                SetRadius(i);
+                if (Name[i] != null || Attracts(i)) LogEvent(i, "comets", "comet.spent", Year, M[i], R[i]);
             }
         }
     }

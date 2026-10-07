@@ -1,8 +1,8 @@
 // Stellar evolution, SPEC 8. No stored type: phase is read from mass, initial mass and burnt fuel.
 // NASA overview/bounds: https://science.nasa.gov/universe/stars/types/
 // Toy IFMR: https://vice-astro.readthedocs.io/en/latest/science_documentation/SSPs/index.html
-// All fits are macro approximations, not a stellar-structure solver. Symmetric ejecta leave the simulated
-// domain: their matter and momentum remain in a hashed ledger, rather than becoming a new massive "star".
+// All fits are macro approximations, not a stellar-structure solver. Shells intercept physical solid angles;
+// the remaining matter/momentum leave the simulated domain into the shared hashed escaped ledger.
 using System;
 
 namespace Cosmos.Core;
@@ -105,7 +105,7 @@ public sealed partial class World
         if (StarInitialMass[i] >= C.StarMass && StarFuel[i] >= GiantEnd)
         {
             double birth = StarInitialMass[i] / C.StarSolarMass;
-            return birth < C.StarWhiteLimit ? StarPhase.WhiteDwarf : birth <= C.StarNeutronLimit ? StarPhase.NeutronStar : StarPhase.BlackHole;
+            return birth < C.StarWhiteLimit ? StarPhase.WhiteDwarf : M[i] / C.StarSolarMass <= C.NeutronTovSolar ? StarPhase.NeutronStar : StarPhase.BlackHole;
         }
         if (M[i] >= C.StarMass) return StarFuel[i] >= 1 ? StarPhase.RedGiant : StarPhase.MainSequence;
         return M[i] >= C.StarBrownMin ? StarPhase.BrownDwarf : StarPhase.None;

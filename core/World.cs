@@ -80,6 +80,7 @@ public sealed partial class World
         StarEvents = Array.AsReadOnly(events);
         _legacyStarEvents = events.Length == StarEventCatalog.Events.Count && events.Zip(StarEventCatalog.Events).All(pair => StarEventCatalog.Same(pair.First, pair.Second));
         StellarEjectaMatter = new double[ElementCount];
+        EscapedMatter = new double[ElementCount]; NucleosynthesisDelta = new double[ElementCount];
         X = new double[capacity]; Y = new double[capacity]; Vx = new double[capacity]; Vy = new double[capacity];
         M = new double[capacity]; R = new double[capacity]; Comp = new double[capacity * ElementCount];
         Alive = new bool[capacity]; Name = new string?[capacity]; Col = new uint[capacity]; Par = new int[capacity]; Grp = new int[capacity]; Gen = new int[capacity];
@@ -204,6 +205,9 @@ public sealed partial class World
     {
         if (IsShip(a) || IsShip(b)) { if (IsShip(a)) ShipArrives(a, b); else ShipArrives(b, a); return; }
         int k = M[a] >= M[b] ? a : b, d = k == a ? b : a;
+        SyncStar(k); SyncStar(d);
+        StarPhase first = StarPhaseOf(k), second = StarPhaseOf(d);
+        double firstMass = M[k], secondMass = M[d];
         MergeStars(k, d);
         double m = M[k] + M[d];
         X[k] = (X[k] * M[k] + X[d] * M[d]) / m; Y[k] = (Y[k] * M[k] + Y[d] * M[d]) / m;
@@ -217,6 +221,8 @@ public sealed partial class World
         EndSwallowedWorld(d);
         Alive[d] = false; M[d] = 0; _free.Push(d); Live--; Merges++;
         Gone(d, k);
+        ApplyStarEvents(k, StarTransition.Merger, first, firstMass, second, secondMass);
+        if (Alive[k]) SetRadius(k);
     }
 
     // ---- scenes
@@ -440,7 +446,7 @@ public sealed partial class World
             if (f.GetValue(C) is double d) mix(BitConverter.DoubleToUInt64Bits(d));
             else if (f.GetValue(C) is double[] a) foreach (double x in a) mix(BitConverter.DoubleToUInt64Bits(x));
         }
-        HashRules(mix); HashLayers(mix); HashStars(mix); HashElements(mix); HashStarEvents(mix);
+        HashRules(mix); HashLayers(mix); HashStars(mix); HashElements(mix); HashStarEvents(mix); HashEscape(mix); HashBursts(mix);
         return h;
     }
 }
