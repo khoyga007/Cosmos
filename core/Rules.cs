@@ -78,6 +78,7 @@ public sealed partial class World
             w => w.UpdateTemperature()) { Boundary = RuleBoundary.BeforeStar | RuleBoundary.After });
         InitLayerRules();
         InitKindRules();
+        InitRocheRule();
         foreach (var rule in Rules) _boundaryDefaults[rule.Id] = rule.Boundary;
     }
 

@@ -17,14 +17,14 @@ public sealed partial class World
     readonly List<EscapedTransfer> _escapedTransfers = new();
     public IReadOnlyList<EscapedTransfer> EscapedTransfers => _escapedTransfers.AsReadOnly();
 
-    void Escape(int i, string cause, double mass, double[] matter, double px, double py)
+    void Escape(int i, string cause, double mass, double[] matter, double px, double py, double? originX = null, double? originY = null)
     {
         if (!(mass > 0)) return;
         EscapedMass += mass; EscapedPx += px; EscapedPy += py;
         for (int e = 0; e < ElementCount; e++) EscapedMatter[e] += matter[e];
         // Keep discrete stellar transfers for the future interstellar environment. Volatile streams
         // use the cumulative ledger: one entry per grain per rule tick would grow without bound.
-        _escapedTransfers.Add(new(Year, i, Gen[i], cause, X[i], Y[i], mass, px, py, Array.AsReadOnly((double[])matter.Clone())));
+        _escapedTransfers.Add(new(Year, i, Gen[i], cause, originX ?? X[i], originY ?? Y[i], mass, px, py, Array.AsReadOnly((double[])matter.Clone())));
     }
 
     void EscapeRole(int i, ElementRole role, double factor, bool trimResidual = false)

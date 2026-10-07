@@ -35,6 +35,8 @@ public sealed partial class World
     // JumpSamples (the cost of a jump is chunks * objects).
     void Jump(double t)
     {
+        _rocheChanges = 0;
+        CollectRocheCandidates(0); CheckRocheHere();
         _offRailSeen ??= new int[X.Length];
         Array.Clear(_offRailSeen); OffRails = 0;
         LandShips(); // a trip is short next to a jump: whoever is flying arrives
@@ -64,7 +66,7 @@ public sealed partial class World
                 _deferRocks = defer;
                 double target = Year + years / chunks;
                 double nextCooling = NextCoolingBoundary(target);
-                if (Math.Min(NextStarBoundary(), nextCooling) > target)
+                if (Math.Min(NextRocheBoundary(target), Math.Min(NextStarBoundary(), nextCooling)) > target)
                 {
                     Ride(t / chunks);
                     double elapsed = began == jumpBegan ? (k == chunks - 1 ? t : t * (k + 1) / chunks) : (target - began) * C.YearTime;
@@ -94,11 +96,12 @@ public sealed partial class World
                     while (Year < target)
                     {
                         nextCooling = NextCoolingBoundary(target);
-                        double at = Math.Min(target, Math.Min(NextStarBoundary(), nextCooling));
+                        double at = Math.Min(target, Math.Min(NextRocheBoundary(target), Math.Min(NextStarBoundary(), nextCooling)));
                         _deferRocks = defer;
                         if (at > Year) { Ride((at - Year) * C.YearTime); Year = at; }
                         bool contact = RailContacts((Year - began) * C.YearTime);
                         if (defer) { PlaceRocks((Year - began) * C.YearTime); _deferRocks = false; }
+                        CollectRocheCandidates(0); CheckRocheHere();
                         if (contact) MergeRailContacts();
                         _starRule.NextYear = Year;
                         RunRules(coolingBoundary: at == nextCooling);
@@ -134,6 +137,7 @@ public sealed partial class World
     // One analytic test per rock origin, not one Kepler solve per rock per chunk. Rebuilt after mass/primary changes.
     void PlanRockContacts(double remaining)
     {
+        PlanRocheRockEntries(remaining);
         _rockContacts.Clear();
         for (int i = 0; i < N; i++)
         {

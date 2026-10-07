@@ -76,6 +76,11 @@ public sealed partial class World
                 return c.Target;
             case CmdKind.SetConst:
                 if (c.Name == null || !C.Set(c.Name, c.Amount)) return -1;
+                if (c.Name == "RocheRhythmYears")
+                {
+                    _rocheRule.RhythmYears = C.RocheRhythmYears;
+                    _rocheRule.NextYear = Math.Min(_rocheRule.NextYear, Year + C.RocheRhythmYears);
+                }
                 RecalcRadii();
                 for (int i = 0; i < N; i++)
                 {
@@ -204,6 +209,9 @@ public sealed partial class Consts
     bool Validate(string name, double v)
     {
         if (v < 0) return false;
+        if (name is "RochePhysicalG" or "RocheSolarMassKg" or "RocheSolarRadiusKm" or "RocheDensityKgM3" or "RocheRhythmYears") return v > 0;
+        if (name is "RocheEnergySpread" or "RocheStreamWidth") return v <= 1;
+        if (name is "RocheFragments" or "RocheRockBudget" or "RocheChangesPerStep") return v == Math.Floor(v) && v <= int.MaxValue && (name != "RocheChangesPerStep" || v > 0);
         if (name == "HypernovaChance") return v <= 1;
         if (name == "GrbHalfAngleDeg") return v > 0 && v <= 90;
         if (name is "GrbFluenceJm2" or "NeutronPhysicalRadiusKm" or "NeutronTovSolar") return v > 0;

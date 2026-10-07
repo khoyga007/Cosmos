@@ -20,6 +20,8 @@ static class ContactChecks
                 World Shot(double offset)
                 {
                     var w = new World(8, 1);
+                    // Isolate swept-contact conservation; tidal fragmentation is covered by RocheChecks.
+                    w.Do(new Command(CmdKind.SetRule, Name: "roche", Amount: 0));
                     w.Add(0, 0, 3, -2, World.EarthMass, Rock);
                     double r = w.R[0] + w.C.RadiusScale * Math.Cbrt(projectileMass / w.C.Density[2]);
                     w.Add(-ux * speed / 32 - uy * offset * r, -uy * speed / 32 + ux * offset * r,
