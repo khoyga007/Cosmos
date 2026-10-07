@@ -8,19 +8,17 @@ using Cosmos.Core;
 
 static class ElementChecks
 {
-    // S1 re-capture 2026-10-06; A2 re-capture 2026-10-07: new Consts fields (EarthRadiusKm, EarthMaxPopulation,
-    // StarlightTempMin, TechMaxCeiling, FootprintBioWeight, FootprintMatterWeight, FootprintMatterScale) hashed by reflection.
-    // C5 capture: shared escaped state, trimmed volatiles, analytic shells, new physical constants/RNG.
-    // C6 capture: Roche constants, rule and persistent disruption/reservoir state (C6-REPORT.md).
-    static readonly ulong[] Legacy = { 0x7E670A9BD7AE133C, 0xD588C1BD6D4DCC4D, 0x9EAA1C5766BDD984, 0x3C0DB003B8DBBA3C,
-        0xDBA8488A4FDFF0EF, 0x2B38413528BA23F3, 0xEDA695957A058E08, 0x4E981380251BCB3C, 0xBA1041AD9CA14257,
-        0xAD49FB56004C4D70, 0x86EE5961B16EC2B6 };
+    // S1 re-capture 2026-10-06; A2 re-capture 2026-10-07; life-timescale re-capture 2026-10-08: new Consts fields hashed by reflection.
+    // life-timescale capture: LifeSparkYears 1e8, LifeGrowth 2e-8, CivRiseYears 3.5e9.
+    static readonly ulong[] Legacy = { 0xC6F638FC5469EDB0, 0x05CD389CF8F8D249, 0x2AD8585A5480B17F, 0x2A3000DD980E5819,
+        0x10AE79561090E7E3, 0xC10E663BE5F6E1E3, 0x1C8112284EDE4538, 0xF2B8CB6EB086D031, 0x6ADA7DF90555CECF,
+        0xF362B722A9CE4938, 0xC5D58FB4FE8DF26F };
 
     public static bool Run()
     {
         bool ok = true;
         void Check(bool pass, string line) { ok &= pass; Console.WriteLine($"{(pass ? "OK    " : "FAILED")} elements: {line}"); }
-        Check(Probe().Values.SequenceEqual(Legacy), "eleven C6 default-table regression hashes match the recorded capture");
+        Check(Probe().Values.SequenceEqual(Legacy), "eleven C5 default-table regression hashes match the recorded capture");
         var source = ElementCatalog.Elements.ToList();
         source.Add(new Element("test", "Test", 4, 0x123456, ElementRole.None));
         var table = source.ToArray(); var w = new World(16, 5, source); source.Clear();
@@ -128,7 +126,7 @@ static class ElementChecks
             }
             for (int k = 0; k < before.Length; k++)
             {
-                object old = make.Invoke(null, new object?[] { 5000, 1234UL, null })!;
+                object old = make.Invoke(null, new object[] { 5000, 1234UL })!;
                 Action<double> oldStep = advance.CreateDelegate<Action<double>>(old);
                 var current = World.SolSystem(5000, 1234); Action<double> newStep = current.Advance;
                 for (int i = 0; i < 100; i++) { oldStep(.5); newStep(.5); }

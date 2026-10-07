@@ -8,6 +8,14 @@ static class CivTableChecks
     const double H = 0.5;
     static bool _ok;
     static void Check(bool ok, string line) { _ok &= ok; Console.WriteLine($"{(ok ? "OK    " : "FAILED")} civtable: {line}"); }
+    static double JumpCiv(World w)
+    {
+        double lifeGrow = Math.Log((1.0 / w.C.LifeSeed - 1.0) / (1.0 / w.C.CivLifeMin - 1.0)) / w.C.LifeGrowth;
+        double civStart = w.C.LifeSparkYears + lifeGrow + w.C.CivRiseYears;
+        double eraToSpace = w.Stages.TakeWhile(s => !s.CanLaunchShips).Sum(s => s.EarthYears);
+        double toSpace = civStart + eraToSpace + 1.5e4;
+        return Math.Max(toSpace + 2.5e4, toSpace * 1.14);
+    }
 
     public static bool Run()
     {
@@ -34,8 +42,8 @@ static class CivTableChecks
             w.Stages.Insert(2, new Stage("copper_age", "Thời kỳ Đồ Đồng Sơ Khai", 0.8, CanLaunchShips: false, CanDome: false));
             Check(w.Stages.Count == 11 && w.Stages[2].Id == "copper_age", "Stage inserted between 1 and 2: Stages count is 11");
 
-            // Fast forward 1 million years
-            w.Do(new Command(CmdKind.FastForward, Amount: 1e6));
+            // Fast forward to mature civ
+            w.Do(new Command(CmdKind.FastForward, Amount: JumpCiv(w)));
 
             bool hasStage01 = w.Events.Any(e => e.ObjectSlot == earth && e.Change == "civ.stage.0.1");
             bool hasStage12 = w.Events.Any(e => e.ObjectSlot == earth && e.Change == "civ.stage.1.2");
@@ -50,7 +58,7 @@ static class CivTableChecks
         {
             var wDefault = World.SolSystem(0, 1234);
             ulong h0 = wDefault.Hash();
-            wDefault.Do(new Command(CmdKind.FastForward, Amount: 1e6));
+            wDefault.Do(new Command(CmdKind.FastForward, Amount: JumpCiv(wDefault)));
             ulong hEnd = wDefault.Hash();
             bool hasSpaceAge = wDefault.Events.Any(e => e.ObjectSlot == earth && e.Change == "civ.stage.8.9");
             bool noStage910 = !wDefault.Events.Any(e => e.ObjectSlot == earth && e.Change == "civ.stage.9.10");
@@ -61,7 +69,7 @@ static class CivTableChecks
         // 4. CivInfo.Stats: named stats container participates in hash deterministically
         {
             var w1 = World.SolSystem(0, 1234);
-            w1.Do(new Command(CmdKind.FastForward, Amount: 1e6));
+            w1.Do(new Command(CmdKind.FastForward, Amount: JumpCiv(w1)));
             ulong hashBase = w1.Hash();
 
             // Add named stats to the existing civilization
@@ -77,7 +85,7 @@ static class CivTableChecks
 
             // Replay-determinism with stats
             var w2 = World.SolSystem(0, 1234);
-            w2.Do(new Command(CmdKind.FastForward, Amount: 1e6));
+            w2.Do(new Command(CmdKind.FastForward, Amount: JumpCiv(w2)));
             var info2 = w2.Civs[civIndex];
             // Add in reverse order to verify order-independence (sorted keys)
             info2.Stats["energy_tier"] = 1.0;

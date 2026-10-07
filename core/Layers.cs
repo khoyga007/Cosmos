@@ -61,15 +61,15 @@ public sealed partial class Consts
     public double WaterIceMin = 0.001;     // share of the mass that must be ice for the planet to count as having water
     public double WaterHoldMass = 4.5e-5;  // lighter than this (0.3 Earths) cannot hold liquid water: it boils off
 
-    public double LifeSparkYears = 2e5;    // years of liquid water in a row before life starts by itself
+    public double LifeSparkYears = 1e8;    // years of liquid water in a row before life starts by itself
     public double LifeCarbonMin = 0.001;   // share of carbon needed
     public double LifeSolidMin = 0.5;      // share of rock + metal needed (a surface to live on)
     public double LifeSeed = 0.001;        // level life starts at
-    public double LifeGrowth = 2e-5;       // per year, while conditions fit (0.001 -> 0.5 in about 350 000 years)
+    public double LifeGrowth = 2e-8;       // per year, while conditions fit (0.001 -> 0.5 in about 345M years)
     public double LifeDecayYears = 2e4;    // life falls by e in this many years once conditions fail
 
     public double CivLifeMin = 0.5;        // a biosphere this rich, kept for CivRiseYears, raises a civilisation
-    public double CivRiseYears = 1e5;
+    public double CivRiseYears = 3.5e9;    // kept for 3.5B years, total ~3.95B years to civ birth
     public double CivSeed = 1e-4;          // population a civilisation starts at (1 = the planet is full)
     public double CivGrowth = 1e-3;        // per year, toward what the biosphere can feed
     public double CivDecayYears = 500;     // population falls by e in this many years once the biosphere fails
