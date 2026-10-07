@@ -105,6 +105,45 @@ static class CivTableChecks
             Check(wA.Hash() != wB.Hash(), $"Custom Stages BecomesWaste change alters World.Hash() ({wA.Hash():X16} vs {wB.Hash():X16})");
         }
 
+        // 6. Stage string boundary collision check:
+        // Id="ab",NameVi="c" vs Id="a",NameVi="bc" must produce distinct hashes
+        {
+            var s1 = new World(4, 7); s1.Stages.Clear(); s1.Stages.Add(new Stage("ab", "c", 0));
+            var s2 = new World(4, 7); s2.Stages.Clear(); s2.Stages.Add(new Stage("a", "bc", 0));
+            Check(s1.Hash() != s2.Hash(), $"Stage string-boundary separation ({s1.Hash():X16} != {s2.Hash():X16})");
+        }
+
+        // 7. Stage.Needs immutability & isolation:
+        // Cannot cast Needs to mutable array; modifying one world does not mutate another
+        {
+            var w1 = new World(4, 7);
+            var w2 = new World(4, 7);
+            bool castFailed = false;
+            try { _ = (StageNeed[])w1.Stages[6].Needs; }
+            catch (InvalidCastException) { castFailed = true; }
+            Check(castFailed, "Stage.Needs cannot be cast to mutable StageNeed[] array");
+
+            var needsCopy = w1.Stages[6].Needs.ToArray();
+            needsCopy[0] = needsCopy[0] with { BecomesWaste = !needsCopy[0].BecomesWaste };
+            w1.Stages[6] = w1.Stages[6] with { Needs = needsCopy };
+            Check(w2.IsDefaultStages, "Mutating world 1 Stages does not affect world 2 DefaultStages");
+        }
+
+        // 8. Canonical DefaultStages immutability:
+        // DefaultStages cannot be mutated in-place; attempting to set via IList throws NotSupportedException
+        {
+            bool mutateBlocked = false;
+            try
+            {
+                if (World.DefaultStages is System.Collections.IList list)
+                {
+                    list[0] = World.DefaultStages[0] with { EarthYears = 1 };
+                }
+            }
+            catch (NotSupportedException) { mutateBlocked = true; }
+            Check(mutateBlocked, "Canonical DefaultStages is immutable; in-place array mutation throws NotSupportedException");
+        }
+
         return _ok;
     }
 }

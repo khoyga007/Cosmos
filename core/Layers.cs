@@ -5,6 +5,7 @@
 // can turn them at run time. Clock rules use World.RuleYears, so one run after a jump stands for all years skipped.
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Cosmos.Core;
 
@@ -43,7 +44,12 @@ public sealed record Stage(
     bool CanDome = false
 )
 {
-    public IReadOnlyList<StageNeed> Needs { get; init; } = Needs ?? Array.Empty<StageNeed>();
+    private readonly IReadOnlyList<StageNeed> _needs = Needs != null ? Array.AsReadOnly(Needs.ToArray()) : Array.Empty<StageNeed>();
+    public IReadOnlyList<StageNeed> Needs
+    {
+        get => _needs;
+        init => _needs = value != null ? Array.AsReadOnly(value.ToArray()) : Array.Empty<StageNeed>();
+    }
 }
 
 public sealed partial class Consts
@@ -109,7 +115,7 @@ public sealed partial class World
         return C.RadiusScale * Math.Cbrt(EarthMass * sumInvDensity);
     }
 
-    public static readonly Stage[] DefaultStages = new[]
+    public static readonly IReadOnlyList<Stage> DefaultStages = Array.AsReadOnly(new Stage[]
     {
         // 1. prehistoric: hunter-gatherers, ~2000 kcal/day ≈ 100 W/person (Smil 2017), ~5-10M Earth total (McEvedy & Jones 1978), ~3e5 yr duration
         new Stage("prehistoric", "Thời kỳ Tiền sử", 0.0, EarthYears: 300000, WattsPerCapita: 100, MaxPopulationOnEarth: 1e7,
@@ -143,10 +149,10 @@ public sealed partial class World
         new Stage("interplanetary", "Kỷ nguyên Vũ trụ", 3.5, EarthYears: 500, WattsPerCapita: 50000, MaxPopulationOnEarth: 5e10,
             Needs: new[] { StageNeed.ForElement(ElementRole.Metal, 0.10, 5e-13, becomesWaste: true), StageNeed.ForElement(ElementRole.Radio, 0.001, 2e-14, becomesWaste: true) },
             CanLaunchShips: true, CanDome: true)
-    };
+    });
 
     public readonly List<Stage> Stages = new();
-    public static int MaxTechStage => DefaultStages.Length - 1; // Stages
+    public static int MaxTechStage => DefaultStages.Count - 1; // Stages
     static readonly double[] LifeStages = { 0.01, 0.1, 0.5 }; // Stages
 
     void InitLayers(int capacity)
@@ -520,8 +526,8 @@ public sealed partial class World
     {
         get
         {
-            if (Stages.Count != DefaultStages.Length) return false;
-            for (int i = 0; i < DefaultStages.Length; i++)
+            if (Stages.Count != DefaultStages.Count) return false;
+            for (int i = 0; i < DefaultStages.Count; i++)
                 if (!Same(Stages[i], DefaultStages[i])) return false;
             return true;
         }
@@ -534,7 +540,9 @@ public sealed partial class World
         mix((ulong)Stages.Count);
         foreach (var s in Stages)
         {
+            mix((ulong)s.Id.Length);
             foreach (char ch in s.Id) mix(ch);
+            mix((ulong)s.NameVi.Length);
             foreach (char ch in s.NameVi) mix(ch);
             number(s.TechThreshold);
             number(s.EarthYears);
