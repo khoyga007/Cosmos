@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 
 namespace Cosmos.Core;
@@ -37,26 +38,55 @@ public static class SpeciesParamCatalog
         Params.ToDictionary(p => p.Id, StringComparer.Ordinal);
 }
 
-public sealed record Species(
-    string Id,
-    string NameVi,
-    Habitat Habitat = Habitat.Land,
-    double Manipulation = 1.0,
-    EnergyBasis EnergyBasis = EnergyBasis.Chem,
-    SenseKind Senses = SenseKind.Vision,
-    double Lifespan = 80.0,
-    SocialStructure Social = SocialStructure.Band,
-    double TempMin = 250.0,
-    double TempMax = 320.0,
-    IReadOnlyDictionary<string, object>? Extra = null
-)
+public sealed record Species
 {
-    private readonly IReadOnlyDictionary<string, object> _extra = Extra != null ? new Dictionary<string, object>(Extra) : new Dictionary<string, object>();
+    public string Id { get; init; }
+    public string NameVi { get; init; }
+    public Habitat Habitat { get; init; } = Habitat.Land;
+    public double Manipulation { get; init; } = 1.0;
+    public EnergyBasis EnergyBasis { get; init; } = EnergyBasis.Chem;
+    public SenseKind Senses { get; init; } = SenseKind.Vision;
+    public double Lifespan { get; init; } = 80.0;
+    public SocialStructure Social { get; init; } = SocialStructure.Band;
+    public double TempMin { get; init; } = 250.0;
+    public double TempMax { get; init; } = 320.0;
+    public IReadOnlyDictionary<string, object> Extra { get; init; }
 
-    public IReadOnlyDictionary<string, object> Extra
+    private static readonly IReadOnlyDictionary<string, object> EmptyExtra =
+        new ReadOnlyDictionary<string, object>(new Dictionary<string, object>());
+
+    public Species(
+        string Id,
+        string NameVi,
+        Habitat Habitat = Habitat.Land,
+        double Manipulation = 1.0,
+        EnergyBasis EnergyBasis = EnergyBasis.Chem,
+        SenseKind Senses = SenseKind.Vision,
+        double Lifespan = 80.0,
+        SocialStructure Social = SocialStructure.Band,
+        double TempMin = 250.0,
+        double TempMax = 320.0,
+        IReadOnlyDictionary<string, object>? Extra = null
+    )
     {
-        get => _extra ?? new Dictionary<string, object>();
-        init => _extra = value != null ? new Dictionary<string, object>(value) : new Dictionary<string, object>();
+        ValidateParam("manipulation", Manipulation);
+        ValidateParam("lifespan", Lifespan);
+        ValidateParam("temp_min", TempMin);
+        ValidateParam("temp_max", TempMax);
+
+        this.Id = Id;
+        this.NameVi = NameVi;
+        this.Habitat = Habitat;
+        this.Manipulation = Manipulation;
+        this.EnergyBasis = EnergyBasis;
+        this.Senses = Senses;
+        this.Lifespan = Lifespan;
+        this.Social = Social;
+        this.TempMin = TempMin;
+        this.TempMax = TempMax;
+        this.Extra = Extra != null
+            ? new ReadOnlyDictionary<string, object>(new Dictionary<string, object>(Extra))
+            : EmptyExtra;
     }
 
     public static void ValidateParam(string paramId, object value)

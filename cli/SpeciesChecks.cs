@@ -121,6 +121,31 @@ static class SpeciesChecks
                 "species-defensive-extra: external mutation of caller dict does not alter Species.Extra", ref allOk);
         }
 
+        // Check 9: Extra dictionary getter returns read-only collection (mutation cast throws)
+        {
+            var extraDict = new Dictionary<string, object> { { "glow", true } };
+            var sp = new Species("probe", "probe", Extra: extraDict);
+            bool castMutateRefused = false;
+            try { ((IDictionary<string, object>)sp.Extra)["glow"] = false; }
+            catch (NotSupportedException) { castMutateRefused = true; }
+            Check(castMutateRefused, "species-extra-readonly: ((IDictionary)species.Extra) mutation throws NotSupportedException", ref allOk);
+        }
+
+        // Check 10: Constructor validates parameters and rejects NaN / out of range values
+        {
+            bool ctorRefused = false;
+            try { _ = new Species("bad", "bad", Manipulation: double.NaN, Lifespan: -1.0); }
+            catch (ArgumentOutOfRangeException) { ctorRefused = true; }
+            Check(ctorRefused, "species-constructor-validate: constructor rejects NaN/out-of-range via ArgumentOutOfRangeException", ref allOk);
+        }
+
+        // Check 11: Species string boundary separation in HashCiv
+        {
+            var wS1 = new World(4, 7); wS1.Civs.Add(new CivInfo("p", -1, 0, Species: new Species("ab", "c")));
+            var wS2 = new World(4, 7); wS2.Civs.Add(new CivInfo("p", -1, 0, Species: new Species("a", "bc")));
+            Check(wS1.Hash() != wS2.Hash(), $"species-string-boundary: string boundary separation ({wS1.Hash():X16} != {wS2.Hash():X16})", ref allOk);
+        }
+
         return allOk;
     }
 }

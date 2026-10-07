@@ -354,7 +354,9 @@ public sealed partial class World
             if (Civs[c].Species is { } sp && !IsHuman(sp))
             {
                 mix(1UL);
+                mix((ulong)sp.Id.Length);
                 foreach (char ch in sp.Id) mix(ch);
+                mix((ulong)sp.NameVi.Length);
                 foreach (char ch in sp.NameVi) mix(ch);
                 mix((ulong)sp.Habitat);
                 number(sp.Manipulation);
