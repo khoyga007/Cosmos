@@ -87,6 +87,24 @@ static class CivTableChecks
             Check(hashWithStats == hashWithStats2, "CivInfo.Stats: hash is independent of dictionary insertion order");
         }
 
+        // 5. Per-world custom Stages hashing (A3 defect closure):
+        // EarthYears or BecomesWaste changes must alter World.Hash()
+        {
+            var wProbe = new World(4, 7);
+            ulong hBefore = wProbe.Hash();
+            wProbe.Stages[0] = wProbe.Stages[0] with { EarthYears = 1 };
+            ulong hAfter = wProbe.Hash();
+            Check(hBefore != hAfter, $"Custom Stages EarthYears change alters World.Hash() ({hBefore:X16} -> {hAfter:X16})");
+
+            var wA = new World(4, 7);
+            var wB = new World(4, 7);
+            int stage = 6;
+            var needs = wB.Stages[stage].Needs.ToArray();
+            needs[0] = needs[0] with { BecomesWaste = !needs[0].BecomesWaste };
+            wB.Stages[stage] = wB.Stages[stage] with { Needs = needs };
+            Check(wA.Hash() != wB.Hash(), $"Custom Stages BecomesWaste change alters World.Hash() ({wA.Hash():X16} vs {wB.Hash():X16})");
+        }
+
         return _ok;
     }
 }

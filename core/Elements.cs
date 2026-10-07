@@ -48,7 +48,9 @@ public sealed partial class World
             _roleElements.Add(role, Enumerable.Range(0, ElementCount).Where(e => role != ElementRole.None && (Elements[e].Roles & role) != 0).ToArray());
     }
 
-    public double[] Mix(params (string Id, double Share)[] entries)
+    public double[] Mix(params (string Id, double Share)[] entries) => Mix((IEnumerable<(string Id, double Share)>)entries);
+
+    public double[] Mix(IEnumerable<(string Id, double Share)> entries)
     {
         var mix = new double[ElementCount];
         foreach (var (id, share) in entries)

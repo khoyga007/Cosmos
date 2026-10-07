@@ -31,10 +31,11 @@ public sealed partial class World
     public static int NElem => ElementCatalog.Elements.Count; // default-table compatibility for existing clients
     public static readonly string[] ElemName = ElementCatalog.Elements.Select(e => e.Id).ToArray();
     public const double EarthMass = 1.5e-4; // a star of 50 = one Sun, so Earth = 50 * 3e-6
-    public static readonly (string Id, double Share)[] EarthMix =
-    {
-        ("ice", .01), ("rock", .66), ("metal", .32), ("carbon", .005), ("radio", .005)
-    };
+    public static readonly IReadOnlyList<(string Id, double Share)> EarthMix =
+        Array.AsReadOnly(new (string Id, double Share)[]
+        {
+            ("ice", .01), ("rock", .66), ("metal", .32), ("carbon", .005), ("radio", .005)
+        });
 
     public readonly Consts C;
 

@@ -100,7 +100,7 @@ public sealed partial class World
     public double CalcEarthRadiusRef()
     {
         double sumInvDensity = 0;
-        for (int k = 0; k < EarthMix.Length; k++)
+        for (int k = 0; k < EarthMix.Count; k++)
         {
             int e = Elem(EarthMix[k].Id);
             double d = e >= 0 ? C.Density[e] : 3.0;
@@ -496,6 +496,64 @@ public sealed partial class World
         if (share >= C.ImpactScale / 10) LogEvent(k, "impact", "impact", share, before, Life[k]);
     }
 
+    public static bool Same(Stage a, Stage b)
+    {
+        if (a.Id != b.Id || a.NameVi != b.NameVi) return false;
+        if (BitConverter.DoubleToUInt64Bits(a.TechThreshold) != BitConverter.DoubleToUInt64Bits(b.TechThreshold)) return false;
+        if (BitConverter.DoubleToUInt64Bits(a.EarthYears) != BitConverter.DoubleToUInt64Bits(b.EarthYears)) return false;
+        if (BitConverter.DoubleToUInt64Bits(a.WattsPerCapita) != BitConverter.DoubleToUInt64Bits(b.WattsPerCapita)) return false;
+        if (BitConverter.DoubleToUInt64Bits(a.MaxPopulationOnEarth) != BitConverter.DoubleToUInt64Bits(b.MaxPopulationOnEarth)) return false;
+        if (a.CanLaunchShips != b.CanLaunchShips || a.CanDome != b.CanDome) return false;
+        if (a.Needs.Count != b.Needs.Count) return false;
+        for (int i = 0; i < a.Needs.Count; i++)
+        {
+            var na = a.Needs[i]; var nb = b.Needs[i];
+            if (na.Element != nb.Element || na.Planetary != nb.Planetary) return false;
+            if (BitConverter.DoubleToUInt64Bits(na.MinShare) != BitConverter.DoubleToUInt64Bits(nb.MinShare)) return false;
+            if (BitConverter.DoubleToUInt64Bits(na.ConsumeRate) != BitConverter.DoubleToUInt64Bits(nb.ConsumeRate)) return false;
+            if (na.BecomesWaste != nb.BecomesWaste) return false;
+        }
+        return true;
+    }
+
+    public bool IsDefaultStages
+    {
+        get
+        {
+            if (Stages.Count != DefaultStages.Length) return false;
+            for (int i = 0; i < DefaultStages.Length; i++)
+                if (!Same(Stages[i], DefaultStages[i])) return false;
+            return true;
+        }
+    }
+
+    void HashStages(Action<ulong> mix)
+    {
+        if (IsDefaultStages) return;
+        void number(double n) => mix(BitConverter.DoubleToUInt64Bits(n));
+        mix((ulong)Stages.Count);
+        foreach (var s in Stages)
+        {
+            foreach (char ch in s.Id) mix(ch);
+            foreach (char ch in s.NameVi) mix(ch);
+            number(s.TechThreshold);
+            number(s.EarthYears);
+            number(s.WattsPerCapita);
+            number(s.MaxPopulationOnEarth);
+            mix(s.CanLaunchShips ? 1UL : 0UL);
+            mix(s.CanDome ? 1UL : 0UL);
+            mix((ulong)s.Needs.Count);
+            foreach (var n in s.Needs)
+            {
+                mix((ulong)n.Element);
+                mix((ulong)n.Planetary);
+                number(n.MinShare);
+                number(n.ConsumeRate);
+                mix(n.BecomesWaste ? 1UL : 0UL);
+            }
+        }
+    }
+
     void HashLayers(Action<ulong> mix)
     {
         void number(double n) => mix(BitConverter.DoubleToUInt64Bits(n));
@@ -505,6 +563,7 @@ public sealed partial class World
             mix((ulong)Water[i]); number(WaterYears[i]); number(Life[i]); number(RichYears[i]); number(Pop[i]); number(Tech[i]); number(Touched[i]);
             number(ConsumedMatter[i]);
         }
+        HashStages(mix);
         HashCiv(mix);
     }
 }
