@@ -181,7 +181,7 @@ Audience: Yang plays it himself; if it turns out well -> itch.io. Mods: design f
 | — | 1.0 | = end of phase 12 | |
 | later | Sharing | itch.io page, English, mod support opened to outsiders (docs, stable data format) | only if Yang decides to share |
 
-## 9. Species + capability graph (Yang "làm đi" 2026-10-08) [Y]=Yang [C]=Claire default, Yang did not answer the 3 open Qs -> Claire's recommended defaults
+## 9. Species + capability graph (Yang "làm đi" 2026-10-08) [Y]=Yang [C]=Claire default; Yang CONFIRMED 08/10 the 3 [C] defaults: lifespan real effect, escape-velocity space cost, generic era names
 - [Y] Not every species has one stage ladder. Human 10-era table = default path for land/tool-using body only. Human = first template + default; every other species = free composition from parameters (no fixed species list). Params = set at birth (god may override) AND drawn from home planet (both).
 - Species record (table-driven, one row per param, adding a param = adding a row): Habitat {land, ocean, atmosphere, ice, subsurface}; Manipulation 0..1; EnergyBasis {photo, chem, thermal}; Senses {vision, sonar, electro, chemical}; Lifespan yr; Social {solitary, band, hive, gestalt}; TempMin/TempMax K. Human = land, 1.0, chem, vision, 80, band, 250-320.
 - [C] Birth draw weighted by planet: ocean -> habitat ocean, dim star -> thermal, high g -> small body. Seeded rng, hashed. Species fixed after birth. Habitat mismatch later (moved world) = fit penalty, survives only via dome (existing CivDome path).
@@ -192,4 +192,4 @@ Audience: Yang plays it himself; if it turns out well -> itch.io. Mods: design f
 - [C] Era labels of non-human species: generic table names ("era 1.."), Yang names later.
 - Human path must equal today's 10-era table BIT-EQUAL (hash unchanged for human civs). Existing Needs (StageNeed) = the seed of node Needs.
 - Slices, all Ariel, own branch each, no merge: S1 `ariel/species` Species record + human template, hash unchanged. S2 `ariel/capnodes` node table + availability filter, human path bit-equal. S3 `ariel/species-samples` 3 sample species (ocean, atmosphere, ice) each with a check taking a different path + escape-velocity check. S4 `ariel/species-birth` birth draw from planet. S5 `ariel/species-ui` window panel + god override command (`CmdKind` new, via World.Do).
-- Not decided by Yang: full param list beyond above, node list beyond start nodes, planet/species coupling strength, names of eras for other species.
+- Not decided by Yang: full param list beyond above, node list beyond start nodes, planet/species coupling strength. (Era names for other species: generic, Yang names later.)
