@@ -88,6 +88,39 @@ static class SpeciesChecks
         Check(hashA == hashB,
             $"species-hash-invariant: hash deterministic and bit-equal ({hashA:X16})", ref allOk);
 
+        // Check 6: Non-default species alters World.Hash() (A3/S1 defect closure)
+        {
+            var wProbe = new World(4, 7);
+            wProbe.Civs.Add(new CivInfo("probe", -1, 0));
+            ulong hBefore = wProbe.Hash();
+            wProbe.Civs[0] = wProbe.Civs[0] with { Species = SpeciesCatalog.Human.WithParam("lifespan", 300.0) };
+            ulong hAfter = wProbe.Hash();
+            Check(hBefore != hAfter,
+                $"species-hash-nondefault: nondefault species alters World.Hash() ({hBefore:X16} -> {hAfter:X16})", ref allOk);
+        }
+
+        // Check 7: WithParam rejects NaN/Infinity and out of range values
+        {
+            bool threwNan = false;
+            try { SpeciesCatalog.Human.WithParam("manipulation", double.NaN); }
+            catch (ArgumentOutOfRangeException) { threwNan = true; }
+            Check(threwNan, "species-validate-nan: manipulation=NaN rejected with ArgumentOutOfRangeException", ref allOk);
+
+            bool threwNegativeLifespan = false;
+            try { SpeciesCatalog.Human.WithParam("lifespan", -1.0); }
+            catch (ArgumentOutOfRangeException) { threwNegativeLifespan = true; }
+            Check(threwNegativeLifespan, "species-validate-bounds: lifespan=-1 rejected with ArgumentOutOfRangeException", ref allOk);
+        }
+
+        // Check 8: Defensive copy of Extra dictionary against external mutation
+        {
+            var extraDict = new Dictionary<string, object> { { "bioluminescence", true } };
+            var spAlien = new Species("probe", "probe", Extra: extraDict);
+            extraDict["bioluminescence"] = false;
+            Check((bool)spAlien.GetParam("bioluminescence") == true,
+                "species-defensive-extra: external mutation of caller dict does not alter Species.Extra", ref allOk);
+        }
+
         return allOk;
     }
 }

@@ -311,6 +311,23 @@ public sealed partial class World
         }
     }
 
+    public static bool IsHuman(Species? s)
+    {
+        if (s == null) return true;
+        if (ReferenceEquals(s, SpeciesCatalog.Human)) return true;
+        if (s.Id != SpeciesCatalog.Human.Id || s.NameVi != SpeciesCatalog.Human.NameVi) return false;
+        if (s.Habitat != SpeciesCatalog.Human.Habitat) return false;
+        if (BitConverter.DoubleToUInt64Bits(s.Manipulation) != BitConverter.DoubleToUInt64Bits(SpeciesCatalog.Human.Manipulation)) return false;
+        if (s.EnergyBasis != SpeciesCatalog.Human.EnergyBasis) return false;
+        if (s.Senses != SpeciesCatalog.Human.Senses) return false;
+        if (BitConverter.DoubleToUInt64Bits(s.Lifespan) != BitConverter.DoubleToUInt64Bits(SpeciesCatalog.Human.Lifespan)) return false;
+        if (s.Social != SpeciesCatalog.Human.Social) return false;
+        if (BitConverter.DoubleToUInt64Bits(s.TempMin) != BitConverter.DoubleToUInt64Bits(SpeciesCatalog.Human.TempMin)) return false;
+        if (BitConverter.DoubleToUInt64Bits(s.TempMax) != BitConverter.DoubleToUInt64Bits(SpeciesCatalog.Human.TempMax)) return false;
+        if (s.Extra != null && s.Extra.Count > 0) return false;
+        return true;
+    }
+
     void HashCiv(Action<ulong> mix)
     {
         void number(double n) => mix(BitConverter.DoubleToUInt64Bits(n));
@@ -332,6 +349,32 @@ public sealed partial class World
                 {
                     foreach (char ch in kv.Key) mix(ch);
                     number(kv.Value);
+                }
+            }
+            if (Civs[c].Species is { } sp && !IsHuman(sp))
+            {
+                mix(1UL);
+                foreach (char ch in sp.Id) mix(ch);
+                foreach (char ch in sp.NameVi) mix(ch);
+                mix((ulong)sp.Habitat);
+                number(sp.Manipulation);
+                mix((ulong)sp.EnergyBasis);
+                mix((ulong)sp.Senses);
+                number(sp.Lifespan);
+                mix((ulong)sp.Social);
+                number(sp.TempMin);
+                number(sp.TempMax);
+                if (sp.Extra != null && sp.Extra.Count > 0)
+                {
+                    mix((ulong)sp.Extra.Count);
+                    foreach (var kv in sp.Extra.OrderBy(k => k.Key, StringComparer.Ordinal))
+                    {
+                        foreach (char ch in kv.Key) mix(ch);
+                        if (kv.Value is double dv) number(dv);
+                        else if (kv.Value is bool bv) mix(bv ? 1UL : 0UL);
+                        else if (kv.Value is int iv) mix((ulong)iv);
+                        else foreach (char ch in kv.Value?.ToString() ?? "") mix(ch);
+                    }
                 }
             }
         }

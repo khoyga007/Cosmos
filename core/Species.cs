@@ -51,7 +51,33 @@ public sealed record Species(
     IReadOnlyDictionary<string, object>? Extra = null
 )
 {
-    public IReadOnlyDictionary<string, object> Extra { get; init; } = Extra ?? new Dictionary<string, object>();
+    private readonly IReadOnlyDictionary<string, object> _extra = Extra != null ? new Dictionary<string, object>(Extra) : new Dictionary<string, object>();
+
+    public IReadOnlyDictionary<string, object> Extra
+    {
+        get => _extra ?? new Dictionary<string, object>();
+        init => _extra = value != null ? new Dictionary<string, object>(value) : new Dictionary<string, object>();
+    }
+
+    public static void ValidateParam(string paramId, object value)
+    {
+        if (SpeciesParamCatalog.ById.TryGetValue(paramId, out var def))
+        {
+            if (def.ValueType == typeof(double))
+            {
+                double d = Convert.ToDouble(value);
+                if (double.IsNaN(d) || double.IsInfinity(d))
+                    throw new ArgumentOutOfRangeException(paramId, $"Param '{paramId}' cannot be NaN or Infinity");
+                if (d < def.Min || d > def.Max)
+                    throw new ArgumentOutOfRangeException(paramId, $"Param '{paramId}' value {d} out of range [{def.Min}..{def.Max}]");
+            }
+            else if (def.ValueType.IsEnum)
+            {
+                if (!Enum.IsDefined(def.ValueType, value))
+                    throw new ArgumentOutOfRangeException(paramId, $"Param '{paramId}' invalid enum value {value}");
+            }
+        }
+    }
 
     public object GetParam(string paramId) => paramId switch
     {
@@ -68,21 +94,25 @@ public sealed record Species(
              : throw new KeyNotFoundException($"Unknown species param '{paramId}'")
     };
 
-    public Species WithParam(string paramId, object value) => paramId switch
+    public Species WithParam(string paramId, object value)
     {
-        "habitat" => this with { Habitat = (Habitat)value },
-        "manipulation" => this with { Manipulation = Convert.ToDouble(value) },
-        "energy_basis" => this with { EnergyBasis = (EnergyBasis)value },
-        "senses" => this with { Senses = (SenseKind)value },
-        "lifespan" => this with { Lifespan = Convert.ToDouble(value) },
-        "social" => this with { Social = (SocialStructure)value },
-        "temp_min" => this with { TempMin = Convert.ToDouble(value) },
-        "temp_max" => this with { TempMax = Convert.ToDouble(value) },
-        _ => this with
+        ValidateParam(paramId, value);
+        return paramId switch
         {
-            Extra = new Dictionary<string, object>(Extra) { [paramId] = value }
-        }
-    };
+            "habitat" => this with { Habitat = (Habitat)value },
+            "manipulation" => this with { Manipulation = Convert.ToDouble(value) },
+            "energy_basis" => this with { EnergyBasis = (EnergyBasis)value },
+            "senses" => this with { Senses = (SenseKind)value },
+            "lifespan" => this with { Lifespan = Convert.ToDouble(value) },
+            "social" => this with { Social = (SocialStructure)value },
+            "temp_min" => this with { TempMin = Convert.ToDouble(value) },
+            "temp_max" => this with { TempMax = Convert.ToDouble(value) },
+            _ => this with
+            {
+                Extra = new Dictionary<string, object>(Extra) { [paramId] = value }
+            }
+        };
+    }
 }
 
 public static class SpeciesCatalog
