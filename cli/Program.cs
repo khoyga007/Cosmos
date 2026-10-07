@@ -45,6 +45,7 @@ if (args.Length > 0 && args[0] == "cosmic") return CosmicChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "roche") return RocheChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "roche-bench") return RocheBench.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "rules") return RuleChecks.Run() ? 0 : 1;
+if (args.Length > 0 && args[0] == "species") return SpeciesChecks.Run() ? 0 : 1;
 bool allOk = true;
 void Check(bool ok, string line) { allOk &= ok; Console.WriteLine($"{(ok ? "OK    " : "FAILED")} {line}"); }
 
@@ -147,7 +148,11 @@ allOk &= CivStatsChecks.Run();
 allOk &= ShipChecks.Run();
 allOk &= ConserveChecks.Run();
 allOk &= CosmicChecks.Run();
+<<<<<<< HEAD
 allOk &= RocheChecks.Run();
+=======
+allOk &= SpeciesChecks.Run();
+>>>>>>> c39687c (feat(species): add table-driven Species record and Human template (SPEC 9 S1))
 allOk &= Audit.Run();
 return allOk ? 0 : 1;
 

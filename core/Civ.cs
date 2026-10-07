@@ -28,9 +28,10 @@ public sealed partial class Consts
 }
 
 /// Home = the world it rose on, -1 once that world is gone.
-public readonly record struct CivInfo(string Name, int Home, double BornYear, Dictionary<string, double>? Stats = null)
+public readonly record struct CivInfo(string Name, int Home, double BornYear, Dictionary<string, double>? Stats = null, Species? Species = null)
 {
     public Dictionary<string, double> Stats { get; init; } = Stats ?? new();
+    public Species Species { get; init; } = Species ?? SpeciesCatalog.Human;
 }
 
 public sealed partial class World
@@ -81,12 +82,12 @@ public sealed partial class World
     }
 
     // a people that rose here by itself: gets a name of its own
-    int NewCiv(int home)
+    int NewCiv(int home, Species? species = null)
     {
         int parts = 2 + (int)(Next() * 2);
         string name = "";
         for (int k = 0; k < parts; k++) name += NameParts[(int)(Next() * NameParts.Length)];
-        Civs.Add(new CivInfo(char.ToUpperInvariant(name[0]) + name[1..], home, Year));
+        Civs.Add(new CivInfo(char.ToUpperInvariant(name[0]) + name[1..], home, Year, Species: species ?? SpeciesCatalog.Human));
         _civLaunches.Add(0);
         return Civs.Count - 1;
     }
