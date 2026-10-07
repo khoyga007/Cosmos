@@ -146,6 +146,54 @@ static class SpeciesChecks
             Check(wS1.Hash() != wS2.Hash(), $"species-string-boundary: string boundary separation ({wS1.Hash():X16} != {wS2.Hash():X16})", ref allOk);
         }
 
+        // Check 12: Record 'with' syntax and constructor enum validation
+        {
+            bool withNanBlocked = false;
+            try { _ = SpeciesCatalog.Human with { Manipulation = double.NaN }; }
+            catch (ArgumentOutOfRangeException) { withNanBlocked = true; }
+
+            bool withBoundsBlocked = false;
+            try { _ = SpeciesCatalog.Human with { Lifespan = -1.0 }; }
+            catch (ArgumentOutOfRangeException) { withBoundsBlocked = true; }
+
+            bool ctorEnumBlocked = false;
+            try { _ = new Species("probe", "probe", Habitat: (Habitat)999); }
+            catch (ArgumentOutOfRangeException) { ctorEnumBlocked = true; }
+
+            bool withEnumBlocked = false;
+            try { _ = SpeciesCatalog.Human with { Habitat = (Habitat)999 }; }
+            catch (ArgumentOutOfRangeException) { withEnumBlocked = true; }
+
+            Check(withNanBlocked && withBoundsBlocked && ctorEnumBlocked && withEnumBlocked,
+                "species-with-and-enum-validate: 'with' expression and constructor reject invalid values and enums", ref allOk);
+        }
+
+        // Check 13: Direct Extra init and 'with' syntax defensive copy & read-only enforcement
+        {
+            var callerDict = new Dictionary<string, object> { { "glow", true } };
+            var sp = SpeciesCatalog.Human with { Extra = callerDict };
+            callerDict["glow"] = false;
+            bool callerMutationIsolated = (bool)sp.Extra["glow"] == true;
+
+            bool mutateCastBlocked = false;
+            try { ((IDictionary<string, object>)sp.Extra)["glow"] = false; }
+            catch (NotSupportedException) { mutateCastBlocked = true; }
+
+            Check(callerMutationIsolated && mutateCastBlocked,
+                "species-extra-with-freeze: 'with { Extra }' performs defensive copy and preserves read-only wrapper", ref allOk);
+        }
+
+        // Check 14: WithParam unknown extra key produces read-only Extra dictionary
+        {
+            var sp = SpeciesCatalog.Human.WithParam("luminescence", true);
+            bool mutateCastBlocked = false;
+            try { ((IDictionary<string, object>)sp.Extra)["luminescence"] = false; }
+            catch (NotSupportedException) { mutateCastBlocked = true; }
+
+            Check(mutateCastBlocked && (sp.Extra is System.Collections.ObjectModel.ReadOnlyDictionary<string, object>),
+                "species-withparam-extra-readonly: WithParam unknown key yields ReadOnlyDictionary", ref allOk);
+        }
+
         return allOk;
     }
 }

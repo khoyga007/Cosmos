@@ -40,20 +40,117 @@ public static class SpeciesParamCatalog
 
 public sealed record Species
 {
-    public string Id { get; init; }
-    public string NameVi { get; init; }
-    public Habitat Habitat { get; init; } = Habitat.Land;
-    public double Manipulation { get; init; } = 1.0;
-    public EnergyBasis EnergyBasis { get; init; } = EnergyBasis.Chem;
-    public SenseKind Senses { get; init; } = SenseKind.Vision;
-    public double Lifespan { get; init; } = 80.0;
-    public SocialStructure Social { get; init; } = SocialStructure.Band;
-    public double TempMin { get; init; } = 250.0;
-    public double TempMax { get; init; } = 320.0;
-    public IReadOnlyDictionary<string, object> Extra { get; init; }
+    private readonly string _id = "";
+    private readonly string _nameVi = "";
+    private readonly Habitat _habitat = Habitat.Land;
+    private readonly double _manipulation = 1.0;
+    private readonly EnergyBasis _energyBasis = EnergyBasis.Chem;
+    private readonly SenseKind _senses = SenseKind.Vision;
+    private readonly double _lifespan = 80.0;
+    private readonly SocialStructure _social = SocialStructure.Band;
+    private readonly double _tempMin = 250.0;
+    private readonly double _tempMax = 320.0;
+    private readonly IReadOnlyDictionary<string, object> _extra = EmptyExtra;
 
     private static readonly IReadOnlyDictionary<string, object> EmptyExtra =
         new ReadOnlyDictionary<string, object>(new Dictionary<string, object>());
+
+    public string Id { get => _id; init => _id = value ?? ""; }
+    public string NameVi { get => _nameVi; init => _nameVi = value ?? ""; }
+
+    public Habitat Habitat
+    {
+        get => _habitat;
+        init
+        {
+            ValidateParam("habitat", value);
+            _habitat = value;
+        }
+    }
+
+    public double Manipulation
+    {
+        get => _manipulation;
+        init
+        {
+            ValidateParam("manipulation", value);
+            _manipulation = value;
+        }
+    }
+
+    public EnergyBasis EnergyBasis
+    {
+        get => _energyBasis;
+        init
+        {
+            ValidateParam("energy_basis", value);
+            _energyBasis = value;
+        }
+    }
+
+    public SenseKind Senses
+    {
+        get => _senses;
+        init
+        {
+            ValidateParam("senses", value);
+            _senses = value;
+        }
+    }
+
+    public double Lifespan
+    {
+        get => _lifespan;
+        init
+        {
+            ValidateParam("lifespan", value);
+            _lifespan = value;
+        }
+    }
+
+    public SocialStructure Social
+    {
+        get => _social;
+        init
+        {
+            ValidateParam("social", value);
+            _social = value;
+        }
+    }
+
+    public double TempMin
+    {
+        get => _tempMin;
+        init
+        {
+            ValidateParam("temp_min", value);
+            _tempMin = value;
+        }
+    }
+
+    public double TempMax
+    {
+        get => _tempMax;
+        init
+        {
+            ValidateParam("temp_max", value);
+            _tempMax = value;
+        }
+    }
+
+    public IReadOnlyDictionary<string, object> Extra
+    {
+        get => _extra;
+        init => _extra = FreezeExtra(value);
+    }
+
+    public static IReadOnlyDictionary<string, object> FreezeExtra(IReadOnlyDictionary<string, object>? dict)
+    {
+        if (dict == null || dict.Count == 0) return EmptyExtra;
+        var copy = new Dictionary<string, object>(dict.Count);
+        foreach (var kv in dict) copy[kv.Key] = kv.Value;
+        return new ReadOnlyDictionary<string, object>(copy);
+    }
 
     public Species(
         string Id,
@@ -69,24 +166,26 @@ public sealed record Species
         IReadOnlyDictionary<string, object>? Extra = null
     )
     {
+        ValidateParam("habitat", Habitat);
         ValidateParam("manipulation", Manipulation);
+        ValidateParam("energy_basis", EnergyBasis);
+        ValidateParam("senses", Senses);
         ValidateParam("lifespan", Lifespan);
+        ValidateParam("social", Social);
         ValidateParam("temp_min", TempMin);
         ValidateParam("temp_max", TempMax);
 
-        this.Id = Id;
-        this.NameVi = NameVi;
-        this.Habitat = Habitat;
-        this.Manipulation = Manipulation;
-        this.EnergyBasis = EnergyBasis;
-        this.Senses = Senses;
-        this.Lifespan = Lifespan;
-        this.Social = Social;
-        this.TempMin = TempMin;
-        this.TempMax = TempMax;
-        this.Extra = Extra != null
-            ? new ReadOnlyDictionary<string, object>(new Dictionary<string, object>(Extra))
-            : EmptyExtra;
+        this._id = Id ?? "";
+        this._nameVi = NameVi ?? "";
+        this._habitat = Habitat;
+        this._manipulation = Manipulation;
+        this._energyBasis = EnergyBasis;
+        this._senses = Senses;
+        this._lifespan = Lifespan;
+        this._social = Social;
+        this._tempMin = TempMin;
+        this._tempMax = TempMax;
+        this._extra = FreezeExtra(Extra);
     }
 
     public static void ValidateParam(string paramId, object value)
@@ -139,9 +238,16 @@ public sealed record Species
             "temp_max" => this with { TempMax = Convert.ToDouble(value) },
             _ => this with
             {
-                Extra = new Dictionary<string, object>(Extra) { [paramId] = value }
+                Extra = UpdateExtra(Extra, paramId, value)
             }
         };
+    }
+
+    private static IReadOnlyDictionary<string, object> UpdateExtra(IReadOnlyDictionary<string, object> current, string key, object value)
+    {
+        var dict = new Dictionary<string, object>(current);
+        dict[key] = value;
+        return new ReadOnlyDictionary<string, object>(dict);
     }
 }
 
