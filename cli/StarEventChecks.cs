@@ -11,8 +11,9 @@ static class StarEventChecks
         void Check(bool pass, string line) { ok &= pass; Console.WriteLine($"{(pass ? "OK    " : "FAILED")} star-events: {line}"); }
         // S1 re-capture 2026-10-06; A2 re-capture 2026-10-07: new Consts fields hashed by reflection.
         double[] births = { 1.23, 2.0000000000000004, 7.999999999, 8.0, 20.0, 20.0000001, 31.123 };
-        ulong[] legacy = { 0x52EA80A55D0C831A, 0xE87B79406531FBA9, 0x1339DC5060019F02, 0x883E846FE359D0EB,
-            0xCCCF36A065EA2D69, 0x341E24191DE54BFC, 0x3F23FDCB7A13699B };
+        // C5 capture: shared ledger, physical constants, transformed shells and stochastic high-mass channel.
+        ulong[] legacy = { 0x97C2CE571597307D, 0xC7853FD92DE50040, 0x870E42732CBC7754, 0xDAC46BCBA3622301,
+            0xD53856AF2ECDDF32, 0x5CD742194002C0BA, 0x59B4013AE6C9B43A };
         bool exact = true; var got = new List<string>();
         for (int n = 0; n < births.Length; n++)
         {
@@ -22,7 +23,7 @@ static class StarEventChecks
             w.Do(new Command(CmdKind.FastForward, Amount: w.StarLifetime(births[n] * 50) * 1.2));
             exact &= w.Hash() == legacy[n]; got.Add($"0x{w.Hash():X16}");
         }
-        Check(exact, "seven arbitrary/boundary progenitor hashes remain bit-identical" + (exact ? "" : $"; now: {string.Join(", ", got)}"));
+        Check(exact, "seven C5 arbitrary/boundary progenitor regression hashes match" + (exact ? "" : $"; now: {string.Join(", ", got)}"));
         bool Refused(IEnumerable<StarEvent> rows)
         {
             try { _ = new World(4, 1, starEvents: rows); return false; }
@@ -36,7 +37,7 @@ static class StarEventChecks
         var rows = StarEventCatalog.Events.Append(test).ToList();
         var live = new World(16, 3, elements, rows);
         conditions[0] = new(MassComparison.GreaterOrEqual, new(100)); mix["test"] = 0; rows.Clear();
-        Check(live.StarEvents.Count == 6 && live.StarEvents[^1].Conditions![0].Threshold.Value == 9
+        Check(live.StarEvents.Count == StarEventCatalog.Events.Count + 1 && live.StarEvents[^1].Conditions![0].Threshold.Value == 9
             && live.StarEvents[^1].Mix!["test"] == 1, "World snapshots rows, progenitor conditions and ejecta mix");
         int star = live.Do(new Command(CmdKind.Create, Amount: 500, Mix: live.Mix(("gas", 1)), Vx: .02, Vy: -.03));
         double death = live.StarLifetime(500) * (1 + live.C.StarGiantFraction);

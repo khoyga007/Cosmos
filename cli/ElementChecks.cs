@@ -10,15 +10,16 @@ static class ElementChecks
 {
     // S1 re-capture 2026-10-06; A2 re-capture 2026-10-07: new Consts fields (EarthRadiusKm, EarthMaxPopulation,
     // StarlightTempMin, TechMaxCeiling, FootprintBioWeight, FootprintMatterWeight, FootprintMatterScale) hashed by reflection.
-    static readonly ulong[] Legacy = { 0xFFD00BC42151E6A6, 0x4FBBBEAD844AB5DF, 0x3D72350746CF2166, 0xFF1FE39BF4C6E9DF,
-        0x0092E155298710A1, 0x958069674F8D689D, 0x06F91580607F5E10, 0xA439E16F62927B5A, 0x957DB3C8A7C03D49,
-        0xF16C0D051B35BB80, 0xE2A3E8F272467067 };
+    // C5 capture: shared escaped state, trimmed volatiles, analytic shells, new physical constants/RNG.
+    static readonly ulong[] Legacy = { 0x6C56216D3D2C758F, 0x9E4C9D844F3CF2D2, 0x97AD3F35AE99CDAB, 0xB672C1E7FB754212,
+        0x68B21923CD852A6C, 0xE847BF6F9F41D4D8, 0xDAE873E2BBA7FC03, 0x5F8FEF5535B4057E, 0x17CF3AD78EA82314,
+        0xEAFCA1C02E822A73, 0x435329957269E91C };
 
     public static bool Run()
     {
         bool ok = true;
         void Check(bool pass, string line) { ok &= pass; Console.WriteLine($"{(pass ? "OK    " : "FAILED")} elements: {line}"); }
-        Check(Probe().Values.SequenceEqual(Legacy), "all eleven default-table hashes remain bit-identical (captured 2026-10-06)");
+        Check(Probe().Values.SequenceEqual(Legacy), "eleven C5 default-table regression hashes match the recorded capture");
         var source = ElementCatalog.Elements.ToList();
         source.Add(new Element("test", "Test", 4, 0x123456, ElementRole.None));
         var table = source.ToArray(); var w = new World(16, 5, source); source.Clear();

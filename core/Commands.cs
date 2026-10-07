@@ -204,6 +204,9 @@ public sealed partial class Consts
     bool Validate(string name, double v)
     {
         if (v < 0) return false;
+        if (name == "HypernovaChance") return v <= 1;
+        if (name == "GrbHalfAngleDeg") return v > 0 && v <= 90;
+        if (name is "GrbFluenceJm2" or "NeutronPhysicalRadiusKm" or "NeutronTovSolar") return v > 0;
         if (name.StartsWith("Star"))
         {
             if (name == "StarWhiteSlope") return v >= 0 && (v > 0 || StarWhiteIntercept > 0);

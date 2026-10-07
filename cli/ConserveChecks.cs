@@ -11,10 +11,8 @@ static class ConserveChecks
 {
     // These tallies are exact sums, not statistics: the band is floating-point rounding, not a physical fudge.
     const double Tight = 1e-11;
-    // The stock system carries two sinks that no counter can see: a ship is made out of nothing and unmade with
-    // no line (Civ.cs:151/161/194/249), and lost gas and sublimated ice shrink a body outright (Kinds.cs:203 and
-    // Kinds.cs:267/274 are the only writes that take mass off a body without a merge, an ejection or a Kill).
-    // Where they are live the scene is held to this band instead, and the exact deficit is printed with it.
+    // Ships still add/remove toy mass; long rails runs also have integrator momentum drift. Volatile loss is
+    // now in the shared ledger, so stock mass/elements use Tight while only long-run momentum uses Loose.
     const double Loose = 1e-6;
 
     static bool ok;
@@ -33,6 +31,7 @@ static class ConserveChecks
             ("slope .2 of birth, never under half a sun", new EjectionRule(EjectionMode.RetainedSolarMass, Slope: new StarParameter(Value: .2), Minimum: new StarParameter(Value: .5)), null, 2),
             ("ejects half by fraction", new EjectionRule(EjectionMode.Fraction, Fraction: new StarParameter(Value: .5)), null, 0),
             ("ejects everything by fraction", new EjectionRule(EjectionMode.Fraction, Fraction: new StarParameter(Value: 1)), null, 0),
+            ("ejects .03 suns fixed", new EjectionRule(EjectionMode.ExpelledSolarMass, Intercept: new StarParameter(Value: .03)), null, 0),
             ("half out, split rock/metal", new EjectionRule(EjectionMode.Fraction, Fraction: new StarParameter(Value: .5)),
                 new Dictionary<string, double>(StringComparer.Ordinal) { { "rock", .75 }, { "metal", .25 } }, 2),
         };
@@ -50,13 +49,13 @@ static class ConserveChecks
                 $"{label}: mass flat — {before.Mass:G10} → {after.Mass:G10} ({after.Mass - before.Mass:E3})");
             Check(Math.Abs(after.Total - before.Total) <= Tight * Scale(after.Total, before.Total),
                 $"{label}: every element together flat — {after.Total - before.Total:E3} of {before.Total:G10}");
+            Check(Enumerable.Range(0, w.ElementCount).All(e => Math.Abs(after.Matter[e] - before.Matter[e]) <= Tight * before.Mass),
+                $"{label}: each element closes after subtracting signed nucleosynthesis delta");
             Check(Math.Abs(after.Px - before.Px) <= Tight * Scale(after.Px, before.Px) && Math.Abs(after.Py - before.Py) <= Tight * Scale(after.Py, before.Py),
                 $"{label}: momentum flat — dP ({after.Px - before.Px:E3}, {after.Py - before.Py:E3}) of ({before.Px:G6}, {before.Py:G6})");
         }
 
-        // The shipped table is the one the game plays with. No row carries a mix, so the transmutation branch of
-        // Eject has never run outside this probe — and a mix that is not a mix is refused before it can quietly
-        // destroy part of the ejecta (StarEvents.cs:97).
+        // Shipped SN/HN/KN recipes carry grouped mixes; invalid mixes cannot destroy part of an ejecta shell.
         var stock = World.SolSystem(0, 1234);
         int mixed = stock.StarEvents.Count(r => r.Mix != null);
         Check(stock.StarEvents.All(r => r.Mix == null || Math.Abs(r.Mix.Values.Sum() - 1) <= 1e-11),
@@ -99,9 +98,9 @@ static class ConserveChecks
             double band = Loose * before.Mass, made = ships * w.C.ShipMass;
             double dMass = after.Mass - before.Mass, dElem = after.Total - before.Total;
             double dPx = after.Px - before.Px, dPy = after.Py - before.Py;
-            Check(dMass <= made + 1e-15 && dMass >= -band,
-                $"{label}: the ledger only loses — {dMass:E3} of {before.Mass:G10} inside ±{band:E2} (ejecta {w.StellarEjectaMass:G6}, {ships} ship(s) adding {made:E2}, year {w.Year:E6})");
-            Check(Math.Abs(dElem - made) <= band,
+            Check(Math.Abs(dMass - made) <= Tight * before.Mass,
+                $"{label}: shared mass closes — {dMass:E3} of {before.Mass:G10}, tight band {Tight * before.Mass:E2} (ejecta {w.StellarEjectaMass:G6}, {ships} ship(s) adding {made:E2}, year {w.Year:E6})");
+            Check(Math.Abs(dElem - made) <= Tight * before.Mass,
                 $"{label}: the elements follow the mass — {dElem:E3} against {made:E2} for ships");
             Check(Math.Abs(dPx) <= band * before.Gmax && Math.Abs(dPy) <= band * before.Gmax,
                 $"{label}: momentum inside the same band — dP ({dPx:E3}, {dPy:E3}), fastest body {before.Gmax:G4}");
@@ -174,8 +173,9 @@ static class ConserveChecks
     // objects moves entries around inside this sum and leaves it alone; only an invention or a loss moves it.
     static Ledger Of(World w)
     {
-        double mass = w.StellarEjectaMass, px = w.StellarEjectaPx, py = w.StellarEjectaPy, gmax = 0;
-        var matter = (double[])w.StellarEjectaMatter.Clone();
+        double mass = w.EscapedMass, px = w.EscapedPx, py = w.EscapedPy, gmax = 0;
+        var matter = (double[])w.EscapedMatter.Clone();
+        for (int e = 0; e < w.ElementCount; e++) matter[e] -= w.NucleosynthesisDelta[e];
         for (int i = 0; i < w.N; i++)
         {
             if (!w.Alive[i]) continue;
