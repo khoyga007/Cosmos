@@ -10,6 +10,13 @@ static class LayerChecks
     static void Check(bool ok, string line) { _ok &= ok; Console.WriteLine($"{(ok ? "OK    " : "FAILED")} layers: {line}"); }
     static void Jump(World w, double years) => w.Do(new Command(CmdKind.FastForward, Amount: years));
     static string Story(World w, int slot) => string.Join(", ", w.Events.Where(e => e.ObjectSlot == slot && e.RuleId != "temperature").Select(e => $"{e.Change}@{e.Year:F0}"));
+    static double JumpToSpace(World w)
+    {
+        double lifeGrow = Math.Log((1.0 / w.C.LifeSeed - 1.0) / (1.0 / w.C.CivLifeMin - 1.0)) / w.C.LifeGrowth;
+        double civStart = w.C.LifeSparkYears + lifeGrow + w.C.CivRiseYears;
+        double eraToSpace = w.Stages.TakeWhile(s => !s.CanLaunchShips).Sum(s => s.EarthYears);
+        return civStart + eraToSpace + 1.5e4;
+    }
 
     public static bool Run()
     {
@@ -39,8 +46,8 @@ static class LayerChecks
             string chron = string.Join(", ", sol.Chronicle.Where(c => c.Civ == civ).Select(c => $"{c.Event.Change}@{c.Event.Year:F0}/{sol.Name[c.Event.ObjectSlot]}"));
             Check(sol.Civs.Count == 1 && civ == 0 && sol.Civs[0].Home == earth && sol.Civs[0].Name.Length >= 4 && same.Civs[0].Name == sol.Civs[0].Name,
                 $"one civilisation, named {sol.Civs[0].Name}, home {sol.Name[sol.Civs[0].Home]}, born year {sol.Civs[0].BornYear:F0}; same seed, same name");
-            Check(sol.Share(earth, 3) < metal0 - 0.005 && sol.Share(earth, 3) > 0 && sol.M[earth] == mass0,
-                $"industry ate metal: share {metal0:F3} -> {sol.Share(earth, 3):F3}, mass unchanged");
+            Check(sol.ConsumedMatter[earth] > 0 && sol.Share(earth, 3) < metal0 && sol.Share(earth, 3) > 0 && sol.M[earth] == mass0,
+                $"industry ate metal: consumed {sol.ConsumedMatter[earth]:G3}, share {metal0:F4} -> {sol.Share(earth, 3):F4}, mass unchanged");
             Check(solid.Length == 4 && solid.All(i => sol.Pop[i] > 0 && sol.Pop[i] <= sol.C.CivDome * 1.001 && sol.Civ[i] == civ) && sol.WorldsOf(civ) == 5 && sol.Live == 10,
                 $"colonies under domes, no ship objects left by a jump: {colonies}");
             Check(chron.Contains("civ.start@") && chron.Contains("civ.ship.first@") && sol.Chronicle.Count(c => c.Event.Change == "civ.colony") == 4,
@@ -99,7 +106,7 @@ static class LayerChecks
         // a ship's goal is removed and its slot given to a new object: the ship is lost and said so, nobody lands on the newcomer
         {
             var w = World.SolSystem(0, 1234);
-            Jump(w, 6.95e5);
+            Jump(w, JumpToSpace(w));
             int ship = -1;
             for (int s = 0; s < 20000 && ship < 0; s++) { w.Advance(H); for (int i = 0; i < w.N; i++) if (w.Alive[i] && w.IsShip(i)) ship = i; }
             int goal = ship < 0 ? -1 : w.ShipTo[ship], gen = goal < 0 ? 0 : w.Gen[goal], civ = w.Civ[earth];
@@ -130,7 +137,7 @@ static class LayerChecks
         {
             var w = World.SolSystem(0, 1234);
             w.Do(new Command(CmdKind.SetConst, Name: "ShipPop", Amount: 2)); // no ships during the jump
-            Jump(w, 6.95e5); // just into the space age
+            Jump(w, JumpToSpace(w)); // just into the space age
             w.Do(new Command(CmdKind.SetConst, Name: "ShipPop", Amount: 0.03));
             int civ = w.Civ[earth], had = w.WorldsOf(civ), seen = 0, maxFlying = 0, removed = -1; double removedAt = 0;
             for (int s = 0; s < 40000; s++)

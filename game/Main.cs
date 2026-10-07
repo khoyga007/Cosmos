@@ -12,6 +12,7 @@
 //   spot, press and drag = launch it with that velocity
 // Keys: Space pause · 1..7 speed · C create · V vector · M move · A pull · R push away · F follow · Delete remove · Esc cancel · H whole system · Tab panel · T tilt · [ ] G
 using System;
+using System.Linq;
 using Godot;
 using Cosmos.Core;
 
@@ -1130,12 +1131,16 @@ public partial class Main : Node2D
 
         // civilisation: after the jump Earth carries a named people with a chronicle; in stepping its ships are
         // objects on screen that a click takes before the planet next to them
-        GodTools.FastForward(_w, 7e5);
+        double lifeGrow = Math.Log((1.0 / _w.C.LifeSeed - 1.0) / (1.0 / _w.C.CivLifeMin - 1.0)) / _w.C.LifeGrowth;
+        double civStart = _w.C.LifeSparkYears + lifeGrow + _w.C.CivRiseYears;
+        double eraToSpace = _w.Stages.TakeWhile(s => !s.CanLaunchShips).Sum(s => s.EarthYears);
+        double jumpToSpace = civStart + eraToSpace + 1.5e4;
+        GodTools.FastForward(_w, jumpToSpace);
         Home(); Click(Screen(earth));
         string civPanel = PanelText();
         int civ = _w.Civ[earth];
         Say(_sel == earth && civ >= 0 && civPanel.Contains($"Văn minh {_w.Civs[civ].Name}") && civPanel.Contains("Niên biểu") && civPanel.Contains("trỗi dậy"),
-            $"Earth panel after 7e5 years: people {(civ >= 0 ? _w.Civs[civ].Name : "none")}, {_w.WorldsOf(civ)} worlds, chronicle shown");
+            $"Earth panel after {jumpToSpace:G3} years: people {(civ >= 0 ? _w.Civs[civ].Name : "none")}, {_w.WorldsOf(civ)} worlds, chronicle shown");
         int ship = -1;
         for (int k = 0; k < 6000 && ship < 0; k++)
         {

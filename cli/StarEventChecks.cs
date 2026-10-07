@@ -9,7 +9,7 @@ static class StarEventChecks
     {
         bool ok = true;
         void Check(bool pass, string line) { ok &= pass; Console.WriteLine($"{(pass ? "OK    " : "FAILED")} star-events: {line}"); }
-        // S1 re-capture 2026-10-06; A2 re-capture 2026-10-07: new Consts fields hashed by reflection.
+        // S1 re-capture 2026-10-06; A2 re-capture 2026-10-07; A3 re-capture 2026-10-08: new Consts fields hashed by reflection.
         double[] births = { 1.23, 2.0000000000000004, 7.999999999, 8.0, 20.0, 20.0000001, 31.123 };
         // C5 capture: shared ledger, physical constants, transformed shells and stochastic high-mass channel.
         // C6 capture: Roche constants, rule and persistent state; see C6-REPORT.md.

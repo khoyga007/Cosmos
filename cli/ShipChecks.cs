@@ -18,8 +18,12 @@ static class ShipChecks
             const int steps = 300000;
             var w = World.SolSystem(0, 1234);
             const int sun = 0, earth = 3;
+            double lifeGrow = Math.Log((1.0 / w.C.LifeSeed - 1.0) / (1.0 / w.C.CivLifeMin - 1.0)) / w.C.LifeGrowth;
+            double civStart = w.C.LifeSparkYears + lifeGrow + w.C.CivRiseYears;
+            double eraToSpace = w.Stages.TakeWhile(s => !s.CanLaunchShips).Sum(s => s.EarthYears);
+            double toSpace = civStart + eraToSpace + 1.5e4; // just into the space age
             if (!colonies) w.Do(new Command(CmdKind.SetConst, Name: "ShipPop", Amount: 2)); // no ships during the jump
-            w.Do(new Command(CmdKind.FastForward, Amount: colonies ? 7.5e5 : 6.95e5)); // just into the space age; later = the colonies send ships too
+            w.Do(new Command(CmdKind.FastForward, Amount: colonies ? toSpace + 2.5e4 : toSpace)); // just into the space age; later = the colonies send ships too
             w.Do(new Command(CmdKind.SetConst, Name: "ShipPop", Amount: 0.03));
             int civ = w.Civ[earth];
 
