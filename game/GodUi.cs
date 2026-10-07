@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using Godot;
 using Cosmos.Core;
 
@@ -116,7 +117,7 @@ public partial class GodUi : CanvasLayer
     }
     public static readonly string[] WaterVi = { "Không có", "Băng tuyết", "Nước lỏng", "Hơi nước" };
     public static readonly string[] LifeStageVi = { "Chưa có", "Vi sinh vật", "Đa bào phức tạp", "Sinh quyển trù phú" };
-    public static readonly string[] TechStageVi = Array.ConvertAll(World.DefaultStages, s => s.NameVi);
+    public static readonly string[] TechStageVi = World.DefaultStages.Select(s => s.NameVi).ToArray();
     public static readonly string[] BandVi = { "Đóng băng", "Ôn đới", "Thiêu đốt" };
     static readonly Dictionary<string, string> RuleVi = new() { ["temperature"] = "Nhiệt độ", ["water"] = "Nước", ["life"] = "Sự sống", ["civ"] = "Văn minh" };
 
