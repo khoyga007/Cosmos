@@ -2,6 +2,8 @@
 
 Branch `celine/superflare`, base master2a61296 (physical core461ce87 with merged C6; §9 baseline amendment included). Only review/checkpoint documents changed so far; **no C7 core code**. Consolidated A3/S1/S2 review is `REBASED-SPECIES-REVIEW.md`; Ariel owns those fixes.
 
+Bridge update: Claire ACKed all three STEP0 points at 2026-10-07 20:48:47Z, with her summary taking precedence if this file conflicts: integrated hazard calendar; explicit deterministic, hashed high-count aggregation with an approximation flag and conservation accounting (preflight rejection only when bounded operation cannot be ensured); system-binding energy deducted before true Escaped, retained matter in bound reservoir. Performance uses absolute component gates with preregistered statistics. At 20:50:02Z Claire prioritized Yang's game test: **defer C7 core until after that test**; Celine first re-reviews Ariel's consolidated batch. ACK remains valid.
+
 ## Existing flow and proposed hooks
 
 - World.Advance already cuts at Roche entry; add flare event cuts to that same calendar, not a second integrator. Rates use mass/phase and age at the physical event year.
