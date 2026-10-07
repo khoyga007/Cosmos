@@ -12,6 +12,7 @@ if (args.Length > 2 && args[0] == "cooling-paired") return CoolingBench.Paired(a
 if (args.Length > 0 && args[0] == "elements") return ElementChecks.Run() ? 0 : 1;
 if (args.Length > 1 && args[0] == "elements-paired") return ElementChecks.PairedBench(args[1]) ? 0 : 1;
 if (args.Length > 0 && args[0] == "rails") return RailChecks.Run() ? 0 : 1;
+if (args.Length > 0 && args[0] == "rules") return RuleChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "layers") return LayerChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "stars") return StarChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "events") return StarEventChecks.Run() ? 0 : 1;
@@ -46,6 +47,7 @@ if (args.Length > 0 && args[0] == "roche") return RocheChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "roche-bench") return RocheBench.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "rules") return RuleChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "species") return SpeciesChecks.Run() ? 0 : 1;
+if (args.Length > 0 && args[0] == "capnodes") return CapNodeChecks.Run() ? 0 : 1;
 bool allOk = true;
 void Check(bool ok, string line) { allOk &= ok; Console.WriteLine($"{(ok ? "OK    " : "FAILED")} {line}"); }
 
@@ -150,6 +152,7 @@ allOk &= ConserveChecks.Run();
 allOk &= CosmicChecks.Run();
 allOk &= RocheChecks.Run();
 allOk &= SpeciesChecks.Run();
+allOk &= CapNodeChecks.Run();
 allOk &= Audit.Run();
 return allOk ? 0 : 1;
 
