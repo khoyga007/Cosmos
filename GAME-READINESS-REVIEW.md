@@ -31,6 +31,8 @@ Reviewed exact chain A3 `67b581b2d4e2359cce8069978d78f08bfc8ee572` → S1 `82ba3
 
 Do not blindly change fixtures: owner must explain which source changes alter them and rebuild the actual checked snapshot. These tests fail independently of the performance test.
 
+Git establishes the stale baseline: original life-timescale `e37eb975a4d69cf506d0c63ab160cabbfee4e51a` had parent old A3 `32a4d47`; rebased implementation `10497f452d1c36ad2559a7f6da86c7b592af7a5d` has parent fixed S2 `b8a194e`. `git diff e37eb97 10497f4 -- cli/ElementChecks.cs cli/StarEventChecks.cs` is empty: both entire fixture files were retained from the old pre-C6 baseline. Recapture on the new source chain is required; current literals are not evidence of a physical regression.
+
 3. `cli/RuleChecks.cs:192` jump speed gate: original 4852.399 ms, trimmed 1003.801 ms, **4.83x vs required 5x**. Finite state and Earth layers agree. Preserve this failing sample. Additional preregistered diagnostic: 7 fresh pairs on exact 78dfe2e, same seed/50k rocks/1e6 yr, both paths warmed twice on 100 rocks, alternating order, initialization outside timer; report median of paired speedups and every raw sample. No core/gate changes by reviewer.
 
 | Pair / order | Original ms | Trimmed ms | Paired speedup |
