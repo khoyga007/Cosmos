@@ -50,7 +50,7 @@ Godot 4.7.2 .NET window over a plain C# simulation core. UI text is Vietnamese.
 - **Struct of arrays.** `World` holds parallel arrays (`X Y Vx Vy M R Comp Alive Name Par Grp ...`). Slots are stable: a dead slot is reused, never shifted.
 - **Rule table.** A rule is one entry (id, reads, writes, rhythm in years, switch). Rules are written per parameter type, never per object, and use `World.RuleYears`, never the rhythm. An event inside a stretch is placed at its own moment.
 - **Rails fast-forward.** `Rails.cs`: each object rides its orbit by closed two-body formula around its primary; a jump is cut into <= 200 chunks and the rule table runs after each. Cost is independent of jump length.
-- **Table-driven engine layer.** Elements, civ stages, star events are tables; adding one = adding a row, not code per case. `cli -- audit` counts hard-coded leftovers.
+- **Table-driven engine layer.** Elements, civ stages, star events are tables; adding one = adding a row, not code per case. `cli -- audit-tables` counts hard-coded leftovers.
 - **Determinism.** Fixed step, seeded rng, sequential result. `Hash()` covers positions, velocity, matter, rng, free slots and every `Consts` field. Changing a default Const moves hashes: re-capture the checks.
 - **Text.** Core events carry ids + numbers; Vietnamese sentences live in `game/`.
 
