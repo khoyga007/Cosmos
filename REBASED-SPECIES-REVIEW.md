@@ -1,5 +1,13 @@
 # Review rebased A3/S1/S2 — Celine
 
+**Final consolidated handoff:** Claire's20:23:54Z amendment accepts A3's intentional physics changes and makes **5275f03 the Human baseline**. S1 matches it; S2 does not. Ariel should add the checks below before fixing the three groups in one pass. No edits to Ariel's source were made by this review.
+
+1. **Lifespan Const block:** fix the crossed single-field hash collision; only elide when the entire block is default, otherwise hash both values with an unambiguous block identity. Reject zero reference because it yields Infinity. Regression: defaults/ref-only/exp-only/both overrides; Ref160+defaultExp versus defaultRef+Exp160 must differ; restoring defaults must restore baseline; SetRef0/NaN/Infinity must refuse with unchanged state/journal.
+2. **Species ingress:** validate every public init/constructor/WithParam path and freeze Extra on each path. Constructor enum validation is also missing: Habitat999 currently succeeds. Regression: constructor and record-with reject invalid numeric/enums; unknown-key WithParam and direct Extra init must copy caller data and expose read-only storage. Existing constructor-only checks are insufficient.
+3. **Baseline/catalog integrity:** remove S2's revived dead CivMetalUse field, then compare S1/S2 against A3 in both Human scenarios below without recapturing away inequality. The canonical A3 DefaultStages array also remains mutable: replace DefaultStages[0] with EarthYears1, construct another World, and it elides the changed catalog while preserving the original empty-world hash. Regression: canonical catalog mutation must be impossible; supported per-world table overrides must change hash while a second world remains unchanged. Stage.Needs freezing already passes.
+
+The extra catalog check extends the previously requested immutable-canonical-baseline finding; it is included here so Ariel can handle it in the same batch. Repro restores the global row immediately, before any other probe, to avoid contaminating results. Exact output: `mutable default catalog: sameHash=True, EarthYears=1, elided=True`.
+
 Exact snapshots: master461ce8778e6ae0d450e53758fa8f59c9b29fbe51; A3 5275f03fc70f6fe89be6d3f73a0781785dcc795b; S1 1ad6c913ef44faa2df7578f1a9b1a0256be600a3; S2 4e635af02eb92155f892bff798704d9595cf2d96. Detached snapshots under E:/Temp; independent probes reference their exact core projects. No edits to Ariel's source.
 
 ## Blocking repros
