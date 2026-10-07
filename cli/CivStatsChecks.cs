@@ -219,7 +219,7 @@ static class CivStatsChecks
             ulong hBase = w.Hash();
             int r1 = w.Do(new Command(CmdKind.SetConst, Name: "StarlightTempMin", Amount: 65.0));
             ulong h1 = w.Hash();
-            int r2 = w.Do(new Command(CmdKind.SetConst, Name: "TechMaxCeiling", Amount: 5.0));
+            int r2 = w.Do(new Command(CmdKind.SetConst, Name: "TechCeilingMargin", Amount: 1.0));
             ulong h2 = w.Hash();
             int r3 = w.Do(new Command(CmdKind.SetConst, Name: "FootprintMatterScale", Amount: 0.02));
             ulong h3 = w.Hash();

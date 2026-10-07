@@ -18,7 +18,6 @@ public sealed partial class Consts
     public double CivDome = 0.05;        // population a space-age people can keep where no biosphere feeds them (domes)
     public double CivDomeTemp = 288;     // K: where a dome is cheapest to keep [P]
     public double CivDomeTempRange = 250; // K away from that at which no dome holds; in between its room shrinks in line [P]
-    public double CivMetalUse = 5e-8;    // share of the planet's mass turned from metal into rock per year, at full population, from industry on
 
     public double ShipPop = 0.03;        // a space-age world with at least this population sends ships
     public double ShipsPerWorld = 2;     // ships one world keeps in flight at a time
@@ -147,10 +146,9 @@ public sealed partial class World
             double used = Math.Min(avail, want);
             if (used > 0)
             {
-                // Physical element transformation:
-                // Only Metal -> waste rock (metallurgical slag) and Radio -> rock (fission products / nuclear waste).
-                // Carbon combustion remains atmospheric gas, water remains in the hydrological cycle, etc.
-                if (need.Element == ElementRole.Metal || need.Element == ElementRole.Radio)
+                // Physical element transformation driven by BecomesWaste flag:
+                // Only elements flagged with BecomesWaste turn into waste rock (slag, fission products).
+                if (need.BecomesWaste)
                 {
                     LoseMatter(i, need.Element, used);
                     Comp[o + rock] += used;

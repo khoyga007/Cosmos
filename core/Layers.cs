@@ -20,20 +20,22 @@ public sealed record StageNeed(
     ElementRole Element = ElementRole.None,
     PlanetarySource Planetary = PlanetarySource.None,
     double MinShare = 0,
-    double ConsumeRate = 0
+    double ConsumeRate = 0,
+    bool BecomesWaste = false
 )
 {
-    public static StageNeed ForElement(ElementRole elem, double minShare = 0, double consumeRate = 0) =>
-        new(Element: elem, Planetary: PlanetarySource.None, MinShare: minShare, ConsumeRate: consumeRate);
+    public static StageNeed ForElement(ElementRole elem, double minShare = 0, double consumeRate = 0, bool becomesWaste = false) =>
+        new(Element: elem, Planetary: PlanetarySource.None, MinShare: minShare, ConsumeRate: consumeRate, BecomesWaste: becomesWaste);
 
     public static StageNeed ForPlanetary(PlanetarySource source, double minShare = 0, double consumeRate = 0) =>
-        new(Element: ElementRole.None, Planetary: source, MinShare: minShare, ConsumeRate: consumeRate);
+        new(Element: ElementRole.None, Planetary: source, MinShare: minShare, ConsumeRate: consumeRate, BecomesWaste: false);
 }
 
 public sealed record Stage(
     string Id,
     string NameVi,
     double TechThreshold,
+    double EarthYears = 1000,
     double WattsPerCapita = 100,
     double MaxPopulationOnEarth = 1e10,
     IReadOnlyList<StageNeed>? Needs = null,
@@ -65,12 +67,12 @@ public sealed partial class Consts
     public double CivSeed = 1e-4;          // population a civilisation starts at (1 = the planet is full)
     public double CivGrowth = 1e-3;        // per year, toward what the biosphere can feed
     public double CivDecayYears = 500;     // population falls by e in this many years once the biosphere fails
-    public double CivTechRate = 1e-4;      // tech per year at full population on a metal-rich planet
+    public double CivTechRate = 1.0;       // global tech progression rate multiplier [P]
     public double CivMetalRef = 0.3;       // share of metal that gives the full tech rate
     public double EarthRadiusKm = 6371.0;  // km: WGS84 mean Earth radius [P]
     public double EarthMaxPopulation = 1e10;// people: fallback carrying capacity [P]
     public double StarlightTempMin = 50.0; // K: minimum star-lit warmth to count as usable starlight [P]
-    public double TechMaxCeiling = 4.0;    // max tech ceiling (3.5 interplanetary + 0.5 mastery) [P]
+    public double TechCeilingMargin = 0.5; // margin above final stage tech threshold for mastery [P]
     public double FootprintBioWeight = 0.5;// weight of biosphere pressure in footprint [P]
     public double FootprintMatterWeight = 0.5;// weight of mined matter in footprint [P]
     public double FootprintMatterScale = 0.01;// share of planetary mass consumed that gives full matter footprint [P]
@@ -97,50 +99,49 @@ public sealed partial class World
     public double EarthRadiusRef => CalcEarthRadiusRef();
     public double CalcEarthRadiusRef()
     {
-        int ice = Elem(ElementRole.Ice), rock = Elem(ElementRole.Rock), metal = Elem(ElementRole.Metal);
-        int carb = Elem(ElementRole.Carbon), rad = Elem(ElementRole.Radio);
-        double dIce = ice >= 0 ? C.Density[ice] : 0.9;
-        double dRock = rock >= 0 ? C.Density[rock] : 3.0;
-        double dMetal = metal >= 0 ? C.Density[metal] : 8.0;
-        double dCarb = carb >= 0 ? C.Density[carb] : 2.0;
-        double dRad = rad >= 0 ? C.Density[rad] : 10.0;
-        double vol = EarthMass * (0.01 / dIce + 0.66 / dRock + 0.32 / dMetal + 0.005 / dCarb + 0.005 / dRad);
-        return C.RadiusScale * Math.Cbrt(vol);
+        double sumInvDensity = 0;
+        for (int k = 0; k < EarthMix.Length; k++)
+        {
+            int e = Elem(EarthMix[k].Id);
+            double d = e >= 0 ? C.Density[e] : 3.0;
+            sumInvDensity += EarthMix[k].Share / d;
+        }
+        return C.RadiusScale * Math.Cbrt(EarthMass * sumInvDensity);
     }
 
     public static readonly Stage[] DefaultStages = new[]
     {
-        // 1. prehistoric: hunter-gatherers, ~2000 kcal/day ≈ 100 W/person (Smil 2017), ~5-10M Earth total (McEvedy & Jones 1978)
-        new Stage("prehistoric", "Thời kỳ Tiền sử", 0.0, WattsPerCapita: 100, MaxPopulationOnEarth: 1e7,
+        // 1. prehistoric: hunter-gatherers, ~2000 kcal/day ≈ 100 W/person (Smil 2017), ~5-10M Earth total (McEvedy & Jones 1978), ~3e5 yr duration
+        new Stage("prehistoric", "Thời kỳ Tiền sử", 0.0, EarthYears: 300000, WattsPerCapita: 100, MaxPopulationOnEarth: 1e7,
             Needs: new[] { StageNeed.ForPlanetary(PlanetarySource.LiquidWater, 0.001), StageNeed.ForPlanetary(PlanetarySource.Biosphere, 0.01) }),
-        // 2. stone_age: fire control, early food processing ~150 W (Cook 1971), Neolithic transition ~50M (Biraben 1979)
-        new Stage("stone_age", "Thời kỳ Đồ Đá", 0.5, WattsPerCapita: 150, MaxPopulationOnEarth: 5e7,
+        // 2. stone_age: fire control, early food processing ~150 W (Cook 1971), Neolithic transition ~50M (Biraben 1979), ~7000 yr duration
+        new Stage("stone_age", "Thời kỳ Đồ Đá", 0.5, EarthYears: 7000, WattsPerCapita: 150, MaxPopulationOnEarth: 5e7,
             Needs: new[] { StageNeed.ForElement(ElementRole.Rock, 0.05), StageNeed.ForPlanetary(PlanetarySource.Biosphere, 0.05) }),
-        // 3. bronze_age: metallurgy, draft animals ~250 W (Smil 2017), 2nd millennium BC ~150M
-        new Stage("bronze_age", "Thời kỳ Đồ Đồng", 1.0, WattsPerCapita: 250, MaxPopulationOnEarth: 1.5e8,
-            Needs: new[] { StageNeed.ForElement(ElementRole.Metal, 0.02, 1e-9), StageNeed.ForElement(ElementRole.Rock, 0.05) }),
-        // 4. iron_age: iron smelting, charcoal, intensive farming ~350 W (Cook 1971), Greco-Roman / Han era ~250M
-        new Stage("iron_age", "Thời kỳ Đồ Sắt", 1.5, WattsPerCapita: 350, MaxPopulationOnEarth: 2.5e8,
-            Needs: new[] { StageNeed.ForElement(ElementRole.Metal, 0.05, 2e-9), StageNeed.ForElement(ElementRole.Carbon, 0.001, 1e-9) }),
-        // 5. medieval: water/wind mills ~500 W (Smil 2017), 13th-14th century ~400M
-        new Stage("medieval", "Thời kỳ Trung Cổ", 2.0, WattsPerCapita: 500, MaxPopulationOnEarth: 4e8,
+        // 3. bronze_age: metallurgy, draft animals ~250 W (Smil 2017), 2nd millennium BC ~150M, ~2000 yr duration
+        new Stage("bronze_age", "Thời kỳ Đồ Đồng", 1.0, EarthYears: 2000, WattsPerCapita: 250, MaxPopulationOnEarth: 1.5e8,
+            Needs: new[] { StageNeed.ForElement(ElementRole.Metal, 0.02, 1e-14, becomesWaste: true), StageNeed.ForElement(ElementRole.Rock, 0.05) }),
+        // 4. iron_age: iron smelting, charcoal, intensive farming ~350 W (Cook 1971), Greco-Roman / Han era ~250M, ~1700 yr duration
+        new Stage("iron_age", "Thời kỳ Đồ Sắt", 1.5, EarthYears: 1700, WattsPerCapita: 350, MaxPopulationOnEarth: 2.5e8,
+            Needs: new[] { StageNeed.ForElement(ElementRole.Metal, 0.05, 2e-14, becomesWaste: true), StageNeed.ForElement(ElementRole.Carbon, 0.001, 1e-14) }),
+        // 5. medieval: water/wind mills ~500 W (Smil 2017), 13th-14th century ~400M, ~1000 yr duration
+        new Stage("medieval", "Thời kỳ Trung Cổ", 2.0, EarthYears: 1000, WattsPerCapita: 500, MaxPopulationOnEarth: 4e8,
             Needs: new[] { StageNeed.ForElement(ElementRole.Metal, 0.05), StageNeed.ForPlanetary(PlanetarySource.Biosphere, 0.1) }),
-        // 6. renaissance: early blast furnaces, mining ~800 W (Cook 1971), 16th-17th century ~700M
-        new Stage("renaissance", "Thời kỳ Phục Hưng", 2.3, WattsPerCapita: 800, MaxPopulationOnEarth: 7e8,
-            Needs: new[] { StageNeed.ForElement(ElementRole.Metal, 0.08), StageNeed.ForElement(ElementRole.Carbon, 0.002, 1e-9) }),
-        // 7. industrial: coal, steam ~1500 W (IEA historical), year 1900 ~1.6B
-        new Stage("industrial", "Thời kỳ Công nghiệp", 2.6, WattsPerCapita: 1500, MaxPopulationOnEarth: 1.6e9,
-            Needs: new[] { StageNeed.ForElement(ElementRole.Metal, 0.10, 5e-8), StageNeed.ForElement(ElementRole.Carbon, 0.003, 1e-8) }),
-        // 8. atomic_age: power grids, oil, nuclear; Earth 2020: 19 TW / 8B people ≈ 2400 W/person -> K ≈ 0.73 (BP / Sagan 1973), ~6B at year 1999
-        new Stage("atomic_age", "Thời kỳ Nguyên tử", 2.85, WattsPerCapita: 2400, MaxPopulationOnEarth: 6e9,
-            Needs: new[] { StageNeed.ForElement(ElementRole.Metal, 0.10, 5e-8), StageNeed.ForElement(ElementRole.Radio, 0.0005, 1e-9) }),
-        // 9. space: orbital infrastructure, automated energy ~8000 W (Sagan 1973), UN peak population projection ~10B
-        new Stage("space", "Kỷ nguyên Tiền Vũ trụ", 3.0, WattsPerCapita: 8000, MaxPopulationOnEarth: 1e10,
-            Needs: new[] { StageNeed.ForElement(ElementRole.Metal, 0.10, 5e-8), StageNeed.ForElement(ElementRole.Ice, 0.001) },
+        // 6. renaissance: early blast furnaces, mining ~800 W (Cook 1971), 16th-17th century ~700M, ~300 yr duration
+        new Stage("renaissance", "Thời kỳ Phục Hưng", 2.3, EarthYears: 300, WattsPerCapita: 800, MaxPopulationOnEarth: 7e8,
+            Needs: new[] { StageNeed.ForElement(ElementRole.Metal, 0.08), StageNeed.ForElement(ElementRole.Carbon, 0.002, 1e-14) }),
+        // 7. industrial: coal, steam ~1500 W (IEA historical), year 1900 ~1.6B, ~190 yr duration
+        new Stage("industrial", "Thời kỳ Công nghiệp", 2.6, EarthYears: 190, WattsPerCapita: 1500, MaxPopulationOnEarth: 1.6e9,
+            Needs: new[] { StageNeed.ForElement(ElementRole.Metal, 0.10, 5e-13, becomesWaste: true), StageNeed.ForElement(ElementRole.Carbon, 0.003, 1e-13) }),
+        // 8. atomic_age: power grids, oil, nuclear; Earth 2020: 19 TW / 8B people ≈ 2400 W/person -> K ≈ 0.73 (BP / Sagan 1973), ~6B at year 1999, ~75 yr duration
+        new Stage("atomic_age", "Thời kỳ Nguyên tử", 2.85, EarthYears: 75, WattsPerCapita: 2400, MaxPopulationOnEarth: 6e9,
+            Needs: new[] { StageNeed.ForElement(ElementRole.Metal, 0.10, 5e-13, becomesWaste: true), StageNeed.ForElement(ElementRole.Radio, 0.0005, 1e-14, becomesWaste: true) }),
+        // 9. space: orbital infrastructure, automated energy ~8000 W (Sagan 1973), UN peak population projection ~10B, ~100 yr duration
+        new Stage("space", "Kỷ nguyên Tiền Vũ trụ", 3.0, EarthYears: 100, WattsPerCapita: 8000, MaxPopulationOnEarth: 1e10,
+            Needs: new[] { StageNeed.ForElement(ElementRole.Metal, 0.10, 5e-13, becomesWaste: true), StageNeed.ForElement(ElementRole.Ice, 0.001) },
             CanLaunchShips: true, CanDome: true),
-        // 10. interplanetary: fusion, early Dyson swarm ~50000 W -> K ≈ 0.94 near Type I (Kardashev 1964), multi-world domes ~50B
-        new Stage("interplanetary", "Kỷ nguyên Vũ trụ", 3.5, WattsPerCapita: 50000, MaxPopulationOnEarth: 5e10,
-            Needs: new[] { StageNeed.ForElement(ElementRole.Metal, 0.10, 5e-8), StageNeed.ForElement(ElementRole.Radio, 0.001, 2e-9) },
+        // 10. interplanetary: fusion, early Dyson swarm ~50000 W -> K ≈ 0.94 near Type I (Kardashev 1964), multi-world domes ~50B, ~500 yr duration
+        new Stage("interplanetary", "Kỷ nguyên Vũ trụ", 3.5, EarthYears: 500, WattsPerCapita: 50000, MaxPopulationOnEarth: 5e10,
+            Needs: new[] { StageNeed.ForElement(ElementRole.Metal, 0.10, 5e-13, becomesWaste: true), StageNeed.ForElement(ElementRole.Radio, 0.001, 2e-14, becomesWaste: true) },
             CanLaunchShips: true, CanDome: true)
     };
 
@@ -381,8 +382,8 @@ public sealed partial class World
             }
             Pop[i] = p;
             double metal = C.CivMetalRef > 0 ? Math.Min(1, Share(i, ElementRole.Metal) / C.CivMetalRef) : 1; // 0 = metal not needed
-            double tech0 = Tech[i], rate = C.CivTechRate * metal;
-            double top = C.TechMaxCeiling;
+            double tech0 = Tech[i], effMult = metal * C.CivTechRate;
+            double top = (Stages.Count > 0 ? Stages[^1].TechThreshold : 0.0) + C.TechCeilingMargin;
             double cap = top;
             for (int s = stage + 1; s < Stages.Count; s++)
             {
@@ -392,15 +393,42 @@ public sealed partial class World
                     break;
                 }
             }
-            if (tech0 < cap) Tech[i] = Math.Min(cap, tech0 + rate * lived);
+            if (tech0 < cap && effMult > 0 && lived > 0)
+            {
+                double cur = tech0, remLived = lived;
+                while (cur < cap && remLived > 0)
+                {
+                    int s = 0;
+                    for (int k = Stages.Count - 1; k >= 0; k--)
+                        if (cur >= Stages[k].TechThreshold) { s = k; break; }
+                    double next = s + 1 < Stages.Count ? Stages[s + 1].TechThreshold : top;
+                    double stageCeil = Math.Min(cap, next);
+                    double delta = next - Stages[s].TechThreshold;
+                    double stageRate = Stages[s].EarthYears > 0 ? (delta / Stages[s].EarthYears) : 0;
+                    if (!(stageRate > 0)) break;
+                    double effRate = stageRate * effMult;
+                    double neededLived = (stageCeil - cur) / effRate;
+                    if (remLived >= neededLived)
+                    {
+                        cur = stageCeil;
+                        remLived -= neededLived;
+                    }
+                    else
+                    {
+                        cur += remLived * effRate;
+                        remLived = 0;
+                    }
+                }
+                Tech[i] = cur;
+            }
             ConsumeResources(i, lived, stage);
             int after = TechStage(i);
             _launchYear[i] = double.NaN;
-            if (after > stage && rate > 0)
+            if (after > stage && effMult > 0)
                 // each stage it passed gets its own line, at the year its tech got there (found on the same curves)
                 for (int k = stage + 1; k <= after; k++)
                 {
-                    double need = (Stages[k].TechThreshold - tech0) / rate, lo = 0, hi = dt;
+                    double need = LivedNeededToReach(tech0, Stages[k].TechThreshold, effMult), lo = 0, hi = dt;
                     for (int it = 0; it < 50; it++) { double mid = 0.5 * (lo + hi); if (LivedTo(mid) < need) lo = mid; else hi = mid; }
                     double when = Year - dt + hi;
                     CivEvent(i, Civ[i], $"civ.stage.{k - 1}.{k}", k == after ? Tech[i] : Stages[k].TechThreshold, PopAt(hi), Share(i, ElementRole.Metal), when);
@@ -408,6 +436,28 @@ public sealed partial class World
                 }
             else if (after != stage) CivEvent(i, Civ[i], $"civ.stage.{stage}.{after}", Tech[i], p, Share(i, ElementRole.Metal));
         }
+    }
+
+    double LivedNeededToReach(double fromTech, double targetTech, double effMult)
+    {
+        if (!(effMult > 0) || fromTech >= targetTech) return 0;
+        double sum = 0, cur = fromTech;
+        double top = (Stages.Count > 0 ? Stages[^1].TechThreshold : 0.0) + C.TechCeilingMargin;
+        while (cur < targetTech)
+        {
+            int s = 0;
+            for (int k = Stages.Count - 1; k >= 0; k--)
+                if (cur >= Stages[k].TechThreshold) { s = k; break; }
+            double next = s + 1 < Stages.Count ? Stages[s + 1].TechThreshold : top;
+            double stageCeil = Math.Min(targetTech, next);
+            double delta = next - Stages[s].TechThreshold;
+            double stageRate = Stages[s].EarthYears > 0 ? (delta / Stages[s].EarthYears) : 0;
+            if (!(stageRate > 0)) break;
+            double effRate = stageRate * effMult;
+            sum += (stageCeil - cur) / effRate;
+            cur = stageCeil;
+        }
+        return sum;
     }
 
     // Only the changing biosphere needs quadrature; the fixed-room curves above retain their closed integral.
