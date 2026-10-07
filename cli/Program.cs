@@ -148,11 +148,8 @@ allOk &= CivStatsChecks.Run();
 allOk &= ShipChecks.Run();
 allOk &= ConserveChecks.Run();
 allOk &= CosmicChecks.Run();
-<<<<<<< HEAD
 allOk &= RocheChecks.Run();
-=======
 allOk &= SpeciesChecks.Run();
->>>>>>> c39687c (feat(species): add table-driven Species record and Human template (SPEC 9 S1))
 allOk &= Audit.Run();
 return allOk ? 0 : 1;
 
