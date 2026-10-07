@@ -31,6 +31,11 @@ public sealed partial class World
     public static int NElem => ElementCatalog.Elements.Count; // default-table compatibility for existing clients
     public static readonly string[] ElemName = ElementCatalog.Elements.Select(e => e.Id).ToArray();
     public const double EarthMass = 1.5e-4; // a star of 50 = one Sun, so Earth = 50 * 3e-6
+    public static readonly IReadOnlyList<(string Id, double Share)> EarthMix =
+        Array.AsReadOnly(new (string Id, double Share)[]
+        {
+            ("ice", .01), ("rock", .66), ("metal", .32), ("carbon", .005), ("radio", .005)
+        });
 
     public readonly Consts C;
 
@@ -244,7 +249,7 @@ public sealed partial class World
         //                                          gas   ice   rock  metal carbon radio
         planet("Sao Thủy", 0.387, 0.0553, 0x9C9C9C, w.Mix(("rock", .30), ("metal", .69), ("radio", .01)));
         planet("Sao Kim", 0.723, 0.815, 0xE8CF9A, w.Mix(("rock", .66), ("metal", .32), ("carbon", .01), ("radio", .01)));
-        int earth = planet("Trái Đất", 1.0, 1.0, 0x4F8FE8, w.Mix(("ice", .01), ("rock", .66), ("metal", .32), ("carbon", .005), ("radio", .005)));
+        int earth = planet("Trái Đất", 1.0, 1.0, 0x4F8FE8, w.Mix(EarthMix));
         planet("Sao Hỏa", 1.524, 0.107, 0xD0603A, w.Mix(("ice", .01), ("rock", .73), ("metal", .25), ("carbon", .005), ("radio", .005)));
         planet("Sao Mộc", 5.203, 317.8, 0xD9B48A, w.Mix(("gas", .90), ("ice", .05), ("rock", .03), ("metal", .015), ("carbon", .005)));
         int saturn = planet("Sao Thổ", 9.537, 95.2, 0xE6D29A, w.Mix(("gas", .85), ("ice", .08), ("rock", .045), ("metal", .02), ("carbon", .005)));
@@ -467,8 +472,15 @@ public sealed partial class World
         mix(_rng); mix((ulong)N); mix((ulong)Step); foreach (int slot in _free) mix((ulong)slot);
         foreach (var f in typeof(Consts).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
         {
+            if (f.Name == "CivLifespanRef" || f.Name == "CivLifespanExp") continue;
             if (f.GetValue(C) is double d) mix(BitConverter.DoubleToUInt64Bits(d));
             else if (f.GetValue(C) is double[] a) foreach (double x in a) mix(BitConverter.DoubleToUInt64Bits(x));
+        }
+        if (C.CivLifespanRef != 80.0 || C.CivLifespanExp != 0.5)
+        {
+            mix(0x4C4946455350414EUL); // "LIFESPAN" tag
+            mix(BitConverter.DoubleToUInt64Bits(C.CivLifespanRef));
+            mix(BitConverter.DoubleToUInt64Bits(C.CivLifespanExp));
         }
         HashRules(mix); HashLayers(mix); HashStars(mix); HashElements(mix); HashStarEvents(mix); HashEscape(mix); HashBursts(mix); HashRoche(mix);
         return h;

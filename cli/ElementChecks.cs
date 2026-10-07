@@ -8,13 +8,10 @@ using Cosmos.Core;
 
 static class ElementChecks
 {
-    // S1 re-capture 2026-10-06; A2 re-capture 2026-10-07: new Consts fields (EarthRadiusKm, EarthMaxPopulation,
-    // StarlightTempMin, TechMaxCeiling, FootprintBioWeight, FootprintMatterWeight, FootprintMatterScale) hashed by reflection.
-    // C5 capture: shared escaped state, trimmed volatiles, analytic shells, new physical constants/RNG.
-    // C6 capture: Roche constants, rule and persistent disruption/reservoir state (C6-REPORT.md).
-    static readonly ulong[] Legacy = { 0x7E670A9BD7AE133C, 0xD588C1BD6D4DCC4D, 0x9EAA1C5766BDD984, 0x3C0DB003B8DBBA3C,
-        0xDBA8488A4FDFF0EF, 0x2B38413528BA23F3, 0xEDA695957A058E08, 0x4E981380251BCB3C, 0xBA1041AD9CA14257,
-        0xAD49FB56004C4D70, 0x86EE5961B16EC2B6 };
+    // S1 re-capture 2026-10-06; A2 re-capture 2026-10-07; C6/rebase fresh capture 2026-10-08: new Consts fields & C6 Roche on base.
+    static readonly ulong[] Legacy = { 0xBBC63D2996FAE88F, 0x4063F53F08CB21B2, 0x4A51313215F96FC5, 0x32DDE80C54679D92,
+        0x82F35AA059FE5804, 0x3AFDAA9CB3C047FC, 0x4E91B3C52D73C0CF, 0x16BA0A372AE8C21B, 0xA2CA19CD75B36BE4,
+        0xAC47DAE6B6B08CD7, 0x7DFF61BCBEAA658D };
 
     public static bool Run()
     {
@@ -128,7 +125,7 @@ static class ElementChecks
             }
             for (int k = 0; k < before.Length; k++)
             {
-                object old = make.Invoke(null, new object?[] { 5000, 1234UL, null })!;
+                object old = make.Invoke(null, new object[] { 5000, 1234UL })!;
                 Action<double> oldStep = advance.CreateDelegate<Action<double>>(old);
                 var current = World.SolSystem(5000, 1234); Action<double> newStep = current.Advance;
                 for (int i = 0; i < 100; i++) { oldStep(.5); newStep(.5); }

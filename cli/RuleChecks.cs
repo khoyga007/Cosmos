@@ -180,19 +180,51 @@ static class RuleChecks
         replay.Replay(stopped.Journal, ref next);
         Check(stopped.Hash() == replay.Hash(), $"deferred journal replay {stopped.Hash():X16} / {replay.Hash():X16}");
 
-        // Warm both paths with a small world, then measure the same seed/age with all four rules enabled.
-        var warm = World.SolSystem(100, 1234); warm.Do(new Command(CmdKind.FastForward, Amount: 1e6));
-        var slow = World.SolSystem(50_000, 1234); ReferencePath(slow);
-        var fast = World.SolSystem(50_000, 1234);
-        var sw = Stopwatch.StartNew(); slow.Do(new Command(CmdKind.FastForward, Amount: 1e6));
-        double originalMs = sw.Elapsed.TotalMilliseconds;
-        sw.Restart(); fast.Do(new Command(CmdKind.FastForward, Amount: 1e6)); double trimmedMs = sw.Elapsed.TotalMilliseconds;
-        bool finite = true;
-        for (int i = 0; i < fast.N; i++) if (fast.Alive[i]) finite &= double.IsFinite(fast.X[i]) && double.IsFinite(fast.Y[i])
-            && double.IsFinite(fast.Vx[i]) && double.IsFinite(fast.Vy[i]) && double.IsFinite(fast.Temp[i]);
-        Check(finite && originalMs >= 5 * trimmedMs && Math.Abs(fast.Life[3] - slow.Life[3]) < 1e-12
-            && Math.Abs(fast.Pop[3] - slow.Pop[3]) < 1e-12 && Math.Abs(fast.Tech[3] - slow.Tech[3]) < 1e-12,
-            $"50000 rocks / 1e6 years: original {originalMs:F3} ms, trimmed {trimmedMs:F3} ms, {originalMs / trimmedMs:F2}x (gate 5x); finite state and Earth layers agree");
+        // Warm both paths twice on 100 rocks outside measurement timer.
+        for (int k = 0; k < 2; k++)
+        {
+            var wSlow = World.SolSystem(100, 1234); ReferencePath(wSlow); wSlow.Do(new Command(CmdKind.FastForward, Amount: 1e6));
+            var wFast = World.SolSystem(100, 1234); wFast.Do(new Command(CmdKind.FastForward, Amount: 1e6));
+        }
+
+        var ratios = new double[7];
+        var originals = new double[7];
+        var trimmed = new double[7];
+        bool allFinite = true;
+        bool allLayersAgree = true;
+
+        for (int k = 0; k < 7; k++)
+        {
+            var a = World.SolSystem(50_000, 1234); ReferencePath(a);
+            var b = World.SolSystem(50_000, 1234);
+            var sw = Stopwatch.StartNew();
+            if (k % 2 == 0)
+            {
+                sw.Restart(); a.Do(new Command(CmdKind.FastForward, Amount: 1e6)); originals[k] = sw.Elapsed.TotalMilliseconds;
+                sw.Restart(); b.Do(new Command(CmdKind.FastForward, Amount: 1e6)); trimmed[k] = sw.Elapsed.TotalMilliseconds;
+            }
+            else
+            {
+                sw.Restart(); b.Do(new Command(CmdKind.FastForward, Amount: 1e6)); trimmed[k] = sw.Elapsed.TotalMilliseconds;
+                sw.Restart(); a.Do(new Command(CmdKind.FastForward, Amount: 1e6)); originals[k] = sw.Elapsed.TotalMilliseconds;
+            }
+            ratios[k] = originals[k] / trimmed[k];
+            for (int i = 0; i < b.N; i++)
+            {
+                if (b.Alive[i]) allFinite &= double.IsFinite(b.X[i]) && double.IsFinite(b.Y[i])
+                    && double.IsFinite(b.Vx[i]) && double.IsFinite(b.Vy[i]) && double.IsFinite(b.Temp[i]);
+            }
+            allLayersAgree &= Math.Abs(b.Life[3] - a.Life[3]) < 1e-12
+                && Math.Abs(b.Pop[3] - a.Pop[3]) < 1e-12
+                && Math.Abs(b.Tech[3] - a.Tech[3]) < 1e-12;
+        }
+
+        var sortedRatios = (double[])ratios.Clone();
+        Array.Sort(sortedRatios);
+        double medianSpeedup = sortedRatios[3];
+
+        Check(allFinite && allLayersAgree && medianSpeedup >= 5.0,
+            $"50000 rocks / 1e6 years: median paired speedup {medianSpeedup:F2}x (gate 5x, 7 pairs); finite state and Earth layers agree");
         return ok;
     }
 

@@ -18,7 +18,6 @@ public sealed partial class Consts
     public double CivDome = 0.05;        // population a space-age people can keep where no biosphere feeds them (domes)
     public double CivDomeTemp = 288;     // K: where a dome is cheapest to keep [P]
     public double CivDomeTempRange = 250; // K away from that at which no dome holds; in between its room shrinks in line [P]
-    public double CivMetalUse = 5e-8;    // share of the planet's mass turned from metal into rock per year, at full population, from industry on
 
     public double ShipPop = 0.03;        // a space-age world with at least this population sends ships
     public double ShipsPerWorld = 2;     // ships one world keeps in flight at a time
@@ -26,12 +25,15 @@ public sealed partial class Consts
     public double ShipThrust = 2;        // velocity change per unit of time its engine can make
     public double ShipLifeYears = 30;    // a ship that has not landed by then is lost
     public double ShipMass = 1e-12;
+    public double CivLifespanRef = 80.0;
+    public double CivLifespanExp = 0.5;
 }
 
 /// Home = the world it rose on, -1 once that world is gone.
-public readonly record struct CivInfo(string Name, int Home, double BornYear, Dictionary<string, double>? Stats = null)
+public readonly record struct CivInfo(string Name, int Home, double BornYear, Dictionary<string, double>? Stats = null, Species? Species = null)
 {
     public Dictionary<string, double> Stats { get; init; } = Stats ?? new();
+    public Species Species { get; init; } = Species ?? SpeciesCatalog.Human;
 }
 
 public sealed partial class World
@@ -82,12 +84,12 @@ public sealed partial class World
     }
 
     // a people that rose here by itself: gets a name of its own
-    int NewCiv(int home)
+    int NewCiv(int home, Species? species = null)
     {
         int parts = 2 + (int)(Next() * 2);
         string name = "";
         for (int k = 0; k < parts; k++) name += NameParts[(int)(Next() * NameParts.Length)];
-        Civs.Add(new CivInfo(char.ToUpperInvariant(name[0]) + name[1..], home, Year));
+        Civs.Add(new CivInfo(char.ToUpperInvariant(name[0]) + name[1..], home, Year, Species: species ?? SpeciesCatalog.Human));
         _civLaunches.Add(0);
         return Civs.Count - 1;
     }
@@ -147,10 +149,9 @@ public sealed partial class World
             double used = Math.Min(avail, want);
             if (used > 0)
             {
-                // Physical element transformation:
-                // Only Metal -> waste rock (metallurgical slag) and Radio -> rock (fission products / nuclear waste).
-                // Carbon combustion remains atmospheric gas, water remains in the hydrological cycle, etc.
-                if (need.Element == ElementRole.Metal || need.Element == ElementRole.Radio)
+                // Physical element transformation driven by BecomesWaste flag:
+                // Only elements flagged with BecomesWaste turn into waste rock (slag, fission products).
+                if (need.BecomesWaste)
                 {
                     LoseMatter(i, need.Element, used);
                     Comp[o + rock] += used;
@@ -312,6 +313,23 @@ public sealed partial class World
         }
     }
 
+    public static bool IsHuman(Species? s)
+    {
+        if (s == null) return true;
+        if (ReferenceEquals(s, SpeciesCatalog.Human)) return true;
+        if (s.Id != SpeciesCatalog.Human.Id || s.NameVi != SpeciesCatalog.Human.NameVi) return false;
+        if (s.Habitat != SpeciesCatalog.Human.Habitat) return false;
+        if (BitConverter.DoubleToUInt64Bits(s.Manipulation) != BitConverter.DoubleToUInt64Bits(SpeciesCatalog.Human.Manipulation)) return false;
+        if (s.EnergyBasis != SpeciesCatalog.Human.EnergyBasis) return false;
+        if (s.Senses != SpeciesCatalog.Human.Senses) return false;
+        if (BitConverter.DoubleToUInt64Bits(s.Lifespan) != BitConverter.DoubleToUInt64Bits(SpeciesCatalog.Human.Lifespan)) return false;
+        if (s.Social != SpeciesCatalog.Human.Social) return false;
+        if (BitConverter.DoubleToUInt64Bits(s.TempMin) != BitConverter.DoubleToUInt64Bits(SpeciesCatalog.Human.TempMin)) return false;
+        if (BitConverter.DoubleToUInt64Bits(s.TempMax) != BitConverter.DoubleToUInt64Bits(SpeciesCatalog.Human.TempMax)) return false;
+        if (s.Extra != null && s.Extra.Count > 0) return false;
+        return true;
+    }
+
     void HashCiv(Action<ulong> mix)
     {
         void number(double n) => mix(BitConverter.DoubleToUInt64Bits(n));
@@ -333,6 +351,34 @@ public sealed partial class World
                 {
                     foreach (char ch in kv.Key) mix(ch);
                     number(kv.Value);
+                }
+            }
+            if (Civs[c].Species is { } sp && !IsHuman(sp))
+            {
+                mix(1UL);
+                mix((ulong)sp.Id.Length);
+                foreach (char ch in sp.Id) mix(ch);
+                mix((ulong)sp.NameVi.Length);
+                foreach (char ch in sp.NameVi) mix(ch);
+                mix((ulong)sp.Habitat);
+                number(sp.Manipulation);
+                mix((ulong)sp.EnergyBasis);
+                mix((ulong)sp.Senses);
+                number(sp.Lifespan);
+                mix((ulong)sp.Social);
+                number(sp.TempMin);
+                number(sp.TempMax);
+                if (sp.Extra != null && sp.Extra.Count > 0)
+                {
+                    mix((ulong)sp.Extra.Count);
+                    foreach (var kv in sp.Extra.OrderBy(k => k.Key, StringComparer.Ordinal))
+                    {
+                        foreach (char ch in kv.Key) mix(ch);
+                        if (kv.Value is double dv) number(dv);
+                        else if (kv.Value is bool bv) mix(bv ? 1UL : 0UL);
+                        else if (kv.Value is int iv) mix((ulong)iv);
+                        else foreach (char ch in kv.Value?.ToString() ?? "") mix(ch);
+                    }
                 }
             }
         }

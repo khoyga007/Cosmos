@@ -9,12 +9,10 @@ static class StarEventChecks
     {
         bool ok = true;
         void Check(bool pass, string line) { ok &= pass; Console.WriteLine($"{(pass ? "OK    " : "FAILED")} star-events: {line}"); }
-        // S1 re-capture 2026-10-06; A2 re-capture 2026-10-07: new Consts fields hashed by reflection.
+        // S1 re-capture 2026-10-06; A2 re-capture 2026-10-07; C6/rebase fresh capture 2026-10-08: new Consts fields & C6 Roche on base.
         double[] births = { 1.23, 2.0000000000000004, 7.999999999, 8.0, 20.0, 20.0000001, 31.123 };
-        // C5 capture: shared ledger, physical constants, transformed shells and stochastic high-mass channel.
-        // C6 capture: Roche constants, rule and persistent state; see C6-REPORT.md.
-        ulong[] legacy = { 0x3111EC43BE1F8CC3, 0x86CA1273DE11B663, 0x74CF37E143ED8D4D, 0x78816E46EAD729B2,
-            0x6ABE1F6A11F178F1, 0x72E2504BE76F0DC3, 0x27C9F85B6BA0D221 };
+        ulong[] legacy = { 0x89D797BDF91DA090, 0xAFA16CBAD36AB034, 0xB5B49F0C980349EA, 0x1309AE888DF43879,
+            0xFD484FE9BC27BA16, 0x28219D4E31380FA4, 0x77753EA5494C4736 };
         bool exact = true; var got = new List<string>();
         for (int n = 0; n < births.Length; n++)
         {

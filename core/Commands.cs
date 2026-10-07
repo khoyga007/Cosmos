@@ -236,6 +236,12 @@ public sealed partial class Consts
             case "JumpSamples":
                 return v >= 1 && v <= 10_000;
 
+            case "CivLifespanRef":
+                return v > 0 && double.IsFinite(v);
+
+            case "CivLifespanExp":
+                return double.IsFinite(v) && v >= 0;
+
             default:
                 return true;
         }

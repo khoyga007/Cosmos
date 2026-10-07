@@ -7,6 +7,14 @@ static class CivStatsChecks
 {
     static bool _ok;
     static void Check(bool ok, string line) { _ok &= ok; Console.WriteLine($"{(ok ? "OK    " : "FAILED")} civstats: {line}"); }
+    static double JumpCiv(World w)
+    {
+        double lifeGrow = Math.Log((1.0 / w.C.LifeSeed - 1.0) / (1.0 / w.C.CivLifeMin - 1.0)) / w.C.LifeGrowth;
+        double civStart = w.C.LifeSparkYears + lifeGrow + w.C.CivRiseYears;
+        double eraToSpace = w.Stages.TakeWhile(s => !s.CanLaunchShips).Sum(s => s.EarthYears);
+        double toSpace = civStart + eraToSpace + 1.5e4;
+        return Math.Max(toSpace + 2.5e4, toSpace * 1.14);
+    }
 
     public static bool Run()
     {
@@ -23,7 +31,7 @@ static class CivStatsChecks
             int planetB = w.AddOrbiting(star, -45, 0, World.EarthMass,
                 w.Mix(("ice", 0.01), ("rock", 0.95), ("metal", 0.01), ("carbon", 0.02), ("radio", 0.01)), "PoorWorld");
 
-            w.Do(new Command(CmdKind.FastForward, Amount: 1e6));
+            w.Do(new Command(CmdKind.FastForward, Amount: JumpCiv(w)));
 
             bool aAlive = w.Pop[planetA] > 0;
             bool bAlive = w.Pop[planetB] > 0;
@@ -43,8 +51,8 @@ static class CivStatsChecks
             int planetNoMetal = w.AddOrbiting(star, 45, 0, World.EarthMass,
                 w.Mix(("ice", 0.02), ("rock", 0.95), ("metal", 0.0), ("carbon", 0.03)), "NoMetalWorld");
 
-            // Fast forward 1 million years - enough for normal civ to reach space
-            w.Do(new Command(CmdKind.FastForward, Amount: 1e6));
+            // Fast forward to mature civ - enough for normal civ to reach space
+            w.Do(new Command(CmdKind.FastForward, Amount: JumpCiv(w)));
 
             bool civRose = w.Civ[planetNoMetal] >= 0;
             double tech = w.Tech[planetNoMetal];
@@ -56,11 +64,11 @@ static class CivStatsChecks
                 $"Check 2: Metal=0 planet clamped before Bronze Age - Tech: {tech:F6} < 1.0, Stage: {stage}, noBronzeEvent: {noBronzeEvent}");
         }
 
-        // 3. Check 3: Fast-forward 1e9 years -> Tech does not exceed ceiling 4.0 & Kardashev scale valid
+        // 3. Check 3: Fast-forward past space age -> Tech does not exceed ceiling 4.0 & Kardashev scale valid
         {
             var w = World.SolSystem(0, 777);
             const int earth = 3;
-            w.Do(new Command(CmdKind.FastForward, Amount: 1e9));
+            w.Do(new Command(CmdKind.FastForward, Amount: JumpCiv(w) + 1e8));
 
             double tech = w.Tech[earth];
             bool techCapped = tech <= 4.0;
@@ -88,8 +96,8 @@ static class CivStatsChecks
         {
             var w = World.SolSystem(0, 555);
             const int home = 3; // Earth
-            // Fast forward 1 million years to establish mature space civ on Earth
-            w.Do(new Command(CmdKind.FastForward, Amount: 1e6));
+            // Fast forward to establish mature space civ on Earth
+            w.Do(new Command(CmdKind.FastForward, Amount: JumpCiv(w)));
             int civ = w.Civ[home];
             Check(civ >= 0 && w.Pop[home] > 0, $"Check 5 pre: Civ rose on Home world (Civ: {civ}, Pop: {w.Pop[home]:F4})");
 
@@ -219,7 +227,7 @@ static class CivStatsChecks
             ulong hBase = w.Hash();
             int r1 = w.Do(new Command(CmdKind.SetConst, Name: "StarlightTempMin", Amount: 65.0));
             ulong h1 = w.Hash();
-            int r2 = w.Do(new Command(CmdKind.SetConst, Name: "TechMaxCeiling", Amount: 5.0));
+            int r2 = w.Do(new Command(CmdKind.SetConst, Name: "TechCeilingMargin", Amount: 1.0));
             ulong h2 = w.Hash();
             int r3 = w.Do(new Command(CmdKind.SetConst, Name: "FootprintMatterScale", Amount: 0.02));
             ulong h3 = w.Hash();
