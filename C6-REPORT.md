@@ -42,7 +42,33 @@ Initial full run jump-cost check: 50000 rocks / 1e6 yr original `7789.349` ms, t
 
 Separate same-process baseline comparison against the b08c41a core binary alternates before/after order across seven freshly seeded 5000-rock scenes, 100 warmup+500 measured advances. Initial C6 paired median overhead **+63.55%**. Filtering strong debris before substeps, removing per-body role-array allocations, and precomputing conservative host/body drift bounds reduced it to **+34.73%** (raw medians baseline `2.417873` / C6 `3.245350` ms). Per-pair variation -5.66%..+59.00%; these are noisy wall-clock measurements, not confidence bounds. With Roche disabled, the diagnostic paired median is -19.91%, also noisy. The ~35% measured cost increase remains a review concern; full CLI passing does not prove the new rule meets a +10% cost limit.
 
-Paired probe: `E:/Temp/cosmos-c6-performance/Program.cs`, logs `cosmos-c6-performance-v3.log` and `cosmos-c6-performance-off.log`. The existing `elements-paired` harness passes only two factory args and throws on the current optional-argument SolSystem signature; the independent probe fills reflected defaults. That unrelated harness was not modified.
+Paired probe: `E:/Temp/cosmos-c6-performance/Program.cs`, logs `cosmos-c6-performance-v3.log` and `cosmos-c6-performance-off.log`. These two medians were measured in separate runs; dividing them cannot measure Roche-only cost. A direct same-build on/off measurement before SIMD gave paired-ratio median+23.09%, while ratio of raw medians1.642502/1.391222 gives+18.06%; both are stated and neither is a confidence interval.
+
+### Performance followup (after c5197d0)
+
+`CollectRocheCandidates` was the bottleneck: at5250 live objects with no disruptions, its isolated cost was .423290ms, versus .001621ms for8 entry queries and .000176ms for CheckHere. Geometric rejection alone did not reach10%. Standard-library SIMD now scans the existing position arrays and rejects distant lanes before reading material. Candidate sorting preserves original Body/Host ordering. Material lookup reads each element's Roles once and skips zero cells. Orbital planning retains its scalar path; hardware without SIMD uses the scalar fallback.
+
+Benchmark is now in the repo: `dotnet run --project cli -c Release -- roche-bench`. Before measurement, it specifies the gate as **median of7 paired ratios**, null off/off within±3%, on/off overhead≤10%. Each fresh seeded pair warms100steps, then interleaves60blocks of16steps; ordering is randomized with seed42. All worlds in the measured control/feature pairs had zero disruptions. Claire requested this10% review gate after the initial report; SPEC C6 itself does not yet state a performance ceiling, and the old element5% gate remains separate.
+
+After the material-lookup fix: **null paired median+1.15%; Roche on/off paired median+7.33%; gate passes, exit0**. Raw medians on2.217865/off2.003933ms have ratio+10.68%, a separate statistic not used for the preselected gate. Collect fell to .214147ms;8 entry queries .003655ms. Full raw output is `E:/Temp/cosmos-c6-simd-material-bench.log`:
+
+| Pair | Null off/off delta% | Roche on/off ms | Paired delta% |
+|---|---:|---|---:|
+|0|14.31|2.217865/1.948922|13.80|
+|1|-5.84|2.151914/1.952906|10.19|
+|2|-5.29|1.883752/1.847734|1.95|
+|3|-2.03|3.108488/3.024121|2.79|
+|4|1.15|2.580574/2.336738|10.43|
+|5|2.92|2.150798/2.003933|7.33|
+|6|9.14|3.630749/3.452751|5.16|
+
+These results validate the chosen median gate, not a guarantee of≤10% in every round or every scene. The original5000-rock stock scene contains240 preexisting ring particles but no disruption during this benchmark. Isolated10-body worlds had a larger relative cost on the initial scalar build (.010962/.006865ms, +59.89%); that absolute microsecond cost and event-heavy scenes are not covered by the5000-rock gate. Cost scales with the number of pullers, scanned objects and nearby material. No zero-cost guarantee is claimed for worlds without a disruption.
+
+The broken `elements-paired` reflection call is also repaired by supplying the optional third argument (`null`), as already done by the other repo benches. The scalar fallback was tested with `DOTNET_EnableHWIntrinsic=0`:40 Roche checks pass, all recorded replay hashes remain exact.
+
+First fullSIMD run:436OK/1FAILED, unique failure is jump-cost4.52× (5842.942/1293.921ms); all physics/replay/fixtures and audit4D/3R pass. The maximum-speed scan introduced for SIMD was also running in orbital/deferred collections where it was unused. That scan now runs only on the vector path. Focused `cli -- rules` passes again: original8168.157/trimmed1428.546ms, **5.72×**, exit0. FullCLI and fresh game checks on this followup are pending in this snapshot.
+
+Selica reviewed the evidence and pointed out that the old temperature benchmark uses ratio-of-medians. The requested new C6 review ceiling has no statistic yet in SPEC; **Claire's final acceptance of the statistic remains pending**. The7.33% value is a pass of the explicitly preselected diagnostic benchmark, while10.68% would fail a gate using ratio-of-medians. Three feature pairs exceed10% (13.80,10.19,10.43); control pair0 reaches14.31%. No causally exact cross-run speedup is inferred from12.42%→7.33%; the separate component timings and changes identify work removed, while scheduling noise limits the total-cost comparison.
 
 ## Fixture recapture
 

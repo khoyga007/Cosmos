@@ -128,7 +128,7 @@ static class ElementChecks
             }
             for (int k = 0; k < before.Length; k++)
             {
-                object old = make.Invoke(null, new object[] { 5000, 1234UL })!;
+                object old = make.Invoke(null, new object?[] { 5000, 1234UL, null })!;
                 Action<double> oldStep = advance.CreateDelegate<Action<double>>(old);
                 var current = World.SolSystem(5000, 1234); Action<double> newStep = current.Advance;
                 for (int i = 0; i < 100; i++) { oldStep(.5); newStep(.5); }

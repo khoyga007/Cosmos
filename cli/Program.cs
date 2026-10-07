@@ -43,6 +43,7 @@ if (args.Length > 0 && args[0] == "ships") return ShipChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "conserve") return ConserveChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "cosmic") return CosmicChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "roche") return RocheChecks.Run() ? 0 : 1;
+if (args.Length > 0 && args[0] == "roche-bench") return RocheBench.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "rules") return RuleChecks.Run() ? 0 : 1;
 bool allOk = true;
 void Check(bool ok, string line) { allOk &= ok; Console.WriteLine($"{(ok ? "OK    " : "FAILED")} {line}"); }

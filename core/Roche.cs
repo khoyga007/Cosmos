@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 
 namespace Cosmos.Core;
 
@@ -13,7 +14,7 @@ public sealed partial class Consts
     public double RocheMetalStrengthPa = 1e8; // [P] representative metal tensile strength.
     public double RochePhysicalG = 6.6743e-11; // [P] SI Newton constant; C.G scales the gravity dial.
     public double RocheSolarMassKg = 1.98847e30; // [P] NASA solar mass reference.
-    public double RocheSolarRadiusKm = 696340; // [P] existing stellar-radius reference (NASA Sun fact sheet).
+    public double RocheSolarRadiusKm = 696340; // [P] inherited C5 physical-radius conversion in CosmicEvents.cs.
     public double RocheDensityKgM3 = 1000; // [P] table densities are g/cm3 -> kg/m3.
     public double RocheFragments = 64; // [P] numerical object budget, not microscopic grain count.
     public double RocheRockBudget = 10000; // [P] numerical total small-object budget.
@@ -76,14 +77,17 @@ public sealed partial class World
         double k = 0, strength = 0;
         for (int e = 0; e < ElementCount; e++)
         {
+            double cell = Comp[i * ElementCount + e];
+            if (cell == 0) continue;
+            ElementRole roles = Elements[e].Roles;
             double ek = 0, es = 0; int matches = 0;
-            foreach (var role in RocheRoles) if ((Elements[e].Roles & role) != 0)
+            foreach (var role in RocheRoles) if ((roles & role) != 0)
             {
                 ek += role is ElementRole.Gas or ElementRole.Ice ? C.RocheFluid : C.RocheRigid;
                 es += role switch { ElementRole.Gas => 0, ElementRole.Ice => C.RocheIceStrengthPa, ElementRole.Metal => C.RocheMetalStrengthPa, _ => C.RocheRockStrengthPa };
                 matches++;
             }
-            double fraction = Comp[i * ElementCount + e] / M[i];
+            double fraction = cell / M[i];
             k += fraction * (matches == 0 ? C.RocheRigid : ek / matches);
             strength += fraction * (matches == 0 ? 0 : es / matches);
         }
@@ -126,14 +130,51 @@ public sealed partial class World
         _rocheEarthRadiusRef = EarthRadiusRef;
         double minDensity = C.Density.Min(), maxK = Math.Max(C.RocheRigid, C.RocheFluid);
         var hosts = new List<(int Slot, double Upper, double Drift)>();
-        double acceleration = 0;
-        for (int p = 0; p < N; p++) if (Alive[p] && Attracts(p))
+        bool vector = !orbital && includeRocks && !_deferRocks && Vector.IsHardwareAccelerated && N >= Vector<double>.Count;
+        double acceleration = 0, maxSpeedSquared = 0;
+        for (int p = 0; p < N; p++) if (Alive[p])
         {
+            if (vector) maxSpeedSquared = Math.Max(maxSpeedSquared,Vx[p]*Vx[p]+Vy[p]*Vy[p]);
+            if (!Attracts(p)) continue;
             hosts.Add((p, maxK * R[p] * Math.Cbrt(MaterialDensity(p) / minDensity),
                 Math.Sqrt(Vx[p]*Vx[p]+Vy[p]*Vy[p])*seconds));
             acceleration += C.G*M[p]/(R[p]*R[p]);
         }
         double acceleratedDrift = 2 * acceleration * seconds * seconds;
+        if (vector)
+        {
+            // Standard SIMD broad phase over the existing SoA arrays. Only nearby lanes read material.
+            double bodyBound = Math.Sqrt(maxSpeedSquared)*seconds;
+            foreach (var host in hosts)
+            {
+                int p=host.Slot;
+                double reach=host.Upper+bodyBound+host.Drift+acceleratedDrift;
+                var px=new Vector<double>(X[p]); var py=new Vector<double>(Y[p]);
+                var bound=new Vector<double>(reach*reach*(1+C.RocheEntryTolerance));
+                int i=0;
+                for (; i+Vector<double>.Count<=N; i+=Vector<double>.Count)
+                {
+                    var xx=new Vector<double>(X,i)-px; var yy=new Vector<double>(Y,i)-py;
+                    var mask=Vector.LessThanOrEqual(xx*xx+yy*yy,bound);
+                    if (Vector.EqualsAll(mask,Vector<long>.Zero)) continue;
+                    for(int lane=0;lane<Vector<double>.Count;lane++) if(mask[lane]!=0) Include(i+lane);
+                }
+                for (; i < N; i++)
+                {
+                    double dx = X[i] - X[p], dy = Y[i] - Y[p];
+                    if (dx*dx + dy*dy <= reach*reach) Include(i);
+                }
+                void Include(int body)
+                {
+                    if (Alive[body] && M[body]<M[p] && !IsShip(body) && StarPhaseOf(body)==StarPhase.None
+                        && RocheLimitCore(body,p,true)>R[p]+R[body])
+                        _rocheCandidates.Add((body,p,Gen[body],Gen[p]));
+                }
+            }
+            // Preserve the scalar source/host order, including simultaneous first entries.
+            _rocheCandidates.Sort((a,b)=>a.Body!=b.Body?a.Body.CompareTo(b.Body):a.Host.CompareTo(b.Host));
+            return;
+        }
         for (int i = 0; i < N; i++)
         {
             if ((!includeRocks || _deferRocks) && !Attracts(i)) continue;
