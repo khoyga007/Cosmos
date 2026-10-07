@@ -203,3 +203,15 @@ Same rules as C5: own branch, step-0 checkpoint on bridge BEFORE code (Claire AC
 
 ### §9 amendment (Claire 2026-10-08): human baseline after A3
 A3 changes consumption/duration physics + Consts on purpose => Human path is NOT bit-equal to master 461ce87 from A3 on. New rule: Human baseline = A3 5275f03 family. S1/S2/S3.. must be bit-equal to the A3 baseline (Celine table seed1234/Sol0: initial 66B1883E599E57EE, +1e6yr D55A7885CD8D68E2, push20 E42AD90E459EFA3A; S1 matches). Defaults of new Consts are elided from Hash only when ALL fields of the block are default; any override hashes the block. Dead fields (e.g. CivMetalUse removed by A3) must NOT be resurrected.
+
+## §11 Collision breakup (DRAFT, Yang 2026-10-08, NOT scheduled; after Yang's playtest)
+Status: notes only. No code until Yang says go. Likely owner: Celine (reuses C6 Roche.cs fragment/reservoir machinery).
+Today: `World.Merge` = perfect merge (heavier keeps identity; M, p, Comp summed; no ejecta, no fragments). Only Roche tidal breakup (C6) makes debris.
+Decisions (Yang):
+- Debris = ordinary objects with Comp[] over element groups (meteors/asteroids/fragments are just small objects; no class "asteroid"). Planet debris scope ONLY; star ejecta (C5), belts/rings, gas stay as they are.
+- Break rule: collision specific energy Q = KE_rel / M_target vs threshold Q*_D(M) [P: Benz&Asphaug 1999 style]; below threshold = merge (or crater, later); above = breakup. Both Q* and the largest-remnant fraction f_LR = Consts FIELDS (hashed), tunable.
+- Fragment count N = f(mass), one continuous law capped by budget (no planet/asteroid branches): small body -> 2..4 pieces, planet -> tens..hundreds up to cap. Pieces conserve M, p, L(spin proxy), Comp exactly. Excess below resolution = bound reservoir (C6), never silent loss; mass that truly leaves system -> Escaped ledger.
+- Life/pop on a shattered world: ends (Impact/EndSwallowedWorld style); fragments are inert (no biosphere). Colonies later by domes (existing rule).
+- Display: "draw more than simulated". Dust/cloud sprites derived from real fragments + reservoir density, RENDER-ONLY: own RNG (never sim RNG), no mass, no collisions, not in Hash. Ordering: visuals LAST (after Alpha), per NEXT.md. Old CosmosSandbox dust layer is NOT revived; only its look idea (gas = cloud, rocks = real small bodies).
+- LOD idea (open): fine detail only where observed (layer frames); needs deterministic, conserving split-on-zoom. Hard; not promised.
+Open Qs for Yang: threshold for what counts as a body that can break (AttractMass?), crater vs merge below Q*, do pieces inherit spin.
