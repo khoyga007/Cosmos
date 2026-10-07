@@ -2,6 +2,8 @@
 
 Base `b08c41a`, branch `celine/roche-rings`. STEP0: `C6-CHECKPOINT.md`, three amendments ACKed by Claire before implementation. Ownership of the narrow Audit/Commands changes ACKed by Selica on bridge message `127809d5-e645-4194-ac29-5f5515cc8b27` (response 18:44:22Z). No merge, no game source changes. C7 waits for Claire's diff review.
 
+**Delivery selection:** core8e2b2f5, restored unchanged in9adf82c; limit-cache experiment67194c8 discarded by Claire. FullCLI437OK/0FAILED, audit4D/3R, jump5.27×; fresh rebuilt Godot selftest/uitest exact replay. Committed benchmark9adf82c passes Claire's new component gates: stock5250 median7 **0.123583ms≤.25ms**, bodies10 **0.002140ms≤.02ms**, exit0. Paired cost **+13.70%** remains accepted debt/reporting metric; ratio-of-medians+13.63%. All failed relative-cost runs remain documented below. C7 opens only after Claire merges C6.
+
 ## Behavior
 
 `core/Roche.cs` adds a switchable `roche` rule, composition-based Roche coefficients, a finite-strength survival correction, stellar physical mean density, first-entry planning, breakup, conserved bound reservoirs and records/hash. `World.Advance` cuts its existing integrator at the two-body predicted entry; `Rails.Jump` cuts Kepler motion at primary entry dates and places deferred rocks before breakup. Generation checks invalidate recycled source/host slots. A positive interval rounded to the current Gyr year advances to `Math.BitIncrement(Year)`.
@@ -84,13 +86,17 @@ Failure provenance:
 | limit-cache paired rerun |67194c80b60be87168df73c829b99c7a3a9fa0a1 |15.22%, old10% gate fails |
 | selected core full suite |8e2b2f5 |437/0; jump5.27×; rebuilt Godot exact replay |
 
-Updated-gate measurements will be appended with their immutable benchmark revision.
+Updated gate measured on immutable benchmark revision **9adf82c7a7f9d3657b96a9fcfa5644188751c271**, core byte-identical to8e2b2f5. Stock component samples(ms): .105874,.112648,.121279,.123583,.127050,.200976,.249204. Body-only samples(ms): .001891,.001907,.001918,.002140,.002200,.002550,.004082. Medians pass both owner-selected gates, exit0.8 entry queries cost .002988ms. Log `E:/Temp/cosmos-c6-final-selected-bench.log`.
+
+Same run paired reporting metric: median7+13.70%, ratio of raw medians2.161479/1.902286=+13.63%. Nullpaired median+2.49%. Feature paired deltas37.71,13.63,11.19,16.05,13.70,13.76,4.95%; control deltas5.34,2.49,3.84,-8.43,4.68,-2.54,-3.57%. None of these relative costs is reclassified as≤10%; the owner changed the acceptance gate explicitly.
+
+After restoration the game was rebuilt again: 0errors, preexisting warningGodUi804; fresh headless13-command selftest99B0905D9C0B42AE and29-command uitest039C93B5A9C7C87C both exit0. Logs `E:/Temp/cosmos-c6-selected-final-{selftest,uitest}.log`. Core matches the already fully tested selected revision exactly; subsequent changes are benchmark/report/debt records.
 
 The broken `elements-paired` reflection call is also repaired by supplying the optional third argument (`null`), as already done by the other repo benches. The scalar fallback was tested with `DOTNET_EnableHWIntrinsic=0`:40 Roche checks pass, all recorded replay hashes remain exact.
 
 First fullSIMD run:436OK/1FAILED, unique failure is jump-cost4.52× (5842.942/1293.921ms); all physics/replay/fixtures and audit4D/3R pass. The maximum-speed scan introduced for SIMD was also running in orbital/deferred collections where it was unused. That scan now runs only on the vector path. Focused `cli -- rules` passes again: original8168.157/trimmed1428.546ms, **5.72×**, exit0. FullCLI and fresh game checks on this followup are pending in this snapshot.
 
-Selica reviewed the evidence and pointed out that the old temperature benchmark uses ratio-of-medians. The requested new C6 review ceiling has no statistic yet in SPEC; **Claire's final acceptance of the statistic remains pending**. The7.33% value is a pass of the explicitly preselected diagnostic benchmark, while10.68% would fail a gate using ratio-of-medians. Three feature pairs exceed10% (13.80,10.19,10.43); control pair0 reaches14.31%. No causally exact cross-run speedup is inferred from12.42%→7.33%; the separate component timings and changes identify work removed, while scheduling noise limits the total-cost comparison.
+Historical review before19:21:11Z: Selica pointed out that the old temperature benchmark uses ratio-of-medians. The7.33% value passed the preselected diagnostic benchmark, while10.68% would fail a ratio-of-medians gate. Three feature pairs exceeded10% (13.80,10.19,10.43); control pair0 reached14.31%. No causally exact cross-run speedup is inferred from12.42%→7.33%. This uncertainty is retained; the final owner decision and the selected-revision measurements above supersede the earlier pending gate.
 
 ## Fixture recapture
 

@@ -4,6 +4,8 @@ Exact heads: A3 `729ee6ff7c3736a5bc46bdac7788b98cf3ba2dd8`, S1 `a3155fe0f530d411
 
 Six original checks now pass: replacing EarthYears changes hash; replacing Needs with changed BecomesWaste changes hash; nondefault per-Civ Species changes hash; WithParam rejects manipulationNaN and lifespan-1; constructor copies the caller Extra dictionary. These are closed for the original minimal inputs.
 
+Independent two-binary Human comparison (A3 baseline729ee6f versus S1a3155fe) also matches: after1e6yr both **03AB169D8DAB2DB2** (civ1, Tech4, Pop.9998875097515015); Push Earth(.01,-.01)+20×Advance(.5) both **65BB338A5DBA4593**. Probe `E:/Temp/cosmos-fixed-human/{a3,s1}/Human.csproj` shares the same Program.cs. This supports two specific default-path scenes, not a claim of100% coverage.
+
 Remaining/new failures:
 
 - `core/Layers.cs:158` / `core/Layers.cs:48` — Stages.AddRange(DefaultStages) shares mutable Needs arrays. `((StageNeed[])w.Stages[6].Needs)[0]=old with {BecomesWaste=!old.BecomesWaste}` changes a second world's row, while `w.IsDefaultStages=true` and its hash stays unchanged. Freeze the default catalog and each Needs collection; compare against an immutable canonical baseline.
