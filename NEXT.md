@@ -17,7 +17,7 @@ Order of work:
 - f. Look question for Yang only after numbers: drawn size != contact size. Not ours to decide.
 - g. Side finding: paused at 24 fps = draw cost (trails?). Draw-bench measured points only.
 
-Parked until Yang says go: F v2 re-review + paired perf (Ariel fix of core/Rails.cs:274 pending), draw-bench bat.
+Parked until Yang says go: F v2 re-review + paired perf (Ariel fix of core/Rails.cs:274 pending), draw-bench bat. Unpushed by Yang order 10-08 ("cứ để đấy, phiên sau giải quyết xong thì push"): celine/thermal-mass-slice @b16f203 (E:/Cosmos-celine-scale), ariel/sim-decouple-v2 @0e18f1a (E:/Cosmos-ariel) — push both only after P0 is resolved.
 
 ## HEAT LAW 2026-10-08 — READ SPEC §15 FIRST
 
