@@ -1,0 +1,22 @@
+{
+  "engine": "godot",
+  "engine_version": "4.7.2-stable (official)",
+  "scene": "D2",
+  "points": 300000,
+  "bodies": 1000,
+  "mode": "shader",
+  "fps_cap": 0,
+  "has_bloom_and_particles": false,
+  "frame_count_measured": 3500,
+  "frame_ms_avg": 2.2856,
+  "frame_ms_p50": 1.9142,
+  "frame_ms_p95": 4.2267,
+  "frame_ms_p99": 9.0315,
+  "fps_avg": 437.52,
+  "cpu_push_ms": 0.1471,
+  "ram_mb": 530.17,
+  "vram_mb": 59.36,
+  "gpu_adapter_name": "NVIDIA GeForce GTX 1650",
+  "duration_sec": 10,
+  "warmup_sec": 2
+}

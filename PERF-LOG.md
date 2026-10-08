@@ -50,3 +50,56 @@ Final diagnostic phase attribution (`macro-final-profile.log`), source672b81d wi
 ### Final full suite — exact672b81d
 
 Fresh final full Release executable: **482OK/0FAILED/exit0**, audit4D/3R. NS seven after costs6.226662,6.014138,5.794725,5.932300,5.816775,6.188900,5.743163ms; median5.932300ms, intermediate8ms PASS/new4ms FAIL. Seven own baseline means2.721342,2.702187,2.606767,2.631061,2.629334,2.611633,2.735284ms; median paired ratio2.225655. HashC2BB44B21A0AAB7B throughout. Raw `macro-full-final-672b81d.log`. This later pass does not delete or resolve the earlier absolute failures; runtime/load variance remains a material limitation.
+
+## 2026-10-08 Draw-Bench spike: Godot 4.7.2 vs Bevy 0.19.1 (@a0d4e59)
+
+Hardware: NVIDIA GeForce GTX 1650 (Laptop dGPU, `--gpu-index 0` enforced, in-process active adapter assertion PASS). 24 runs sequential, 0 timeouts, 0 watchdog triggers. Raw JSONs in `spikes/draw-bench/results/*.json`.
+
+### Telemetry Table
+
+| Engine | Scene | Mode | Elements | Cap | FPS Avg | Frame ms (avg / p50 / p95) | CPU push (ms) | RAM (MB) | Active Adapter |
+|---|:---:|:---:|:---:|:---:|---:|:---:|:---:|:---:|---|
+| Godot | A | SHADER | 100k pts | 60 | 60.0 | 16.67 / 16.67 / 16.70 | 0.04 | 577.1 | NVIDIA GeForce GTX 1650 |
+| Godot | A | SHADER | 100k pts | uncapped | 462.5 | 2.16 / 1.78 / 4.06 | 0.03 | 473.1 | NVIDIA GeForce GTX 1650 |
+| Godot | B | SHADER | 1M pts | 60 | 60.0 | 16.67 / 16.67 / 16.72 | 0.04 | 781.9 | NVIDIA GeForce GTX 1650 |
+| Godot | B | SHADER | 1M pts | uncapped | 319.0 | 3.13 / 3.10 / 3.39 | 0.02 | 785.0 | NVIDIA GeForce GTX 1650 |
+| Godot | C | SHADER | 1M pts + bloom + 50k particles | 60 | 60.0 | 16.67 / 16.67 / 16.73 | 0.04 | 845.3 | NVIDIA GeForce GTX 1650 |
+| Godot | C | SHADER | 1M pts + bloom + 50k particles | uncapped | 249.3 | 4.01 / 3.92 / 4.79 | 0.02 | 818.0 | NVIDIA GeForce GTX 1650 |
+| Godot | D1 | SHADER | 100k pts + 1k bodies | 60 | 60.0 | 16.67 / 16.67 / 16.71 | 0.29 | 498.7 | NVIDIA GeForce GTX 1650 |
+| Godot | D1 | SHADER | 100k pts + 1k bodies | uncapped | 435.5 | 2.30 / 2.23 / 4.39 | 0.14 | 475.3 | NVIDIA GeForce GTX 1650 |
+| Godot | D2 | SHADER | 300k pts + 1k bodies | 60 | 60.0 | 16.67 / 16.67 / 16.96 | 0.31 | 529.8 | NVIDIA GeForce GTX 1650 |
+| Godot | D2 | SHADER | 300k pts + 1k bodies | uncapped | 437.5 | 2.29 / 1.91 / 4.23 | 0.15 | 530.2 | NVIDIA GeForce GTX 1650 |
+| Godot | D3 | SHADER | 1M pts + 1k bodies | 60 | 60.0 | 16.67 / 16.67 / 16.72 | 0.32 | 785.0 | NVIDIA GeForce GTX 1650 |
+| Godot | D3 | SHADER | 1M pts + 1k bodies | uncapped | 307.9 | 3.25 / 3.05 / 3.33 | 0.13 | 810.3 | NVIDIA GeForce GTX 1650 |
+| Bevy | A | SHADER | 100k pts | 60 | 44.9 | 22.29 / 20.18 / 26.64 | 0.00 | 348.2 | NVIDIA GeForce GTX 1650 |
+| Bevy | A | SHADER | 100k pts | uncapped | 60.0 | 16.67 / 16.65 / 17.61 | 0.00 | 303.7 | NVIDIA GeForce GTX 1650 |
+| Bevy | B | SHADER | 1M pts | 60 | 42.2 | 23.69 / 25.03 / 26.61 | 0.00 | 337.0 | NVIDIA GeForce GTX 1650 |
+| Bevy | B | SHADER | 1M pts | uncapped | 74.6 | 13.41 / 16.45 / 17.46 | 0.00 | 337.9 | NVIDIA GeForce GTX 1650 |
+| Bevy | C | SHADER | 1M pts | 60 | 40.1 | 24.94 / 25.44 / 26.66 | 0.00 | 377.3 | NVIDIA GeForce GTX 1650 |
+| Bevy | C | SHADER | 1M pts | uncapped | 60.0 | 16.67 / 16.68 / 17.50 | 0.00 | 345.8 | NVIDIA GeForce GTX 1650 |
+| Bevy | D1 | SHADER | 100k pts + 1k bodies | 60 | 39.9 | 25.08 / 25.67 / 26.93 | 0.10 | 303.8 | NVIDIA GeForce GTX 1650 |
+| Bevy | D1 | SHADER | 100k pts + 1k bodies | uncapped | 60.0 | 16.66 / 16.65 / 17.43 | 0.02 | 303.7 | NVIDIA GeForce GTX 1650 |
+| Bevy | D2 | SHADER | 300k pts + 1k bodies | 60 | 39.8 | 25.12 / 25.68 / 26.88 | 0.10 | 310.1 | NVIDIA GeForce GTX 1650 |
+| Bevy | D2 | SHADER | 300k pts + 1k bodies | uncapped | 60.0 | 16.67 / 16.67 / 17.61 | 0.04 | 311.8 | NVIDIA GeForce GTX 1650 |
+| Bevy | D3 | SHADER | 1M pts + 1k bodies | 60 | 39.7 | 25.16 / 25.63 / 26.98 | 0.10 | 337.5 | NVIDIA GeForce GTX 1650 |
+| Bevy | D3 | SHADER | 1M pts + 1k bodies | uncapped | 60.0 | 16.67 / 16.65 / 17.66 | 0.03 | 337.1 | NVIDIA GeForce GTX 1650 |
+
+### Caveats & Architecture Breakdown
+
+1. **Bevy measurement invalidated**:
+   - `AutoNoVsync` did not override driver/Winit sync. Uncapped locked at 60.0 FPS / 16.67 ms across 5/6 scenes.
+   - Capped 60 used `std::thread::sleep` in update loop (`main.rs:553-559`), beating against vsync cadence -> dropped frames to ~40 FPS / 25 ms.
+   - Excluded from all performance comparisons until re-measured with true `PresentMode::Immediate` / `Mailbox` and proper frame limiter.
+
+2. **Godot Binary Status**:
+   - Godot ran `DrawBenchGodot.dll` built in **Debug** configuration (`spikes/draw-bench/godot/.godot/mono/temp/bin/Debug/`).
+   - Despite Debug DLL, CPU push for 1,000 dynamic bodies per frame was only 0.13 - 0.32 ms (`Main.cs:433-451`).
+
+3. **Trajectory Math Origin (Points vs Bodies)**:
+   - **Points (100k, 300k, 1M)**: Rendered via `MultiMeshInstance2D` (`Main.cs:193-200`). Stored with custom parameters `INSTANCE_CUSTOM = (r, theta0, omega, 0)` (`Main.cs:238-242`). Trajectories calculated **entirely in vertex shader** `orbit_rail.gdshader:7-14` (`theta = theta0 + omega * time; vec2 pos = center + vec2(r * cos(theta), r * sin(theta)); VERTEX += pos;`). CPU does ZERO trajectory work per point; CPU only pushes single `uniform float time` per frame (`Main.cs:408`).
+   - **Bodies (1,000 in D1, D2, D3)**: Trajectories calculated **on CPU every frame** (`Main.cs:439-449`), uploaded to GPU via `RenderingServer.MultimeshSetBuffer` (`Main.cs:450`). CPU cost: 0.13 - 0.32 ms.
+
+4. **GPUParticles2D vs Static Points**:
+   - **D1, D2, D3 DO NOT use `GPUParticles2D`**. They use static `MultiMesh` instances displaced by analytical closed-form orbits in the vertex shader. No GPU compute buffer, no particle lifecycle, no inter-particle interaction, no dynamic temperature state.
+   - **Only Scene C** uses actual `GPUParticles2D`: exactly 50,000 particles with `ParticleProcessMaterial` (`Main.cs:373-393`) + 200 MultiMesh bloom quads (`Main.cs:333-370`).
+   - **Implication for SPEC §15**: D1-D3 demonstrates pure draw throughput of 1M quads + 1k CPU-updated bodies (~3.25 ms GPU). It does NOT measure dynamic GPU particle simulation (Euler integration of velocity/position + scalar temperature color updates). A dedicated Scene E is required to measure 1M stateful GPU particles across 200 emitters with frustum culling.

@@ -1,0 +1,22 @@
+{
+  "engine": "bevy",
+  "engine_version": "0.19.1",
+  "scene": "D3",
+  "points": 1000000,
+  "bodies": 1000,
+  "mode": "shader",
+  "fps_cap": 60,
+  "has_bloom_and_particles": false,
+  "frame_count_measured": 319,
+  "frame_ms_avg": 25.1613,
+  "frame_ms_p50": 25.631,
+  "frame_ms_p95": 26.9755,
+  "frame_ms_p99": 28.2214,
+  "fps_avg": 39.74,
+  "cpu_push_ms": 0.1031,
+  "ram_mb": 337.49,
+  "vram_mb": 0.0,
+  "gpu_adapter_name": "NVIDIA GeForce GTX 1650",
+  "duration_sec": 10.0,
+  "warmup_sec": 2.0
+}
