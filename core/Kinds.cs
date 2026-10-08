@@ -2,6 +2,7 @@
 // Physics-derived classification: NO stored field, purely functional.
 // Comets sublimate ice when inside the snow line; hot light worlds lose hydrogen.
 using System;
+using System.Collections.Generic;
 
 namespace Cosmos.Core;
 
@@ -55,6 +56,7 @@ public sealed partial class Consts
 
 public sealed partial class World
 {
+    readonly List<(int Slot, double SnowLine)> _cometStars = new();
     void InitKindRules()
     {
         Rules.Add(new Rule("comets", "Comp,Temp,M,SnowLine*", "Comp,M,R", 0.1, w => w.UpdateComets()));
@@ -166,23 +168,19 @@ public sealed partial class World
         if (dt <= 0) return;
 
         // Find stars and their snow lines
-        int starCount = 0;
-        Span<int> starSlots = stackalloc int[8];
-        Span<double> snowLines = stackalloc double[8];
+        _cometStars.Clear();
         double maxSnowLine = 0;
 
-        for (int i = 0; i < N && starCount < 8; i++)
+        for (int i = 0; i < N; i++)
         {
             if (Alive[i] && M[i] >= C.StarMass)
             {
-                starSlots[starCount] = i;
                 double sl = SnowLine(i);
-                snowLines[starCount] = sl;
+                _cometStars.Add((i, sl));
                 if (sl > maxSnowLine) maxSnowLine = sl;
-                starCount++;
             }
         }
-        if (starCount == 0) return;
+        if (_cometStars.Count == 0) return;
         double maxSnowLineSq = maxSnowLine * maxSnowLine;
         double targetSnowTemp = C.SnowLineTemp > 0 ? C.SnowLineTemp : C.WaterFreeze;
 
@@ -213,9 +211,9 @@ public sealed partial class World
             // Fast distance check relative to stars (handles system translation drift over long jumps)
             double xi = X[i], yi = Y[i];
             double maxSublimation = 0;
-            for (int s = 0; s < starCount; s++)
+            for (int s = 0; s < _cometStars.Count; s++)
             {
-                int st = starSlots[s];
+                var (st, sl) = _cometStars[s];
                 double d2;
                 if (_riding && _prim != null && _prim[i] == st)
                 {
@@ -227,7 +225,6 @@ public sealed partial class World
                     d2 = dx * dx + dy * dy;
                 }
 
-                double sl = snowLines[s];
                 if (d2 < sl * sl)
                 {
                     double t;
