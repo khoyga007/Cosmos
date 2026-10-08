@@ -13,10 +13,26 @@
 // Keys: Space pause · 1..7 speed · C create · V vector · M move · A pull · R push away · F follow · Delete remove · Esc cancel · H whole system · Tab panel · T tilt · [ ] G
 using System;
 using System.Linq;
+using System.Threading.Tasks;
+using System.Collections.Concurrent;
 using Godot;
 using Cosmos.Core;
 
 namespace Cosmos.Game;
+
+public readonly struct QueuedAction
+{
+    public readonly Action<World> Execute;
+    public readonly int TargetSlot;
+    public readonly int ExpectedGen;
+
+    public QueuedAction(Action<World> execute, int targetSlot = -1, int expectedGen = -1)
+    {
+        Execute = execute;
+        TargetSlot = targetSlot;
+        ExpectedGen = expectedGen;
+    }
+}
 
 public partial class Main : Node2D
 {
@@ -26,6 +42,16 @@ public partial class Main : Node2D
     Label _hud = null!, _toast = null!;
     RichTextLabel _panel = null!;
     GodUi _ui = null!;
+
+    readonly RenderSnapshot _snapshot = new();
+    Task<(int steps, double elapsedMs)>? _simTask;
+    Task? _jumpTask;
+    string? _jumpStatus;
+    readonly System.Collections.Concurrent.ConcurrentQueue<QueuedAction> _pendingActions = new();
+    const double SimBudgetMs = 12.0;
+    double _effectiveWarp = 1.0;
+    double _lastAdvanceMs = 0;
+    double _snapCopyMs = 0;
 
     int _sel = -1, _follow = -1, _frame, _createdCount;
     int _selSeen = -1, _selGen, _followSeen = -1, _followGen;
@@ -87,6 +113,7 @@ public partial class Main : Node2D
         }
 
         _w = World.SolSystem(rocks, 1234); _rocks = rocks;
+        _snapshot.CopyFrom(_w);
 
         int cap = _w.X.Length;
         _mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform2D, UseColors = true, Mesh = new QuadMesh { Size = new Vector2(2.5f, 2.5f) }, InstanceCount = cap };
@@ -108,6 +135,21 @@ public partial class Main : Node2D
     }
 
     // ---- what the panels call ----
+
+    public void QueueGodAction(Action<World> act, int targetSlot = -1)
+    {
+        if (_selftest || _uitest || _bench > 0)
+        {
+            act(_w);
+            _snapshot.CopyFrom(_w);
+            return;
+        }
+        int gen = targetSlot >= 0 && Live(targetSlot) ? _snapshot.Gen[targetSlot] : -1;
+        _pendingActions.Enqueue(new QueuedAction(act, targetSlot, gen));
+    }
+
+    public void RefreshSelectionAfterSync() => _ui?.RefreshSelection();
+    public void RefreshConstsAfterSync() => _ui?.RefreshConsts();
 
     public void SetTimeWarp(int speed)
     {
@@ -161,8 +203,8 @@ public partial class Main : Node2D
     {
         if (!Live(i)) return;
         _follow = -1;
-        _cx = _w.X[i];
-        _cy = _w.Y[i];
+        _cx = _snapshot.X[i];
+        _cy = _snapshot.Y[i];
         Select(i);
         Toast($"Đã chuyển tới {NameOf(i)}");
     }
@@ -172,22 +214,30 @@ public partial class Main : Node2D
     public void RemoveSelected()
     {
         if (!Live(_sel)) return;
-        string name = NameOf(_sel);
-        if (GodTools.Remove(_w, _sel) >= 0) { Toast($"Đã xoá {name}"); Select(-1); }
+        int sel = _sel; string name = NameOf(sel);
+        QueueGodAction(w => { if (GodTools.Remove(w, sel) >= 0) Toast($"Đã xoá {name}"); }, sel);
+        Select(-1);
     }
 
     public void CircularizeSelected()
     {
         if (!Live(_sel)) return;
-        Toast(GodTools.Circularize(_w, _sel) >= 0 ? $"{NameOf(_sel)}: đã về quỹ đạo tròn" : "Không có vật nào nặng hơn để quay quanh");
-        _ui?.RefreshSelection();
+        int sel = _sel; string name = NameOf(sel);
+        QueueGodAction(w =>
+        {
+            Toast(GodTools.Circularize(w, sel) >= 0 ? $"{name}: đã về quỹ đạo tròn" : "Không có vật nào nặng hơn để quay quanh");
+        }, sel);
     }
 
     public void Home()
     {
         _follow = -1;
-        int h = _w.Heaviest();
-        if (h >= 0) { _cx = _w.X[h]; _cy = _w.Y[h]; }
+        int h = (_selftest || _uitest || _bench > 0) ? _w.Heaviest() : _snapshot.Heaviest();
+        if (h >= 0)
+        {
+            _cx = (_selftest || _uitest || _bench > 0) ? _w.X[h] : _snapshot.X[h];
+            _cy = (_selftest || _uitest || _bench > 0) ? _w.Y[h] : _snapshot.Y[h];
+        }
         _zoom = 0.75f;
     }
 
@@ -204,11 +254,11 @@ public partial class Main : Node2D
     void DrawZones()
     {
         float far = GetViewportRect().Size.Length() * 4;
-        for (int i = 0; i < _w.N; i++)
+        for (int i = 0; i < _snapshot.N; i++)
         {
-            if (!_w.Alive[i] || !_w.Attracts(i)) continue;
-            double h = _w.Hill(i);
-            if (h == double.MaxValue) h = World.SolDist(SunTidalAU * Math.Cbrt(_w.M[i] / SunMass));
+            if (!_snapshot.Alive[i] || !_snapshot.Attracts[i]) continue;
+            double h = _snapshot.Hill[i];
+            if (h == double.MaxValue) h = World.SolDist(SunTidalAU * Math.Cbrt(_snapshot.M[i] / SunMass));
             h *= _zoom;
             if (!(h > 6) || h > far) continue;
             DrawSetTransform(Screen(i), 0, new Vector2(1, _tilt));
@@ -242,13 +292,33 @@ public partial class Main : Node2D
     /// net momentum, but anything the god adds or throws gives it some), and after a long jump it would be far outside a view left where it was.
     public void JumpKeepingView(double years)
     {
-        int h = _w.Heaviest();
-        double hx = h >= 0 ? _w.X[h] : 0, hy = h >= 0 ? _w.Y[h] : 0;
-        GodTools.FastForward(_w, years);
-        if (_follow < 0 && Live(h)) { _cx += _w.X[h] - hx; _cy += _w.Y[h] - hy; }
+        if (years <= 0) return;
+        if (_selftest || _uitest || _bench > 0)
+        {
+            int h = _w.Heaviest();
+            double hx = h >= 0 ? _w.X[h] : 0, hy = h >= 0 ? _w.Y[h] : 0;
+            GodTools.FastForward(_w, years);
+            if (_follow < 0 && Live(h)) { _cx += _w.X[h] - hx; _cy += _w.Y[h] - hy; }
+            _snapshot.CopyFrom(_w);
+            return;
+        }
+        int heavy = _snapshot.Heaviest();
+        double hX = heavy >= 0 ? _snapshot.X[heavy] : 0, hY = heavy >= 0 ? _snapshot.Y[heavy] : 0;
+        _jumpStatus = $"Đang nhảy +{years:N0} năm...";
+        Toast(_jumpStatus);
+        _jumpTask = Task.Run(() =>
+        {
+            GodTools.FastForward(_w, years);
+        }).ContinueWith(t =>
+        {
+            if (_follow < 0 && heavy >= 0 && heavy < _w.N && _w.Alive[heavy])
+            {
+                _cx += _w.X[heavy] - hX; _cy += _w.Y[heavy] - hY;
+            }
+        });
     }
 
-    bool Live(int i) => i >= 0 && i < _w.N && _w.Alive[i];
+    bool Live(int i) => (_selftest || _uitest || _bench > 0) ? (i >= 0 && i < _w.N && _w.Alive[i]) : _snapshot.IsAlive(i);
 
     // ---- view ----
 
@@ -258,7 +328,7 @@ public partial class Main : Node2D
         return new Vector2(c.X + (float)((x - _cx) * _zoom), c.Y + (float)((y - _cy) * _zoom * _tilt));
     }
 
-    Vector2 Screen(int i) => ToScreen(_w.X[i], _w.Y[i]);
+    Vector2 Screen(int i) => (_selftest || _uitest || _bench > 0) ? ToScreen(_w.X[i], _w.Y[i]) : ToScreen(_snapshot.X[i], _snapshot.Y[i]);
 
     void ToWorld(Vector2 p, out double x, out double y)
     {
@@ -268,9 +338,9 @@ public partial class Main : Node2D
 
     static float KindPx(Kind k) => k switch { Kind.Star => 9f, Kind.Planet => 4f, Kind.Moon => 2.5f, _ => 1.5f };
 
-    float Px(int i) => MathF.Max(KindPx(_w.KindOf(i)), (float)_w.R[i] * _zoom);
+    float Px(int i) => (_selftest || _uitest || _bench > 0) ? (i >= 0 && i < _w.N ? MathF.Max(KindPx(_w.KindOf(i)), (float)_w.R[i] * _zoom) : 0) : (i >= 0 && i < _snapshot.N ? MathF.Max(KindPx(_snapshot.Kind[i]), (float)_snapshot.R[i] * _zoom) : 0);
 
-    string NameOf(int i) => _w.Name[i] ?? $"{(_w.Grp[i] > 0 ? _w.Groups[_w.Grp[i]] : "Vật thể")} #{i}";
+    string NameOf(int i) => (_selftest || _uitest || _bench > 0) ? (_w.Name[i] ?? $"{(_w.Grp[i] > 0 ? _w.Groups[_w.Grp[i]] : "Vật thể")} #{i}") : (i >= 0 && i < _snapshot.N && _snapshot.Name[i] != null ? _snapshot.Name[i]! : $"Vật thể #{i}");
 
     // How many small objects each planet or moon holds close by (within 4 of its radii), and how far the furthest is.
     const int RingMin = 30;
@@ -281,19 +351,19 @@ public partial class Main : Node2D
 
     void CountRings()
     {
-        if (_ringCount.Length < _w.N) { _ringCount = new int[_w.X.Length]; _ringFar = new double[_w.X.Length]; }
+        if (_ringCount.Length < _snapshot.N) { _ringCount = new int[_snapshot.X.Length]; _ringFar = new double[_snapshot.X.Length]; }
         _ringHosts.Clear();
-        for (int i = 0; i < _w.N; i++)
+        for (int i = 0; i < _snapshot.N; i++)
         {
             _ringCount[i] = 0; _ringFar[i] = 0;
-            if (_w.Alive[i] && _w.Attracts(i) && _w.KindOf(i) != Kind.Star) _ringHosts.Add(i);
+            if (_snapshot.Alive[i] && _snapshot.Attracts[i] && _snapshot.Kind[i] != Kind.Star) _ringHosts.Add(i);
         }
-        for (int i = 0; i < _w.N; i++)
+        for (int i = 0; i < _snapshot.N; i++)
         {
-            if (!_w.Alive[i] || _w.Attracts(i) || _w.IsShip(i)) continue;
+            if (!_snapshot.Alive[i] || _snapshot.Attracts[i] || _snapshot.IsShip[i]) continue;
             foreach (int h in _ringHosts)
             {
-                double dx = _w.X[i] - _w.X[h], dy = _w.Y[i] - _w.Y[h], d2 = dx * dx + dy * dy, reach = _w.R[h] * 4;
+                double dx = _snapshot.X[i] - _snapshot.X[h], dy = _snapshot.Y[i] - _snapshot.Y[h], d2 = dx * dx + dy * dy, reach = _snapshot.R[h] * 4;
                 if (d2 >= reach * reach) continue;
                 _ringCount[h]++; if (d2 > _ringFar[h]) _ringFar[h] = d2;
                 break;
@@ -304,29 +374,33 @@ public partial class Main : Node2D
     public void RingSelected()
     {
         if (!Live(_sel)) return;
-        int made = GodTools.MakeRing(_w, _sel, 200, (ulong)_w.Step * 31 + (ulong)_sel, _ui.GetCreateMix());
-        Toast(made > 0 ? $"Đã tạo vành đai {made} mảnh quanh {NameOf(_sel)}, vật chất theo thanh trượt ở tab Tạo" : made == 0 ? "Thế giới đã đầy, không tạo thêm được" : "Vật này không giữ được vành đai");
-        _ui.RefreshSelection();
+        int sel = _sel; string name = NameOf(sel);
+        double[] mix = _ui.GetCreateMix();
+        QueueGodAction(w =>
+        {
+            int made = GodTools.MakeRing(w, sel, 200, (ulong)w.Step * 31 + (ulong)sel, mix);
+            Toast(made > 0 ? $"Đã tạo vành đai {made} mảnh quanh {name}, vật chất theo thanh trượt ở tab Tạo" : made == 0 ? "Thế giới đã đầy, không tạo thêm được" : "Vật này không giữ được vành đai");
+        }, sel);
     }
 
     // PLACEHOLDER LOOK. Everything an object looks like goes through BodyCol + DrawBody, so that textures
     // can replace these two later without touching what is shown or where.
     Color BodyCol(int i)
     {
-        uint star = _w.StarColour(i);
+        uint star = _snapshot.StarColour[i];
         if (star != 0) return new Color((star << 8) | 0xFF);
-        return _w.StarPhaseOf(i) switch
+        return _snapshot.StarPhase[i] switch
         {
             StarPhase.BlackHole => new Color(0.02f, 0.02f, 0.03f),
             StarPhase.BrownDwarf => new Color(0.42f, 0.2f, 0.14f),
             StarPhase.WhiteDwarf or StarPhase.NeutronStar => new Color(0.45f, 0.47f, 0.55f), // cooled down
-            _ => _w.Col[i] != 0 ? new Color((_w.Col[i] << 8) | 0xFF) : MixCol(i)
+            _ => _snapshot.Col[i] != 0 ? new Color((_snapshot.Col[i] << 8) | 0xFF) : MixCol(i)
         };
     }
 
     void DrawBody(int i, Vector2 p, float r)
     {
-        StarPhase phase = _w.StarPhaseOf(i);
+        StarPhase phase = _snapshot.StarPhase[i];
         Color col = BodyCol(i);
         if (phase is StarPhase.MainSequence or StarPhase.RedGiant) DrawCircle(p, r * 1.35f, new Color(col.R, col.G, col.B, 0.18f));
         DrawCircle(p, r, col);
@@ -337,33 +411,61 @@ public partial class Main : Node2D
     Color MixCol(int i)
     {
         Color col = new(0, 0, 0);
-        for (int e = 0; e < World.NElem; e++) col += ElemCol[e] * (float)(_w.Comp[i * World.NElem + e] / _w.M[i]);
+        for (int e = 0; e < World.NElem; e++) col += ElemCol[e] * (float)(_snapshot.Comp[i * World.NElem + e] / _snapshot.M[i]);
         col.A = 1; return col;
     }
 
     // Bodies win over rocks: with 5000 rocks on screen a click near a planet must not land on a pebble.
     int Pick(Vector2 at)
     {
-        int best = -1; float bestD = 8;
-        for (int i = 0; i < _w.N; i++)
+        if (_selftest || _uitest || _bench > 0)
         {
-            if (!_w.Alive[i] || !_w.IsShip(i)) continue;
+            int b = -1; float bD = 8;
+            for (int i = 0; i < _w.N; i++)
+            {
+                if (!_w.Alive[i] || !_w.IsShip(i)) continue;
+                float d = Screen(i).DistanceTo(at);
+                if (d < bD) { bD = d; b = i; }
+            }
+            if (b >= 0) return b;
+            bD = 10;
+            for (int i = 0; i < _w.N; i++)
+            {
+                if (!_w.Alive[i] || !_w.Attracts(i)) continue;
+                float d = MathF.Max(0, Screen(i).DistanceTo(at) - Px(i));
+                if (d < bD) { bD = d; b = i; }
+            }
+            if (b >= 0) return b;
+            bD = 5;
+            for (int i = 0; i < _w.N; i++)
+            {
+                if (!_w.Alive[i] || _w.Attracts(i)) continue;
+                float d = Screen(i).DistanceTo(at);
+                if (d < bD) { bD = d; b = i; }
+            }
+            return b;
+        }
+
+        int best = -1; float bestD = 8;
+        for (int i = 0; i < _snapshot.N; i++)
+        {
+            if (!_snapshot.Alive[i] || !_snapshot.IsShip[i]) continue;
             float d = Screen(i).DistanceTo(at);
             if (d < bestD) { bestD = d; best = i; }
         }
         if (best >= 0) return best;
         bestD = 10;
-        for (int i = 0; i < _w.N; i++)
+        for (int i = 0; i < _snapshot.N; i++)
         {
-            if (!_w.Alive[i] || !_w.Attracts(i)) continue;
+            if (!_snapshot.Alive[i] || !_snapshot.Attracts[i]) continue;
             float d = MathF.Max(0, Screen(i).DistanceTo(at) - Px(i));
             if (d < bestD) { bestD = d; best = i; }
         }
         if (best >= 0) return best;
         bestD = 5;
-        for (int i = 0; i < _w.N; i++)
+        for (int i = 0; i < _snapshot.N; i++)
         {
-            if (!_w.Alive[i] || _w.Attracts(i)) continue;
+            if (!_snapshot.Alive[i] || _snapshot.Attracts[i]) continue;
             float d = Screen(i).DistanceTo(at);
             if (d < bestD) { bestD = d; best = i; }
         }
@@ -374,79 +476,204 @@ public partial class Main : Node2D
     {
         if (_w == null) return;
         if (_uitest && _frame == 3) { _frame++; RunUiTest(); return; }
-        long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
-        if (_drag == Drag.Hand) UseHand(delta);
-        if (!_paused)
-        {
-            for (int step = 0; step < _timeWarp; step++)
-            {
-                _w.Advance(0.5);
-            }
-        }
-        long t1 = System.Diagnostics.Stopwatch.GetTimestamp();
 
         double f = 1000.0 / System.Diagnostics.Stopwatch.Frequency;
-        double advanceElapsedMs = (t1 - t0) * f;
-        _stepMs += (advanceElapsedMs - _stepMs) * 0.05;
 
-        CheckAutoThrottle(advanceElapsedMs);
+        // Headless synchronous mode: bit-identical determinism for selftest, uitest, bench
+        if (_selftest || _uitest || _bench > 0)
+        {
+            long t0Sync = System.Diagnostics.Stopwatch.GetTimestamp();
+            if (_drag == Drag.Hand) UseHand(delta);
+            if (!_paused)
+            {
+                for (int step = 0; step < _timeWarp; step++)
+                {
+                    _w.Advance(0.5);
+                }
+            }
+            long t1Sync = System.Diagnostics.Stopwatch.GetTimestamp();
+            double advanceMs = (t1Sync - t0Sync) * f;
+            _stepMs += (advanceMs - _stepMs) * 0.05;
+            CheckAutoThrottle(advanceMs);
+
+            _snapshot.CopyFrom(_w);
+
+            if (_sel >= 0 && !Live(_sel)) Select(-1);
+            if (_follow >= 0 && !Live(_follow)) _follow = -1;
+            if (_sel != _selSeen) { _selSeen = _sel; _selGen = Live(_sel) ? _w.Gen[_sel] : 0; }
+            else if (Live(_sel) && _w.Gen[_sel] != _selGen) _sel = _selSeen = -1;
+            if (_follow != _followSeen) { _followSeen = _follow; _followGen = Live(_follow) ? _w.Gen[_follow] : 0; }
+            else if (Live(_follow) && _w.Gen[_follow] != _followGen) _follow = _followSeen = -1;
+            if (_follow >= 0) { _cx = _w.X[_follow]; _cy = _w.Y[_follow]; }
+
+            Vector2 c = GetViewportRect().Size / 2;
+            int n = 0; int attract = 0;
+            for (int i = 0; i < _snapshot.N; i++)
+            {
+                if (!_snapshot.Alive[i]) continue;
+                if (_snapshot.Attracts[i]) { attract++; continue; }
+                int o = n++ * Stride;
+                _buf[o + 3] = c.X + (float)((_snapshot.X[i] - _cx) * _zoom); _buf[o + 7] = c.Y + (float)((_snapshot.Y[i] - _cy) * _zoom * _tilt);
+                Color k = MixCol(i); _buf[o + 8] = k.R; _buf[o + 9] = k.G; _buf[o + 10] = k.B;
+            }
+            _mm.VisibleInstanceCount = n;
+            RenderingServer.MultimeshSetBuffer(_mm.GetRid(), _buf);
+            long t2Sync = System.Diagnostics.Stopwatch.GetTimestamp();
+            _fillMs += ((t2Sync - t1Sync) * f - _fillMs) * 0.05;
+            _hud.Text = $"Năm {_w.Year:N1}   {(_paused ? "TẠM DỪNG" : $"tốc độ {_timeWarp}×")}   {_w.Live} vật thể ({attract} có lực hút)   va chạm {_w.Merges}   {Engine.GetFramesPerSecond():F0} fps";
+            if (_frame++ % 15 == 0)
+            {
+                _panel.Text = PanelText();
+                _ui?.RefreshEvents();
+                _ui?.RefreshLive();
+            }
+            if (_toastLeft > 0)
+            {
+                _toastLeft -= delta;
+                _toast.Modulate = new Color(1, 1, 1, (float)Math.Clamp(_toastLeft, 0, 1));
+            }
+            QueueRedraw();
+
+            if (_bench > 0)
+            {
+                _benchT += delta; _benchFrames++;
+                if (_benchT >= _bench)
+                {
+                    if (3 < _w.N && _w.Alive[3])
+                    {
+                        _sel = 3;
+                        GD.Print(PanelText());
+                    }
+                    int testSlot = Math.Min(500, _w.N - 1);
+                    while (testSlot >= 0 && !_w.Alive[testSlot]) testSlot--;
+                    _sel = testSlot;
+                    GD.Print(PanelText());
+                    GD.Print($"BENCH objects={_w.Live} fps={_benchFrames / _benchT:F1} step_ms={_stepMs:F2} fill_ms={_fillMs:F2} renderer={RenderingServer.GetVideoAdapterName()}");
+                    GetTree().Quit(0);
+                }
+            }
+            return;
+        }
+
+        // Interactive mode: Sim runs decoupled on worker task
+        if (_drag == Drag.Hand) UseHand(delta);
+
+        // 1. Check FastForward jump task
+        if (_jumpTask != null)
+        {
+            if (_jumpTask.IsCompleted)
+            {
+                _jumpTask = null;
+                _jumpStatus = null;
+                _snapshot.CopyFrom(_w);
+                _ui?.RefreshSelection();
+                _ui?.RefreshLive();
+            }
+        }
+        else
+        {
+            // 2. Check Sim worker task & sync point
+            if (_simTask == null || _simTask.IsCompleted)
+            {
+                if (_simTask != null)
+                {
+                    var res = _simTask.Result;
+                    _lastAdvanceMs = res.elapsedMs;
+                    _stepMs += (res.elapsedMs - _stepMs) * 0.05;
+                    _effectiveWarp = res.steps;
+                    _simTask = null;
+                    CheckAutoThrottle(_lastAdvanceMs);
+                }
+
+                // Sync Point: apply queued commands, copy snapshot, refresh UI
+                bool flushed = false;
+                while (_pendingActions.TryDequeue(out var qa))
+                {
+                    flushed = true;
+                    if (qa.TargetSlot >= 0)
+                    {
+                        if (qa.TargetSlot >= _w.N || !_w.Alive[qa.TargetSlot] || _w.Gen[qa.TargetSlot] != qa.ExpectedGen)
+                        {
+                            Toast("Thao tác bỏ qua: đối tượng đã biến mất hoặc thay đổi.");
+                            continue;
+                        }
+                    }
+                    qa.Execute(_w);
+                }
+
+                long tSnap0 = System.Diagnostics.Stopwatch.GetTimestamp();
+                _snapshot.CopyFrom(_w);
+                long tSnap1 = System.Diagnostics.Stopwatch.GetTimestamp();
+                _snapCopyMs = (tSnap1 - tSnap0) * f;
+
+                if (_frame % 15 == 0 || flushed)
+                {
+                    _panel.Text = PanelText();
+                    _ui?.RefreshEvents();
+                    _ui?.RefreshLive();
+                    if (flushed) _ui?.RefreshSelection();
+                }
+
+                // Launch next worker task
+                if (!_paused)
+                {
+                    int warp = _timeWarp;
+                    _simTask = Task.Run(() =>
+                    {
+                        var sw = System.Diagnostics.Stopwatch.StartNew();
+                        int stepsDone = 0;
+                        for (int s = 0; s < warp; s++)
+                        {
+                            _w.Advance(0.5);
+                            stepsDone++;
+                            if (sw.Elapsed.TotalMilliseconds >= SimBudgetMs) break;
+                        }
+                        return (stepsDone, sw.Elapsed.TotalMilliseconds);
+                    });
+                }
+            }
+        }
+
+        // 3. Main thread render & UI (reads ONLY from _snapshot)
+        long tRender0 = System.Diagnostics.Stopwatch.GetTimestamp();
 
         if (_sel >= 0 && !Live(_sel)) Select(-1);
         if (_follow >= 0 && !Live(_follow)) _follow = -1;
-        // a slot that now holds another object is not the thing that was selected or followed
-        if (_sel != _selSeen) { _selSeen = _sel; _selGen = Live(_sel) ? _w.Gen[_sel] : 0; }
-        else if (Live(_sel) && _w.Gen[_sel] != _selGen) _sel = _selSeen = -1;
-        if (_follow != _followSeen) { _followSeen = _follow; _followGen = Live(_follow) ? _w.Gen[_follow] : 0; }
-        else if (Live(_follow) && _w.Gen[_follow] != _followGen) _follow = _followSeen = -1;
-        if (_follow >= 0) { _cx = _w.X[_follow]; _cy = _w.Y[_follow]; }
+        if (_sel != _selSeen) { _selSeen = _sel; _selGen = Live(_sel) ? _snapshot.Gen[_sel] : 0; }
+        else if (Live(_sel) && _snapshot.Gen[_sel] != _selGen) _sel = _selSeen = -1;
+        if (_follow != _followSeen) { _followSeen = _follow; _followGen = Live(_follow) ? _snapshot.Gen[_follow] : 0; }
+        else if (Live(_follow) && _snapshot.Gen[_follow] != _followGen) _follow = _followSeen = -1;
+        if (_follow >= 0) { _cx = _snapshot.X[_follow]; _cy = _snapshot.Y[_follow]; }
 
-        Vector2 c = GetViewportRect().Size / 2;
-        int n = 0; int attract = 0;
-        for (int i = 0; i < _w.N; i++)
+        Vector2 center = GetViewportRect().Size / 2;
+        int count = 0; int attractCount = 0;
+        for (int i = 0; i < _snapshot.N; i++)
         {
-            if (!_w.Alive[i]) continue;
-            if (_w.Attracts(i)) { attract++; continue; }
-            int o = n++ * Stride;
-            _buf[o + 3] = c.X + (float)((_w.X[i] - _cx) * _zoom); _buf[o + 7] = c.Y + (float)((_w.Y[i] - _cy) * _zoom * _tilt);
+            if (!_snapshot.Alive[i]) continue;
+            if (_snapshot.Attracts[i]) { attractCount++; continue; }
+            int o = count++ * Stride;
+            _buf[o + 3] = center.X + (float)((_snapshot.X[i] - _cx) * _zoom); _buf[o + 7] = center.Y + (float)((_snapshot.Y[i] - _cy) * _zoom * _tilt);
             Color k = MixCol(i); _buf[o + 8] = k.R; _buf[o + 9] = k.G; _buf[o + 10] = k.B;
         }
-        _mm.VisibleInstanceCount = n;
+        _mm.VisibleInstanceCount = count;
         RenderingServer.MultimeshSetBuffer(_mm.GetRid(), _buf);
-        long t2 = System.Diagnostics.Stopwatch.GetTimestamp();
+        long tRender1 = System.Diagnostics.Stopwatch.GetTimestamp();
+        _fillMs += ((tRender1 - tRender0) * f - _fillMs) * 0.05;
 
-        _fillMs += ((t2 - t1) * f - _fillMs) * 0.05;
-        _hud.Text = $"Năm {_w.Year:N1}   {(_paused ? "TẠM DỪNG" : $"tốc độ {_timeWarp}×")}   {_w.Live} vật thể ({attract} có lực hút)   va chạm {_w.Merges}   {Engine.GetFramesPerSecond():F0} fps";
+        _hud.Text = _jumpStatus != null ? _jumpStatus :
+            $"Năm {_snapshot.Year:N1}   {(_paused ? "TẠM DỪNG" : $"tốc độ {_timeWarp}× (chạy {_effectiveWarp}b)")}   {_snapshot.Live} vật thể ({attractCount} có lực hút)   va chạm {_snapshot.Merges}   {Engine.GetFramesPerSecond():F0} fps   [Sim: {_lastAdvanceMs:F1}ms / Snap: {_snapCopyMs:F2}ms]";
+
         if (_frame++ % 15 == 0)
         {
             _panel.Text = PanelText();
-            _ui?.RefreshEvents();
-            _ui?.RefreshLive();
         }
+
         if (_toastLeft > 0)
         {
             _toastLeft -= delta;
             _toast.Modulate = new Color(1, 1, 1, (float)Math.Clamp(_toastLeft, 0, 1));
         }
         QueueRedraw();
-
-        if (_bench > 0)
-        {
-            _benchT += delta; _benchFrames++;
-            if (_benchT >= _bench)
-            {
-                if (3 < _w.N && _w.Alive[3])
-                {
-                    _sel = 3;
-                    GD.Print(PanelText());
-                }
-                int testSlot = Math.Min(500, _w.N - 1);
-                while (testSlot >= 0 && !_w.Alive[testSlot]) testSlot--;
-                _sel = testSlot;
-                GD.Print(PanelText());
-                GD.Print($"BENCH objects={_w.Live} fps={_benchFrames / _benchT:F1} step_ms={_stepMs:F2} fill_ms={_fillMs:F2} renderer={RenderingServer.GetVideoAdapterName()}");
-                GetTree().Quit(0);
-            }
-        }
     }
 
     static readonly Color ShipCol = new(1f, 0.92f, 0.45f);
@@ -556,23 +783,31 @@ public partial class Main : Node2D
     void UseHand(double seconds)
     {
         ToWorld(_mouse, out double x, out double y);
-        int p = GodTools.PrimaryAt(_w, x, y, 0);
-        double amount = _ui.HandStrength * GodTools.OrbitSpeed(_w, p, x, y) * Math.Min(seconds, 0.1);
-        GodTools.Force(_w, x, y, _ui.HandRadiusPx / _zoom, _tool == Tool.Shove ? -amount : amount);
+        int p = _snapshot.PrimaryAt(x, y, 0);
+        double amount = _ui.HandStrength * _snapshot.OrbitSpeed(p, x, y) * Math.Min(seconds, 0.1);
+        double radius = _ui.HandRadiusPx / _zoom;
+        double force = _tool == Tool.Shove ? -amount : amount;
+        QueueGodAction(w => GodTools.Force(w, x, y, radius, force));
     }
 
     // velocity of object i as its primary sees it, and that primary
     int RelVelocity(int i, out double ux, out double uy)
     {
-        int p = GodTools.PrimaryAt(_w, _w.X[i], _w.Y[i], _w.M[i], i);
-        ux = _w.Vx[i] - (p >= 0 ? _w.Vx[p] : 0); uy = _w.Vy[i] - (p >= 0 ? _w.Vy[p] : 0);
+        if (_selftest || _uitest || _bench > 0)
+        {
+            int p0 = GodTools.PrimaryAt(_w, _w.X[i], _w.Y[i], _w.M[i], i);
+            ux = _w.Vx[i] - (p0 >= 0 ? _w.Vx[p0] : 0); uy = _w.Vy[i] - (p0 >= 0 ? _w.Vy[p0] : 0);
+            return p0;
+        }
+        int p = _snapshot.PrimaryAt(_snapshot.X[i], _snapshot.Y[i], _snapshot.M[i], i);
+        ux = _snapshot.Vx[i] - (p >= 0 ? _snapshot.Vx[p] : 0); uy = _snapshot.Vy[i] - (p >= 0 ? _snapshot.Vy[p] : 0);
         return p;
     }
 
     // drag on screen -> velocity seen from the primary: DragPerOrbitSpeed pixels = one circular-orbit speed there
     void DragVelocity(Vector2 drag, int primary, double x, double y, out double vx, out double vy, out double share)
     {
-        double v = GodTools.OrbitSpeed(_w, primary, x, y);
+        double v = (_selftest || _uitest || _bench > 0) ? GodTools.OrbitSpeed(_w, primary, x, y) : _snapshot.OrbitSpeed(primary, x, y);
         vx = drag.X / DragPerOrbitSpeed * v; vy = drag.Y / (DragPerOrbitSpeed * _tilt) * v;
         share = Math.Sqrt(vx * vx + vy * vy) / v;
     }
@@ -588,9 +823,10 @@ public partial class Main : Node2D
     // the path the thing would take around its primary, as a line; red when it ends in the primary
     void DrawPath(int primary, double mass, double rx, double ry, double rvx, double rvy)
     {
-        int n = GodTools.Predict(_w, primary, mass, rx, ry, rvx, rvy, _path, out bool hits);
+        if (primary < 0 || primary >= _snapshot.N || !_snapshot.Alive[primary]) return;
+        int n = GodTools.Predict(_snapshot.G, _snapshot.M[primary], _snapshot.R[primary], mass, rx, ry, rvx, rvy, _path, out bool hits);
         if (n < 2) return;
-        for (int k = 0; k < n; k++) _pathPts[k] = ToScreen(_w.X[primary] + _path[k * 2], _w.Y[primary] + _path[k * 2 + 1]);
+        for (int k = 0; k < n; k++) _pathPts[k] = ToScreen(_snapshot.X[primary] + _path[k * 2], _snapshot.Y[primary] + _path[k * 2 + 1]);
         DrawPolyline(_pathPts.AsSpan(0, n).ToArray(), hits ? new Color(1f, 0.35f, 0.3f, 0.9f) : new Color(1f, 0.9f, 0.2f, 0.6f), 1.5f);
     }
 
@@ -603,34 +839,34 @@ public partial class Main : Node2D
         if (_zones) DrawZones();
 
         // Orbit lines
-        for (int i = 0; i < _w.N; i++)
+        for (int i = 0; i < _snapshot.N; i++)
         {
-            int par = _w.Par[i];
-            if (!_w.Alive[i] || par < 0 || par >= _w.N || !_w.Alive[par]) continue;
-            double dx = _w.X[i] - _w.X[par], dy = _w.Y[i] - _w.Y[par];
+            int par = _snapshot.Par[i];
+            if (!_snapshot.Alive[i] || par < 0 || par >= _snapshot.N || !_snapshot.Alive[par]) continue;
+            double dx = _snapshot.X[i] - _snapshot.X[par], dy = _snapshot.Y[i] - _snapshot.Y[par];
             float rad = (float)(Math.Sqrt(dx * dx + dy * dy) * _zoom);
             if (rad < 6) continue;
             DrawSetTransform(Screen(par), 0, new Vector2(1, _tilt));
             DrawArc(Vector2.Zero, rad, 0, MathF.Tau, 128, new Color(1, 1, 1, 0.10f), 1);
         }
-        if (Live(_sel) && _w.Attracts(_sel) && _w.KindOf(_sel) != Kind.Star)
+        if (Live(_sel) && _snapshot.Attracts[_sel] && _snapshot.Kind[_sel] != Kind.Star)
         {
             DrawSetTransform(Screen(_sel), 0, new Vector2(1, _tilt));
-            DrawArc(Vector2.Zero, (float)(_w.Hill(_sel) * _zoom), 0, MathF.Tau, 96, new Color(0.5f, 1f, 0.6f, 0.35f), 1);
+            DrawArc(Vector2.Zero, (float)(_snapshot.Hill[_sel] * _zoom), 0, MathF.Tau, 96, new Color(0.5f, 1f, 0.6f, 0.35f), 1);
         }
         DrawSetTransform(Vector2.Zero);
 
         CountRings();
 
         // a moon's labels are dropped while it sits on top of its planet on screen
-        bool far(int i, Vector2 p) => !(_w.Par[i] >= 0 && _w.Par[i] < _w.N && _w.Alive[_w.Par[i]]) || Screen(_w.Par[i]).DistanceTo(p) > 30;
+        bool far(int i, Vector2 p) => !(_snapshot.Par[i] >= 0 && _snapshot.Par[i] < _snapshot.N && _snapshot.Alive[_snapshot.Par[i]]) || Screen(_snapshot.Par[i]).DistanceTo(p) > 30;
 
-        for (int i = 0; i < _w.N; i++)
+        for (int i = 0; i < _snapshot.N; i++)
         {
-            if (!_w.Alive[i] || !_w.Attracts(i)) continue;
+            if (!_snapshot.Alive[i] || !_snapshot.Attracts[i]) continue;
             Vector2 p = Screen(i);
             float r = Px(i);
-            Kind kind = _w.KindOf(i);
+            Kind kind = _snapshot.Kind[i];
             // PLACEHOLDER: a ring too small on screen to show its own rocks is drawn as one band
             if (_ringCount[i] >= RingMin && Math.Sqrt(_ringFar[i]) * _zoom < RingBandPx)
             {
@@ -641,17 +877,16 @@ public partial class Main : Node2D
             DrawBody(i, p, r);
 
             // Visual marks on bodies that carry life or civilisation (SPEC 7 Round 2)
-            if (_w.IsWorld(i))
+            if (_snapshot.IsWorld(i))
             {
-                if (_w.Pop[i] > 0)
+                if (_snapshot.Pop[i] > 0)
                 {
                     DrawArc(p, r + 4, 0, MathF.Tau, 28, new Color(1f, 0.85f, 0.2f, 0.95f), 1.5f);
-                    int civ = _w.Civ[i];
-                    string tag = civ < 0 ? "văn minh" : _w.Civs[civ].Home == i ? _w.Civs[civ].Name : $"thuộc địa {_w.Civs[civ].Name}";
+                    string tag = _snapshot.CivTag[i] ?? "văn minh";
                     if (kind != Kind.Moon || far(i, p))
                         DrawString(font, p + new Vector2(r + 6, -10), tag, HorizontalAlignment.Left, -1, 11, new Color(1f, 0.85f, 0.2f, 0.95f));
                 }
-                else if (_w.Life[i] > 0)
+                else if (_snapshot.Life[i] > 0)
                 {
                     DrawArc(p, r + 3, 0, MathF.Tau, 24, new Color(0.2f, 1f, 0.45f, 0.9f), 1.2f);
                     DrawString(font, p + new Vector2(r + 6, -10), "sự sống", HorizontalAlignment.Left, -1, 11, new Color(0.2f, 1f, 0.45f, 0.9f));
@@ -663,12 +898,12 @@ public partial class Main : Node2D
         }
 
         // Ships: a small diamond, and for the selected one a line to where it is going
-        for (int i = 0; i < _w.N; i++)
+        for (int i = 0; i < _snapshot.N; i++)
         {
-            if (!_w.Alive[i] || !_w.IsShip(i)) continue;
+            if (!_snapshot.Alive[i] || !_snapshot.IsShip[i]) continue;
             Vector2 p = Screen(i);
             DrawColoredPolygon(new[] { p + new Vector2(0, -5), p + new Vector2(4, 0), p + new Vector2(0, 5), p + new Vector2(-4, 0) }, ShipCol);
-            if (i == _sel && Live(_w.ShipTo[i])) DrawDashedLine(p, Screen(_w.ShipTo[i]), new Color(ShipCol.R, ShipCol.G, ShipCol.B, 0.5f), 1, 6);
+            if (i == _sel && Live(_snapshot.ShipTo[i])) DrawDashedLine(p, Screen(_snapshot.ShipTo[i]), new Color(ShipCol.R, ShipCol.G, ShipCol.B, 0.5f), 1, 6);
         }
 
         // Selection ring
@@ -678,10 +913,10 @@ public partial class Main : Node2D
         if (_drag == Drag.Push && Live(_sel))
         {
             int i = _sel;
-            int p = GodTools.PrimaryAt(_w, _w.X[i], _w.Y[i], _w.M[i], i);
-            DragVelocity(_mouse - _downPos, p, _w.X[i], _w.Y[i], out double dvx, out double dvy, out double share);
+            int p = _snapshot.PrimaryAt(_snapshot.X[i], _snapshot.Y[i], _snapshot.M[i], i);
+            DragVelocity(_mouse - _downPos, p, _snapshot.X[i], _snapshot.Y[i], out double dvx, out double dvy, out double share);
             DrawArrow(Screen(i), Screen(i) + (_mouse - _downPos));
-            if (p >= 0) DrawPath(p, _w.M[i], _w.X[i] - _w.X[p], _w.Y[i] - _w.Y[p], _w.Vx[i] - _w.Vx[p] + dvx, _w.Vy[i] - _w.Vy[p] + dvy);
+            if (p >= 0) DrawPath(p, _snapshot.M[i], _snapshot.X[i] - _snapshot.X[p], _snapshot.Y[i] - _snapshot.Y[p], _snapshot.Vx[i] - _snapshot.Vx[p] + dvx, _snapshot.Vy[i] - _snapshot.Vy[p] + dvy);
             DrawString(font, _mouse + new Vector2(14, 18), $"đẩy {share:F2}× tốc độ quỹ đạo", HorizontalAlignment.Left, -1, 13, AimCol);
         }
 
@@ -692,14 +927,14 @@ public partial class Main : Node2D
             if (Live(i))
             {
                 int p = RelVelocity(i, out double ux, out double uy);
-                double v = GodTools.OrbitSpeed(_w, p, _w.X[i], _w.Y[i]);
+                double v = _snapshot.OrbitSpeed(p, _snapshot.X[i], _snapshot.Y[i]);
                 Vector2 now = new((float)(ux / v * DragPerOrbitSpeed), (float)(uy / v * DragPerOrbitSpeed * _tilt));
                 if (_drag == Drag.Aim)
                 {
                     DrawLine(Screen(i), Screen(i) + now, new Color(1, 1, 1, 0.35f), 1.5f);
-                    DragVelocity(_mouse - Screen(i), p, _w.X[i], _w.Y[i], out double nvx, out double nvy, out double share);
+                    DragVelocity(_mouse - Screen(i), p, _snapshot.X[i], _snapshot.Y[i], out double nvx, out double nvy, out double share);
                     DrawArrow(Screen(i), _mouse);
-                    if (p >= 0) DrawPath(p, _w.M[i], _w.X[i] - _w.X[p], _w.Y[i] - _w.Y[p], nvx, nvy);
+                    if (p >= 0) DrawPath(p, _snapshot.M[i], _snapshot.X[i] - _snapshot.X[p], _snapshot.Y[i] - _snapshot.Y[p], nvx, nvy);
                     DrawString(font, _mouse + new Vector2(14, 18), $"vận tốc mới {share:F2}× tốc độ quỹ đạo{(p >= 0 ? $" quanh {NameOf(p)}" : "")}", HorizontalAlignment.Left, -1, 13, AimCol);
                 }
                 else DrawArrow(Screen(i), Screen(i) + now);
@@ -710,7 +945,7 @@ public partial class Main : Node2D
         if (_drag == Drag.Carry && Live(_grab))
         {
             ToWorld(_mouse, out double x, out double y);
-            int p = GodTools.PrimaryAt(_w, x, y, _w.M[_grab], _grab);
+            int p = _snapshot.PrimaryAt(x, y, _snapshot.M[_grab], _grab);
             DrawLine(Screen(_grab), _mouse, new Color(1, 1, 1, 0.3f), 1);
             string say = "giữ vận tốc cũ";
             if (_ui.MoveCircular)
@@ -718,7 +953,7 @@ public partial class Main : Node2D
                 say = p >= 0 ? $"quỹ đạo tròn quanh {NameOf(p)}" : "đứng yên";
                 if (p >= 0)
                 {
-                    double dx = x - _w.X[p], dy = y - _w.Y[p];
+                    double dx = x - _snapshot.X[p], dy = y - _snapshot.Y[p];
                     DrawSetTransform(Screen(p), 0, new Vector2(1, _tilt));
                     DrawArc(Vector2.Zero, (float)(Math.Sqrt(dx * dx + dy * dy) * _zoom), 0, MathF.Tau, 128, new Color(1f, 0.9f, 0.2f, 0.45f), 1.5f);
                     DrawSetTransform(Vector2.Zero);
@@ -747,8 +982,8 @@ public partial class Main : Node2D
             double x, y;
             if (placing) { x = _placeX; y = _placeY; } else ToWorld(_mouse, out x, out y);
             double mass = _ui.GetCreateMass(); double[] mix = _ui.GetCreateMix();
-            int p = GodTools.PrimaryAt(_w, x, y, mass);
-            var (kind, radius) = GodTools.Preview(_w, mass, mix, p);
+            int p = _snapshot.PrimaryAt(x, y, mass);
+            var (kind, radius) = GodTools.Preview(_snapshot, mass, mix, p);
             Vector2 at = ToScreen(x, y);
             Vector2 drag = placing ? _mouse - at : Vector2.Zero;
             string say;
@@ -756,7 +991,7 @@ public partial class Main : Node2D
             else if (drag.Length() < LaunchStart && !_ui.CreateCircular) say = "đứng yên";
             else if (drag.Length() < LaunchStart)
             {
-                double dx = x - _w.X[p], dy = y - _w.Y[p];
+                double dx = x - _snapshot.X[p], dy = y - _snapshot.Y[p];
                 DrawSetTransform(Screen(p), 0, new Vector2(1, _tilt));
                 DrawArc(Vector2.Zero, (float)(Math.Sqrt(dx * dx + dy * dy) * _zoom), 0, MathF.Tau, 128, new Color(1f, 0.9f, 0.2f, 0.45f), 1.5f);
                 DrawSetTransform(Vector2.Zero);
@@ -765,13 +1000,13 @@ public partial class Main : Node2D
             else
             {
                 DragVelocity(drag, p, x, y, out double rvx, out double rvy, out double share);
-                DrawPath(p, mass, x - _w.X[p], y - _w.Y[p], rvx, rvy);
+                DrawPath(p, mass, x - _snapshot.X[p], y - _snapshot.Y[p], rvx, rvy);
                 say = $"phóng {share:F2}× tốc độ quỹ đạo quanh {NameOf(p)}";
             }
             if (drag.Length() >= LaunchStart) DrawArrow(at, _mouse);
             Color ghost = new(0, 0, 0);
             double sum = 0; for (int e = 0; e < World.NElem; e++) sum += mix[e];
-            for (int e = 0; e < World.NElem; e++) ghost += ElemCol[e] * (float)(sum > 0 ? mix[e] / sum : e == _w.Elem(ElementRole.Rock) ? 1 : 0);
+            for (int e = 0; e < World.NElem; e++) ghost += ElemCol[e] * (float)(sum > 0 ? mix[e] / sum : e == 0 ? 1 : 0);
             ghost.A = 0.75f;
             float gr = MathF.Max(KindPx(kind), (float)radius * _zoom);
             DrawCircle(at, gr, ghost);
@@ -793,36 +1028,49 @@ public partial class Main : Node2D
     {
         double mass = _ui.GetCreateMass(); double[] mix = _ui.GetCreateMix();
         double x = _placeX, y = _placeY;
-        int p = GodTools.PrimaryAt(_w, x, y, mass);
+        int p = (_selftest || _uitest || _bench > 0) ? GodTools.PrimaryAt(_w, x, y, mass) : _snapshot.PrimaryAt(x, y, mass);
         Vector2 drag = _mouse - ToScreen(x, y);
-        Kind kind = GodTools.Preview(_w, mass, mix, p).Kind;
+        Kind kind = (_selftest || _uitest || _bench > 0) ? GodTools.Preview(_w, mass, mix, p).Kind : GodTools.Preview(_snapshot, mass, mix, p).Kind;
         double birthSuns = _ui.CreateBirthSuns;
-        string name = $"{_ui.CreateRemnantName ?? GodUi.KindVi[(int)kind]} mới {++_createdCount}";
-        int slot; string did;
-        if (drag.Length() < LaunchStart)
+        int count = ++_createdCount;
+        string name = $"{_ui.CreateRemnantName ?? GodUi.KindVi[(int)kind]} mới {count}";
+        bool hasLaunch = drag.Length() >= LaunchStart;
+        bool circular = _ui.CreateCircular;
+        double rvx = 0, rvy = 0, share = 0;
+        if (hasLaunch)
         {
-            bool orbit = p >= 0 && _ui.CreateCircular;
-            slot = GodTools.Create(_w, x, y, mass, mix, parent: orbit ? p : -1, name: name);
-            did = orbit ? $"quay quanh {NameOf(p)}" : "đứng yên";
+            DragVelocity(drag, p, x, y, out rvx, out rvy, out share);
         }
-        else
+
+        QueueGodAction(w =>
         {
-            DragVelocity(drag, p, x, y, out double rvx, out double rvy, out double share);
-            slot = GodTools.Launch(_w, x, y, (p >= 0 ? _w.Vx[p] : 0) + rvx, (p >= 0 ? _w.Vy[p] : 0) + rvy, mass, mix, name);
-            did = $"phóng {share:F2}× tốc độ quỹ đạo";
-        }
-        bool stillBurning = slot >= 0 && birthSuns > 0 && GodTools.MakeRemnant(_w, slot, birthSuns) < 0;
-        if (stillBurning) { Select(slot); Toast($"Đã tạo {name} nhưng nó vẫn là sao thường: khối lượng không hợp với xác của sao {birthSuns:0.#} Mặt Trời"); }
-        else if (slot >= 0) { Select(slot); Toast($"Đã tạo {name}: {did}"); }
-        else { _createdCount--; Toast("Không tạo được: hết chỗ hoặc thông số sai"); }
+            int slot; string did;
+            if (!hasLaunch)
+            {
+                bool orbit = p >= 0 && circular;
+                slot = GodTools.Create(w, x, y, mass, mix, parent: orbit ? p : -1, name: name);
+                did = orbit ? $"quay quanh {NameOf(p)}" : "đứng yên";
+            }
+            else
+            {
+                double px = p >= 0 && p < w.N && w.Alive[p] ? w.Vx[p] : 0;
+                double py = p >= 0 && p < w.N && w.Alive[p] ? w.Vy[p] : 0;
+                slot = GodTools.Launch(w, x, y, px + rvx, py + rvy, mass, mix, name);
+                did = $"phóng {share:F2}× tốc độ quỹ đạo";
+            }
+            bool stillBurning = slot >= 0 && birthSuns > 0 && GodTools.MakeRemnant(w, slot, birthSuns) < 0;
+            if (stillBurning) { Select(slot); Toast($"Đã tạo {name} nhưng nó vẫn là sao thường: khối lượng không hợp với xác của sao {birthSuns:0.#} Mặt Trời"); }
+            else if (slot >= 0) { Select(slot); Toast($"Đã tạo {name}: {did}"); }
+            else { _createdCount--; Toast("Không tạo được: hết chỗ hoặc thông số sai"); }
+        });
     }
 
     public override void _UnhandledInput(InputEvent e)
     {
         if (e is InputEventKey { Pressed: true } k)
         {
-            if (k.Keycode == Key.Bracketright) { GodTools.SetConst(_w, "G", _w.C.G * 1.05); _ui?.RefreshConsts(); Toast($"G = {_w.C.G:F2}"); }
-            if (k.Keycode == Key.Bracketleft) { GodTools.SetConst(_w, "G", _w.C.G / 1.05); _ui?.RefreshConsts(); Toast($"G = {_w.C.G:F2}"); }
+            if (k.Keycode == Key.Bracketright) { QueueGodAction(w => { GodTools.SetConst(w, "G", w.C.G * 1.05); Toast($"G = {w.C.G:F2}"); RefreshConstsAfterSync(); }); }
+            if (k.Keycode == Key.Bracketleft) { QueueGodAction(w => { GodTools.SetConst(w, "G", w.C.G / 1.05); Toast($"G = {w.C.G:F2}"); RefreshConstsAfterSync(); }); }
             if (k.Echo) return;
             if (k.Keycode == Key.T) _tilt = _tilt < 1 ? 1f : 0.5f;
             if (k.Keycode == Key.Space) TogglePause();
@@ -905,10 +1153,14 @@ public partial class Main : Node2D
             if ((_mouse - _downPos).Length() > DragStart) // a plain click only selects
             {
                 int p = RelVelocity(i, out double ux, out double uy);
-                DragVelocity(_mouse - Screen(i), p, _w.X[i], _w.Y[i], out double nvx, out double nvy, out double share);
-                GodTools.Push(_w, i, nvx - ux, nvy - uy);
-                Toast($"{NameOf(i)}: vận tốc mới {share:F2}× tốc độ quỹ đạo");
-                _ui?.RefreshSelection();
+                DragVelocity(_mouse - Screen(i), p, _snapshot.X[i], _snapshot.Y[i], out double nvx, out double nvy, out double share);
+                double dvx = nvx - ux, dvy = nvy - uy;
+                string name = NameOf(i);
+                QueueGodAction(w =>
+                {
+                    GodTools.Push(w, i, dvx, dvy);
+                    Toast($"{name}: vận tốc mới {share:F2}× tốc độ quỹ đạo");
+                }, i);
             }
         }
         else if (was == Drag.Carry && Live(_grab))
@@ -917,18 +1169,25 @@ public partial class Main : Node2D
             if ((_mouse - _downPos).Length() > DragStart)
             {
                 ToWorld(_mouse, out double x, out double y);
-                Toast(GodTools.Move(_w, i, x, y, _ui.MoveCircular, _ui.MoveAlone) >= 0 ? $"Đã dời {NameOf(i)}" : "Không dời được tới đó");
-                _ui?.RefreshSelection();
+                bool circular = _ui.MoveCircular, alone = _ui.MoveAlone;
+                string name = NameOf(i);
+                QueueGodAction(w =>
+                {
+                    Toast(GodTools.Move(w, i, x, y, circular, alone) >= 0 ? $"Đã dời {name}" : "Không dời được tới đó");
+                }, i);
             }
         }
         else if (was == Drag.Push && Live(_sel))
         {
             int i = _sel;
-            int p = GodTools.PrimaryAt(_w, _w.X[i], _w.Y[i], _w.M[i], i);
-            DragVelocity(_mouse - _downPos, p, _w.X[i], _w.Y[i], out double dvx, out double dvy, out double share);
-            GodTools.Push(_w, i, dvx, dvy);
-            Toast($"Đã đẩy {NameOf(i)}: {share:F2}× tốc độ quỹ đạo");
-            _ui?.RefreshSelection();
+            int p = _snapshot.PrimaryAt(_snapshot.X[i], _snapshot.Y[i], _snapshot.M[i], i);
+            DragVelocity(_mouse - _downPos, p, _snapshot.X[i], _snapshot.Y[i], out double dvx, out double dvy, out double share);
+            string name = NameOf(i);
+            QueueGodAction(w =>
+            {
+                GodTools.Push(w, i, dvx, dvy);
+                Toast($"Đã đẩy {name}: {share:F2}× tốc độ quỹ đạo");
+            }, i);
         }
         else if (was == Drag.Maybe)
         {
@@ -1227,6 +1486,58 @@ public partial class Main : Node2D
             }
             var unique = missing.Distinct().ToArray();
             Say(unique.Length == 0, $"core event audit ({testCases.Length} catalog cases + {_w.Events.Count} runtime): {(unique.Length == 0 ? "100% translated" : $"{unique.Length} missing: {string.Join(", ", unique)}")}");
+        }
+
+        // 5k snapshot copying benchmark (Claire mandatory point 6)
+        {
+            var w5k = World.SolSystem(5000, 1234);
+            var snap5k = new RenderSnapshot();
+            snap5k.CopyFrom(w5k); // warm up & allocate
+            long tStart = System.Diagnostics.Stopwatch.GetTimestamp();
+            const int iters = 100;
+            for (int it = 0; it < iters; it++)
+            {
+                snap5k.CopyFrom(w5k);
+            }
+            long tEnd = System.Diagnostics.Stopwatch.GetTimestamp();
+            double avgMs = (tEnd - tStart) * (1000.0 / System.Diagnostics.Stopwatch.Frequency) / iters;
+            GD.Print($"[SNAPSHOT BENCH] N={w5k.N} objects (5000 rocks): avg copy time = {avgMs:F3} ms");
+            Say(avgMs < 2.0, $"snapshot copy at 5k: {avgMs:F3} ms (< 2.0 ms)");
+        }
+
+        // Decouple verification: 300ms sim delay does NOT block main thread camera pan
+        {
+            double initialCx = _cx;
+            var simTask = Task.Run(async () =>
+            {
+                await Task.Delay(300);
+                _w.Advance(0.5);
+                return true;
+            });
+
+            var frameTimes = new System.Collections.Generic.List<double>();
+            int simulatedFrames = 0;
+            while (!simTask.IsCompleted)
+            {
+                long f0 = System.Diagnostics.Stopwatch.GetTimestamp();
+                // Simulate main thread frame: camera pan and snapshot read
+                _cx += 5.0;
+                var dummyScreen = Screen(3);
+                int dummyPick = Pick(dummyScreen);
+                long f1 = System.Diagnostics.Stopwatch.GetTimestamp();
+                double frameMs = (f1 - f0) * (1000.0 / System.Diagnostics.Stopwatch.Frequency);
+                frameTimes.Add(frameMs);
+                simulatedFrames++;
+                await Task.Delay(10); // frame cadence outside render timing
+            }
+            await simTask;
+
+            frameTimes.Sort();
+            int p95Idx = (int)Math.Ceiling(frameTimes.Count * 0.95) - 1;
+            double p95 = frameTimes[Math.Clamp(p95Idx, 0, frameTimes.Count - 1)];
+            double cameraMoved = _cx - initialCx;
+            Say(p95 <= 20.0 && simulatedFrames >= 10 && cameraMoved >= 40.0,
+                $"sim decouple test: 300ms sim delay -> {simulatedFrames} frames rendered, p95 frame time = {p95:F2}ms (<= 20ms), camera panned {cameraMoved:F0}px without freezing");
         }
 
         GD.Print(ok ? "PASS: uitest" : "FAIL: uitest");

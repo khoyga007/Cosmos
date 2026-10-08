@@ -36,6 +36,29 @@ public static class GodTools
         return (kind, radius);
     }
 
+    public static (Kind Kind, double Radius) Preview(RenderSnapshot s, double mass, double[] mix, int parent = -1)
+    {
+        double sum = 0;
+        for (int i = 0; i < World.NElem && i < mix.Length; i++) sum += Math.Max(0, mix[i]);
+        if (sum <= 0) sum = 1.0;
+
+        double vol = 0;
+        for (int e = 0; e < World.NElem; e++)
+        {
+            double share = (e < mix.Length ? Math.Max(0, mix[e]) : 0) / sum;
+            vol += (mass * share) / s.Density[e];
+        }
+        double radius = s.RadiusScale * Math.Cbrt(vol);
+
+        Kind kind;
+        if (mass >= s.StarMass) kind = Kind.Star;
+        else if (mass < s.AttractMass) kind = Kind.Rock;
+        else if (parent >= 0 && parent < s.N && s.Alive[parent] && s.M[parent] < s.StarMass) kind = Kind.Moon;
+        else kind = Kind.Planet;
+
+        return (kind, radius);
+    }
+
     /// <summary>
     /// Normalizes mix array so sum is 1.0. Returns double[6].
     /// </summary>
@@ -220,10 +243,16 @@ public static class GodTools
     /// </summary>
     public static int Predict(World w, int primary, double mass, double rx, double ry, double rvx, double rvy, double[] path, out bool hits)
     {
+        if (primary < 0 || primary >= w.N || !w.Alive[primary]) { hits = false; return 0; }
+        return Predict(w.C.G, w.M[primary], w.R[primary], mass, rx, ry, rvx, rvy, path, out hits);
+    }
+
+    public static int Predict(double G, double primaryMass, double primaryRadius, double mass, double rx, double ry, double rvx, double rvy, double[] path, out bool hits)
+    {
         hits = false;
         int max = path.Length / 2;
-        if (primary < 0 || max < 2) return 0;
-        double mu = w.C.G * (w.M[primary] + mass), r = Math.Sqrt(rx * rx + ry * ry);
+        if (max < 2) return 0;
+        double mu = G * (primaryMass + mass), r = Math.Sqrt(rx * rx + ry * ry);
         if (!(r > 0) || !(mu > 0)) return 0;
         double v2 = rvx * rvx + rvy * rvy, inva = 2 / r - v2 / mu;
         // one whole turn when it is held; otherwise far enough to show where it leaves to
@@ -240,7 +269,7 @@ public static class GodTools
                 rx += rvx * dt; ry += rvy * dt;
                 r = Math.Sqrt(rx * rx + ry * ry); r3 = r * r * r;
                 rvx -= mu * rx / r3 * dt * 0.5; rvy -= mu * ry / r3 * dt * 0.5;
-                if (r < w.R[primary]) { hits = true; break; }
+                if (r < primaryRadius) { hits = true; break; }
             }
             if (!double.IsFinite(rx) || !double.IsFinite(ry)) break;
             path[n * 2] = rx; path[n * 2 + 1] = ry; n++;
