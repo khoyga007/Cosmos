@@ -228,3 +228,9 @@ Constraints: Hash discipline (new Consts are FIELDS), replay via Command, mass/p
 Open Qs for Yang: realism target (billiard accretion enough vs real gas collapse)? does the cloud tool live in god window (needs UI, after Alpha)? star birth visible live or only after time jump?
 
 §12 DECISIONS (Yang 2026-10-08): realism = REAL gas collapse (Jeans, pressure), billiard accretion NOT enough. Cloud tool = after Alpha OK. Star birth = watch LIVE (not only after time jump) -> needs cost budget so collapse runs at playable speed; plan slice (c)+(d) accordingly, rails/jump must also handle cloud state.
+
+## §13 Perf invariant for god powers (Yang 2026-10-08)
+Rule: NO god action may collapse fps. Yang: "nobody wants to drop a black hole in a system and watch fps die". Any command (create NS/BH, SetConst G x100, huge mass, mass object spawn, star inside planet) must have BOUNDED per-step cost: work caps + deferral (time-slice across steps, physics may lag/simplify, fps must not).
+Origin: C6 Roche passed stock-scene gates (typical collect <=0.25ms) but NS drop = 26.2x slower (paired median, Celine, a1c832f): fragments re-shred cascade + broad-phase scan. Gate tested typical scenes only = process gap.
+Todo: (1) "god torture" cli suite: NS drop, BH drop, G x100, mass 1e6, create 10k rocks, star inside planet, many NS; per-Advance ms bound as PAIRED MEDIAN, Release, vs own baseline; run on every merge touching core. (2) per-step hard budget (ms or work units) in Roche/gravity entry, excess deferred. (3) scale curve 1k/5k/20k objects. (4) design check: every new Command declares worst-case cost.
+Owner: Celine (core, after roche-no-reshred), Selica QA runs suite. Related: Roche broad-phase debt (see C6).
