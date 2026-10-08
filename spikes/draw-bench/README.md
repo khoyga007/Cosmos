@@ -13,18 +13,18 @@ Spike đo đạc hiệu năng render 2D (MultiMesh vs Bevy Wgpu Point Mesh) ph�
 
 | Engine | Cảnh | Biến Thể | Điểm / Hạt | FPS Avg | Frame ms (Avg / p95 / p99) | CPU Push (ms) | RAM (MB) | GPU Adapter |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| **Godot** | A | CPU Push | 100,000 | ... | ... / ... / ... | ... | ... | NVIDIA GeForce GTX 1650 |
-| **Godot** | A | Shader RAIL | 100,000 | ... | ... / ... / ... | ... | ... | NVIDIA GeForce GTX 1650 |
-| **Bevy** | A | CPU Push | 100,000 | ... | ... / ... / ... | ... | ... | NVIDIA GeForce GTX 1650 |
-| **Bevy** | A | Shader RAIL | 100,000 | ... | ... / ... / ... | ... | ... | NVIDIA GeForce GTX 1650 |
-| **Godot** | B | CPU Push | 1,000,000 | ... | ... / ... / ... | ... | ... | NVIDIA GeForce GTX 1650 |
-| **Godot** | B | Shader RAIL | 1,000,000 | ... | ... / ... / ... | ... | ... | NVIDIA GeForce GTX 1650 |
-| **Bevy** | B | CPU Push | 1,000,000 | ... | ... / ... / ... | ... | ... | NVIDIA GeForce GTX 1650 |
-| **Bevy** | B | Shader RAIL | 1,000,000 | ... | ... / ... / ... | ... | ... | NVIDIA GeForce GTX 1650 |
-| **Godot** | C | CPU Push | 1,000,000 + FX | ... | ... / ... / ... | ... | ... | NVIDIA GeForce GTX 1650 |
-| **Godot** | C | Shader RAIL | 1,000,000 + FX | ... | ... / ... / ... | ... | ... | NVIDIA GeForce GTX 1650 |
-| **Bevy** | C | CPU Push | 1,000,000 + FX | ... | ... / ... / ... | ... | ... | NVIDIA GeForce GTX 1650 |
-| **Bevy** | C | Shader RAIL | 1,000,000 + FX | ... | ... / ... / ... | ... | ... | NVIDIA GeForce GTX 1650 |
+| **Godot** | A | CPU Push | 100,000 | ... | ... / ... / ... | ... | ... | ... |
+| **Godot** | A | Shader RAIL | 100,000 | ... | ... / ... / ... | ... | ... | ... |
+| **Bevy** | A | CPU Push | 100,000 | ... | ... / ... / ... | ... | ... | ... |
+| **Bevy** | A | Shader RAIL | 100,000 | ... | ... / ... / ... | ... | ... | ... |
+| **Godot** | B | CPU Push | 1,000,000 | ... | ... / ... / ... | ... | ... | ... |
+| **Godot** | B | Shader RAIL | 1,000,000 | ... | ... / ... / ... | ... | ... | ... |
+| **Bevy** | B | CPU Push | 1,000,000 | ... | ... / ... / ... | ... | ... | ... |
+| **Bevy** | B | Shader RAIL | 1,000,000 | ... | ... / ... / ... | ... | ... | ... |
+| **Godot** | C | CPU Push | 1,000,000 + FX | ... | ... / ... / ... | ... | ... | ... |
+| **Godot** | C | Shader RAIL | 1,000,000 + FX | ... | ... / ... / ... | ... | ... | ... |
+| **Bevy** | C | CPU Push | 1,000,000 + FX | ... | ... / ... / ... | ... | ... | ... |
+| **Bevy** | C | Shader RAIL | 1,000,000 + FX | ... | ... / ... / ... | ... | ... | ... |
 
 *(Ghi chú Cảnh C: 1M chấm + 200 quầng sáng bloom/glow + 50k hạt nổ GPU explosion particles).*
 
