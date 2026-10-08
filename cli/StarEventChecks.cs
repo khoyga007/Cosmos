@@ -9,10 +9,10 @@ static class StarEventChecks
     {
         bool ok = true;
         void Check(bool pass, string line) { ok &= pass; Console.WriteLine($"{(pass ? "OK    " : "FAILED")} star-events: {line}"); }
-        // S1 re-capture 2026-10-06; A2 re-capture 2026-10-07; C6/rebase fresh capture 2026-10-08: new Consts fields & C6 Roche on base.
+        // R 2026-10-08 capture: hashed RocheChangesPerStep 256->16 (single-star cases have no tidal victims).
         double[] births = { 1.23, 2.0000000000000004, 7.999999999, 8.0, 20.0, 20.0000001, 31.123 };
-        ulong[] legacy = { 0x89D797BDF91DA090, 0xAFA16CBAD36AB034, 0xB5B49F0C980349EA, 0x1309AE888DF43879,
-            0xFD484FE9BC27BA16, 0x28219D4E31380FA4, 0x77753EA5494C4736 };
+        ulong[] legacy = { 0xDE60EE8407A29E50, 0xE634B0AB05451474, 0x3CE1EA25AB4FF8AA, 0x9494F5A54908EF39,
+            0xED5ACD6AC0F231D6, 0xE035C66C00FD3FE4, 0xFF6A5ACDD27D6976 };
         bool exact = true; var got = new List<string>();
         for (int n = 0; n < births.Length; n++)
         {
