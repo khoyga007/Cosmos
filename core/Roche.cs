@@ -208,12 +208,28 @@ public sealed partial class World
     {
         var best = (Time: double.PositiveInfinity, Body: -1, Host: -1, BodyGen: 0, HostGen: 0);
         if (!RocheEnabled || _rocheChanges >= C.RocheChangesPerStep) return best;
+        var upperByHost = new Dictionary<int, double>();
+        double minDensity = C.Density.Min(), maxK = Math.Max(C.RocheRigid, C.RocheFluid);
         foreach (var pair in _rocheCandidates)
         {
             int i = pair.Body, p = pair.Host;
             if (!Alive[i] || !Alive[p] || Gen[i] != pair.BodyGen || Gen[p] != pair.HostGen) continue;
+            double dx = X[i] - X[p], dy = Y[i] - Y[p], d2 = dx * dx + dy * dy;
+            if (!upperByHost.TryGetValue(p, out double upper))
+                upperByHost[p] = upper = Math.BitIncrement(maxK * R[p] * Math.Cbrt(MaterialDensity(p) / minDensity)
+                    * Math.Sqrt(1 + C.RocheEntryTolerance));
+            if (upper > 0 && d2 > upper * upper)
+            {
+                double ux = Vx[i] - Vx[p], uy = Vy[i] - Vy[p], v2 = ux * ux + uy * uy;
+                double mu = C.G * (M[i] + M[p]), distance = Math.Sqrt(d2);
+                // Before reaching the larger cohesionless sphere, energy bounds speed by
+                // sqrt(v²+2mu/upper). Straight fallback is slower still. Do not cull nearly
+                // parabolic bound orbits: cancellation in the legacy anomaly solver may round time to zero.
+                double inva = 2 / distance - v2 / mu;
+                if ((inva <= 0 || inva * distance > 1e-6)
+                    && distance - upper > seconds * Math.Sqrt(v2 + 2 * mu / upper)) continue;
+            }
             double radius = RocheLimitCore(i, p, true); if (!(radius > R[p] + R[i])) continue;
-            double dx = X[i] - X[p], dy = Y[i] - Y[p];
             // Once the intact bodies overlap, the ordinary contact path owns the outcome.
             double contact = R[p] + R[i];
             if (dx * dx + dy * dy <= contact * contact) continue;
@@ -282,6 +298,31 @@ public sealed partial class World
         _rocheReservoirs.Add(new(host, Gen[host], x, y, mass, mass * vx, mass * vy, angular, Array.AsReadOnly(matter)));
     }
 
+    double StableRocheFragmentMass(int body, int host, double separation, double budgetMass)
+    {
+        // Invert the SAME size/strength law used for intact objects, at the children's planned location.
+        // A cloud inside the cohesionless limit has no stable zero-strength resolved fragment size.
+        double distance = Math.BitDecrement(separation / (1 + 4 * C.RocheEntryTolerance));
+        if (!(distance > R[host]) || !(budgetMass > 0)) return 0;
+        var material = RocheProperties(body, false);
+        double radius = Math.Min(R[body], distance - R[host]);
+        double loose = material.K * R[host] * Math.Cbrt(MaterialDensity(host) / material.Density);
+        if (loose > distance)
+        {
+            if (!(material.Strength > 0)) return 0;
+            double ratio = loose / distance, excess = ratio * ratio * ratio - 1;
+            double densitySI = material.Density * C.RocheDensityKgM3;
+            double metres = Math.Sqrt(material.Strength / (C.RochePhysicalG * C.G * densitySI * densitySI * excess));
+            radius = Math.Min(radius, metres * EarthRadiusRef / (C.EarthRadiusKm * 1000));
+        }
+        // Leave roundoff clearance: entry regards a point on the limit as already disrupting.
+        radius = Math.BitDecrement(radius);
+        double fraction = radius / R[body];
+        // Use the lower half of the stable mass range, rather than planting every child on the
+        // failure boundary: subsequent simultaneous captures can shift the host's COM slightly.
+        return Math.Min(budgetMass, .5 * M[body] * fraction * fraction * fraction);
+    }
+
     void BreakRoche(int i, int p)
     {
         if (!Alive[i] || !Alive[p]) return;
@@ -321,14 +362,16 @@ public sealed partial class World
         int small = 0; for (int s = 0; s < N; s++) if (Alive[s] && !Attracts(s)) small++;
         int count = (int)Math.Max(0, Math.Min(Math.Min(C.RocheFragments, X.Length - Live + 1), C.RocheRockBudget - small));
         count -= count % 2;
-        double represented = Math.Min(captured, count * Math.Min(C.RocheFragmentMass, C.AttractMass * .5));
-        if (!(represented > 0)) { count = 0; represented = 0; }
-        double unresolved = captured - represented;
         double reduced = captured > 0 ? pm * captured / (pm + captured) : 0;
         double angular = reduced * capturedAngular, circular = captured > 0 ? Math.Pow(angular / captured, 2) / (C.G * pm) : 0;
         double beforeEnergy = reduced * (ux * ux + uy * uy) / 2 - C.G * pm * captured / capturedRadius;
         double circularEnergy = circular > 0 ? -C.G * pm * captured / (2 * circular) : double.PositiveInfinity;
         bool ring = captured > 0 && circular > R[p] && circular < roche && circularEnergy <= beforeEnergy;
+        double fragmentMass = StableRocheFragmentMass(i, p, ring ? circular : capturedRadius,
+            Math.Min(C.RocheFragmentMass, C.AttractMass * .5));
+        double represented = Math.Min(captured, count * fragmentMass);
+        if (!(represented > 0)) { count = 0; represented = 0; }
+        double unresolved = captured - represented;
         double centerX = ring ? (pm * X[p] + captured * captureX) / (pm + captured) : captureX;
         double centerY = ring ? (pm * Y[p] + captured * captureY) / (pm + captured) : captureY;
         double centerVx = ring ? (pm * Vx[p] + captured * vx) / (pm + captured) : vx;

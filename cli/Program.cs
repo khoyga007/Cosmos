@@ -55,6 +55,14 @@ if (args.Length > 0 && args[0] == "ships") return ShipChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "conserve") return ConserveChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "cosmic") return CosmicChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "roche") return RocheChecks.Run() ? 0 : 1;
+if (args.Length > 0 && args[0] == "ns-drop-check") return NsDropChecks.Run(false) ? 0 : 1;
+if (args.Length > 0 && args[0] == "ns-drop") return NsDropChecks.Run() ? 0 : 1;
+if (args.Length > 0 && args[0] == "roche-query") return RocheQueryChecks.Run() ? 0 : 1;
+if (args.Length > 0 && args[0] == "ns-drop-scaling")
+{
+    bool scaleOk=true;foreach(int count in new[] { 1000, 5000, 20000 }) scaleOk &= NsDropChecks.Bench(count);
+    return scaleOk ? 0 : 1;
+}
 if (args.Length > 0 && args[0] == "roche-bench") return RocheBench.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "rules") return RuleChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "species") return SpeciesChecks.Run() ? 0 : 1;
@@ -162,6 +170,8 @@ allOk &= ShipChecks.Run();
 allOk &= ConserveChecks.Run();
 allOk &= CosmicChecks.Run();
 allOk &= RocheChecks.Run();
+allOk &= NsDropChecks.Run();
+allOk &= RocheQueryChecks.Run();
 allOk &= SpeciesChecks.Run();
 allOk &= CapNodeChecks.Run();
 allOk &= Audit.Run();
