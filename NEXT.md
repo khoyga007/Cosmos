@@ -1,5 +1,3 @@
-## HEAT LAW 2026-10-08 — READ SPEC §15 FIRST
-
 ## P0 — FIRST THING NEXT SESSION (Yang order 10-08): compact objects swallow nothing
 
 Yang playtest 10-08, master 82bf5a4: neutron star dropped beside Sol, ate the Sun, became BH. Rocks/ice reach the drawn core, do not vanish, fling out; hundreds of near-circular rings; zero infall. Screenshot: 5512 objects (10 pullers), 553 contacts, BH mass 2.5E+06 Earth, radius 0.000263, PAUSED at 24 fps. Yang: "nếu nó không biến mất đi như thế thì chẳng lag quá còn gì" — no sink = count only grows = lag. Yang: "nhớ ưu tiên đầu tiên nhất cho phiên sau".
@@ -20,6 +18,8 @@ Order of work:
 - g. Side finding: paused at 24 fps = draw cost (trails?). Draw-bench measured points only.
 
 Parked until Yang says go: F v2 re-review + paired perf (Ariel fix of core/Rails.cs:274 pending), draw-bench bat.
+
+## HEAT LAW 2026-10-08 — READ SPEC §15 FIRST
 
 Yang GO. Rocks = mass (aggregate), bodies only when something happens; one-way law + Usable gauge; self-merging. §15.6 build order: (1) Usable gauge+invariant on current code [Celine], (2) one-system belt-as-mass + shatter slice, (3) K=200. Supersedes §14C per-rock RAIL. Local gravity S1 A+B, sim worker F, PROF continue.
 
