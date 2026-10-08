@@ -45,7 +45,7 @@ if (-not $finished) {
         }
     } catch {}
 
-    # Ghi log kết quả TIMEOUT để aggregate_results.py ghi nhận
+    # Ghi log kt qu TIMEOUT  aggregate_results.py ghi nhn
     $timeoutResult = @{
         engine = $Engine
         scene = $Scene

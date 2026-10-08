@@ -9,7 +9,7 @@ echo May chuan: Yang Core i5-10300H (4C/8T), NVIDIA GTX 1650 dGPU (4GB VRAM)
 echo Co che:
 echo   [1] Kiem tra dGPU: Bat buoc NVIDIA GTX 1650; Chan hoan toan Intel UHD.
 echo   [2] Watchdog OS: 25s moi scene qua PowerShell; taskkill cuong che neu treo.
-echo   [3] Fail-Stop: Chay tang dan (A -> D1 -> D2 -> D3 -> B -> C); Dung ngay neu loi.
+echo   [3] Fail-Stop: Chay tang dan (A to D1 to D2 to D3 to B to C); Dung ngay neu loi.
 echo   [4] 2 Luot do: Capped 60 FPS (thuc te game) va Uncapped (stress throughput).
 echo   [5] Canh vat ly s15: Hat GPU (100k/300k/1M) + 1.000 bodies Keplerian that.
 echo =========================================================================
@@ -55,7 +55,7 @@ echo =========================================================================
 echo.
 
 :: -------------------------------------------------------------------------
-:: 1. SCENE A (100k points thuần)
+:: 1. SCENE A (100k points thun)
 :: -------------------------------------------------------------------------
 call :RUN_STEP "godot" "A" "shader" 60 "results\godot_A_shader_cap60.json" "Godot Scene A (100k) - Shader - Capped 60 FPS"
 if !STEP_ERR! NEQ 0 goto :FAIL_STOP
@@ -72,7 +72,7 @@ if "%HAS_BEVY%"=="1" (
 )
 
 :: -------------------------------------------------------------------------
-:: 2. SCENE D1 (§15: 100k hạt GPU + 1.000 bodies thật)
+:: 2. SCENE D1 (15: 100k ht GPU + 1.000 bodies tht)
 :: -------------------------------------------------------------------------
 call :RUN_STEP "godot" "D1" "shader" 60 "results\godot_D1_shader_cap60.json" "Godot Scene D1 (100k + 1k bodies) - Shader - Capped 60 FPS"
 if !STEP_ERR! NEQ 0 goto :FAIL_STOP
@@ -89,7 +89,7 @@ if "%HAS_BEVY%"=="1" (
 )
 
 :: -------------------------------------------------------------------------
-:: 3. SCENE D2 (§15: 300k hạt GPU + 1.000 bodies thật)
+:: 3. SCENE D2 (15: 300k ht GPU + 1.000 bodies tht)
 :: -------------------------------------------------------------------------
 call :RUN_STEP "godot" "D2" "shader" 60 "results\godot_D2_shader_cap60.json" "Godot Scene D2 (300k + 1k bodies) - Shader - Capped 60 FPS"
 if !STEP_ERR! NEQ 0 goto :FAIL_STOP
@@ -106,7 +106,7 @@ if "%HAS_BEVY%"=="1" (
 )
 
 :: -------------------------------------------------------------------------
-:: 4. SCENE D3 (§15: 1M hạt GPU + 1.000 bodies thật)
+:: 4. SCENE D3 (15: 1M ht GPU + 1.000 bodies tht)
 :: -------------------------------------------------------------------------
 call :RUN_STEP "godot" "D3" "shader" 60 "results\godot_D3_shader_cap60.json" "Godot Scene D3 (1M + 1k bodies) - Shader - Capped 60 FPS"
 if !STEP_ERR! NEQ 0 goto :FAIL_STOP
@@ -123,7 +123,7 @@ if "%HAS_BEVY%"=="1" (
 )
 
 :: -------------------------------------------------------------------------
-:: 5. SCENE B (1M points thuần)
+:: 5. SCENE B (1M points thun)
 :: -------------------------------------------------------------------------
 call :RUN_STEP "godot" "B" "shader" 60 "results\godot_B_shader_cap60.json" "Godot Scene B (1M) - Shader - Capped 60 FPS"
 if !STEP_ERR! NEQ 0 goto :FAIL_STOP
