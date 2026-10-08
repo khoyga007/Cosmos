@@ -1,4 +1,26 @@
 ## HEAT LAW 2026-10-08 — READ SPEC §15 FIRST
+
+## P0 — FIRST THING NEXT SESSION (Yang order 10-08): compact objects swallow nothing
+
+Yang playtest 10-08, master 82bf5a4: neutron star dropped beside Sol, ate the Sun, became BH. Rocks/ice reach the drawn core, do not vanish, fling out; hundreds of near-circular rings; zero infall. Screenshot: 5512 objects (10 pullers), 553 contacts, BH mass 2.5E+06 Earth, radius 0.000263, PAUSED at 24 fps. Yang: "nếu nó không biến mất đi như thế thì chẳng lag quá còn gì" — no sink = count only grows = lag. Yang: "nhớ ưu tiên đầu tiên nhất cho phiên sau".
+
+Causes (1-2 read in code, 3-4 unverified):
+1. Only sink = contact with true surface (core/World.cs:441, :450 -> Merge :209). NS radius core/Stars.cs:210, BH Schwarzschild :211 — far below the drawn dot (game/Main.cs:327-333). Unhittable.
+2. No dissipation: rock passes through rock (core/World.cs:387). No energy loss -> no inspiral, no accretion disc.
+3. Roche journal says "bắt giữ thành vành đai": the rule may itself put fragments on bound orbits. Check core/Roche.cs.
+4. Roche shreds 1e-13..1e-18 Earth-mass grains, incl. "sinh 0 mảnh" events. Unphysical (material strength, not self-gravity) and wasted ms.
+
+Order of work:
+- a. Read Celine probe report (bridge thread cosmos, msgs 0c6eca91 + 9a737ccf + ced1ad7a; 11 questions, measure-only). If absent: Yang has not prompted her yet — say so, do not re-queue.
+- b. Tell Yang the numbers in plain words. STOP. He decides the next round (rule: Yang in the loop, one round per agent, no chains).
+- c. Candidate early fixes, before Heat Law core: Roche minimum-size threshold (4); fragment velocity if (3) confirmed.
+- d. Heat Law core (Claire writes, after quota reset ~10-10) MUST include accretion: debris mass around a compact object loses orbital energy and drains in; energy to ledger. Acceptance scene = this one: matter visibly swallowed, object count goes DOWN over time.
+- e. New test class, before any more perf work: phenomenon checks (what a player expects to SEE), phrased as outcome fractions. First one: this scene.
+- f. Look question for Yang only after numbers: drawn size != contact size. Not ours to decide.
+- g. Side finding: paused at 24 fps = draw cost (trails?). Draw-bench measured points only.
+
+Parked until Yang says go: F v2 re-review + paired perf (Ariel fix of core/Rails.cs:274 pending), draw-bench bat.
+
 Yang GO. Rocks = mass (aggregate), bodies only when something happens; one-way law + Usable gauge; self-merging. §15.6 build order: (1) Usable gauge+invariant on current code [Celine], (2) one-system belt-as-mass + shatter slice, (3) K=200. Supersedes §14C per-rock RAIL. Local gravity S1 A+B, sim worker F, PROF continue.
 
 # Cosmos — state
