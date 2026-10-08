@@ -186,6 +186,7 @@ public sealed partial class World
         for (int e = 0; e < ElementCount; e++) Comp[i * ElementCount + e] = e < mix.Length ? m * mix[e] : 0;
         ResetTemperature(i); ResetLayers(i);
         ResetStars(i); SetRadius(i); Live++;
+        _pullingHierarchyValid = false;
         return i;
     }
 
@@ -225,6 +226,7 @@ public sealed partial class World
         if (M[d] >= C.AttractMass || Life[d] > 0 || Pop[d] > 0) LogEvent(d, "contact", "merge", k, M[d], Gen[d]);
         EndSwallowedWorld(d);
         Alive[d] = false; M[d] = 0; _free.Push(d); Live--; Merges++;
+        _pullingHierarchyValid = false;
         Gone(d, k);
         ApplyStarEvents(k, StarTransition.Merger, first, firstMass, second, secondMass);
         if (Alive[k]) SetRadius(k);

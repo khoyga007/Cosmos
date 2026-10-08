@@ -234,9 +234,13 @@ public sealed partial class World
     }
 
     int _naPulling;
+    bool _pullingHierarchyValid;
+
+    public void InvalidatePullingHierarchy() => _pullingHierarchyValid = false;
 
     public void BuildPullingHierarchy()
     {
+        if (_pullingHierarchyValid && _prim != null) return;
         int cap = X.Length;
         if (_prim == null)
         {
@@ -249,7 +253,7 @@ public sealed partial class World
         for (int i = 0; i < N; i++) if (Alive[i] && Attracts(i)) _ord![na++] = i;
         _naPulling = na;
         _na = na;
-        if (na == 0) return;
+        if (na == 0) { _pullingHierarchyValid = true; return; }
         Array.Copy(_ord!, _att, na);
         Array.Sort(_ord!, 0, na, _heavyFirst);
 
@@ -260,6 +264,23 @@ public sealed partial class World
             int i = _ord[k], p = FindPrimaryInHierarchy(i, k);
             double dx = X[i] - X[p], dy = Y[i] - Y[p];
             _prim[i] = p; _hill[i] = Math.Sqrt(dx * dx + dy * dy) * Math.Cbrt(M[i] / (3 * M[p]));
+        }
+        _pullingHierarchyValid = true;
+    }
+
+    public void BulkReadPullingDerived(double[] outHill, Kind[] outKind)
+    {
+        BuildPullingHierarchy();
+        int na = _naPulling;
+        int root = na > 0 ? _ord![0] : -1;
+        for (int i = 0; i < N; i++)
+        {
+            if (!Alive[i]) { outHill[i] = 0; outKind[i] = Kind.Rock; continue; }
+            if (M[i] >= C.StarMass) { outHill[i] = _hill != null ? _hill[i] : 0; outKind[i] = Kind.Star; continue; }
+            if (!Attracts(i)) { outHill[i] = 0; outKind[i] = Kind.Rock; continue; }
+            outHill[i] = _hill != null ? _hill[i] : 0;
+            int p = (na == 0 || i == root) ? -1 : (_prim != null ? _prim[i] : -1);
+            outKind[i] = p >= 0 && Alive[p] && M[p] < C.StarMass ? Kind.Moon : Kind.Planet;
         }
     }
 

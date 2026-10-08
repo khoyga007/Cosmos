@@ -68,6 +68,7 @@ public sealed partial class World
                 for (int e = 0; e < ElementCount; e++) m += Comp[o + e];
                 if (m <= 0) { Kill(i); return i; }
                 M[i] = m; SetRadius(i);
+                _pullingHierarchyValid = false;
                 return i;
             }
             case CmdKind.Push:
@@ -82,6 +83,7 @@ public sealed partial class World
                     _rocheRule.NextYear = Math.Min(_rocheRule.NextYear, Year + C.RocheRhythmYears);
                 }
                 RecalcRadii();
+                _pullingHierarchyValid = false;
                 for (int i = 0; i < N; i++)
                 {
                     if (Alive[i] && (!double.IsFinite(R[i]) || R[i] <= 0 || !double.IsFinite(M[i]) || M[i] <= 0))
@@ -128,6 +130,7 @@ public sealed partial class World
                     X[i] += mx; Y[i] += my; Vx[i] += mvx; Vy[i] += mvy;
                 }
                 X[t] = c.X; Y[t] = c.Y; Vx[t] = c.Vx; Vy[t] = c.Vy;
+                _pullingHierarchyValid = false;
                 return t;
             }
             case CmdKind.Force:
@@ -155,6 +158,7 @@ public sealed partial class World
     void Kill(int d)
     {
         Alive[d] = false; M[d] = 0; _free.Push(d); Live--;
+        _pullingHierarchyValid = false;
         Gone(d, -1);
     }
 

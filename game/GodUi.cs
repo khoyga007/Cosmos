@@ -80,6 +80,14 @@ public partial class GodUi : CanvasLayer
         return ph == StarPhase.MainSequence && sp != StarSpectrum.None ? $"{StarPhaseVi[(int)ph]} loại {sp}" : StarPhaseVi[(int)ph];
     }
 
+    public static string KindName(RenderSnapshot snap, int i)
+    {
+        if (i < 0 || i >= snap.N) return "Vật thể";
+        StarPhase ph = snap.StarPhase[i];
+        if (ph == StarPhase.None) return KindVi[(int)snap.Kind[i]];
+        return StarPhaseVi[(int)ph];
+    }
+
     /// Panel lines for a star or what is left of one; empty for anything else.
     public static string StarLines(World w, int i)
     {
@@ -94,6 +102,23 @@ public partial class GodUi : CanvasLayer
             sb.Append($"   đã đốt {Math.Clamp(w.StarFuel[i], 0, 1) * 100:F1}% nhiên liệu (cả đời khoảng {Years(w.StarLifetime(w.M[i]))})");
         else if (ph == StarPhase.RedGiant) sb.Append("   lõi đã cạn hydro, đang phình to và thổi vật chất ra ngoài");
         else if (ph is StarPhase.WhiteDwarf or StarPhase.NeutronStar) sb.Append($"   tàn dư, nguội dần đã {Years(w.StarCoolingAge[i])}");
+        else if (ph == StarPhase.BrownDwarf) sb.Append("   quá nhẹ để đốt hydro");
+        return sb.Append('\n').ToString();
+    }
+
+    public static string StarLines(RenderSnapshot snap, int i)
+    {
+        StarPhase ph = snap.StarPhase[i];
+        if (ph == StarPhase.None) return "";
+        var sb = new System.Text.StringBuilder();
+        double t = snap.StarTemp[i], light = snap.StarLuminosity[i];
+        if (ph == StarPhase.BlackHole) sb.Append("không phát sáng\n");
+        else sb.Append($"bề mặt {t:N0} K   độ sáng {light:G3} Mặt Trời\n");
+        sb.Append($"tuổi {Years(snap.StarAge[i])}");
+        if (ph == StarPhase.MainSequence)
+            sb.Append($"   đã đốt {Math.Clamp(snap.StarFuel[i], 0, 1) * 100:F1}% nhiên liệu (cả đời khoảng {Years(snap.StarLifetime[i])})");
+        else if (ph == StarPhase.RedGiant) sb.Append("   lõi đã cạn hydro, đang phình to và thổi vật chất ra ngoài");
+        else if (ph is StarPhase.WhiteDwarf or StarPhase.NeutronStar) sb.Append($"   tàn dư, nguội dần đã {Years(snap.StarCoolingAge[i])}");
         else if (ph == StarPhase.BrownDwarf) sb.Append("   quá nhẹ để đốt hydro");
         return sb.Append('\n').ToString();
     }
@@ -119,7 +144,7 @@ public partial class GodUi : CanvasLayer
     public static readonly string[] LifeStageVi = { "Chưa có", "Vi sinh vật", "Đa bào phức tạp", "Sinh quyển trù phú" };
     public static readonly string[] TechStageVi = World.DefaultStages.Select(s => s.NameVi).ToArray();
     public static readonly string[] BandVi = { "Đóng băng", "Ôn đới", "Thiêu đốt" };
-    static readonly Dictionary<string, string> RuleVi = new() { ["temperature"] = "Nhiệt độ", ["water"] = "Nước", ["life"] = "Sự sống", ["civ"] = "Văn minh" };
+    public static readonly Dictionary<string, string> RuleVi = new() { ["temperature"] = "Nhiệt độ", ["water"] = "Nước", ["life"] = "Sự sống", ["civ"] = "Văn minh" };
 
     // what the create buttons drop: name, mass in Earths, shares of gas / ice / rock / metal / carbon / radio.
     // BirthSuns > 0 = a dead star: what is left of a star born with that many solar masses (set through SetStarState)
@@ -206,7 +231,8 @@ public partial class GodUi : CanvasLayer
     {
         if (_side == null) return;
         float vw = GetTree().Root.Size.X;
-        int w = Math.Clamp(SidePref, SideMin, (int)(vw * 0.45f));
+        int maxW = Math.Max(SideMin, (int)(vw * 0.45f));
+        int w = Math.Clamp(SidePref, SideMin, maxW);
         _side.OffsetLeft = -(w + SideMargin);
     }
 
@@ -321,12 +347,7 @@ public partial class GodUi : CanvasLayer
             double y = years; string t = text;
             row.AddChild(Btn(text, () =>
             {
-                int before = _w.Events.Count;
-                _main.JumpKeepingView(y);
-                int news = _w.Events.Count - before;
-                _main.Toast(news > 0 ? $"Đã nhảy {t.TrimStart('+')}: {news} sự kiện mới, xem tab Nhật ký" : $"Đã nhảy {t.TrimStart('+')}: không có gì đáng kể xảy ra");
-                RefreshSelection();
-                RefreshEvents();
+                _main.JumpKeepingView(y, t);
             }));
         }
     }
@@ -427,7 +448,7 @@ public partial class GodUi : CanvasLayer
         double[] mix = GetCreateMix();
         double sum = 0;
         foreach (double s in mix) sum += s;
-        var (kind, radius) = GodTools.Preview(_w, GetCreateMass(), mix);
+        var (kind, radius) = GodTools.Preview(_main.Snapshot, GetCreateMass(), mix);
         var parts = new List<string>();
         for (int e = 0; e < World.NElem; e++) if (sum > 0 && mix[e] / sum >= 0.005) parts.Add($"{ElemVi[e]} {100 * mix[e] / sum:0.#}%");
         string what = CreateRemnantName is string dead ? $"{dead} (xác của ngôi sao {CreateBirthSuns:0.#} Mặt Trời)" : $"{KindVi[(int)kind]}, bán kính {radius:G3}";
@@ -498,7 +519,7 @@ public partial class GodUi : CanvasLayer
         v.AddChild(scroll);
     }
 
-    bool Live(int i) => i >= 0 && i < _w.N && _w.Alive[i];
+    bool Live(int i) => _main.Snapshot.IsAlive(i);
     public void ShowObjectTab() => _tabs.CurrentTab = 1;
     public void ShowCelestialTab()
     {
@@ -508,7 +529,7 @@ public partial class GodUi : CanvasLayer
 
     public void OnObjectRowClicked(int slot, int gen)
     {
-        if (!Live(slot) || _w.Gen[slot] != gen)
+        if (!_main.Snapshot.IsAlive(slot) || _main.Snapshot.Gen[slot] != gen)
         {
             RefreshObjectList();
             return;
@@ -518,16 +539,17 @@ public partial class GodUi : CanvasLayer
 
     (int Live, long Merges, int Events, int StarSum, int GenSum, int Sel) ComputeObjectSignature()
     {
+        var snap = _main.Snapshot;
         int starSum = 0, genSum = 0;
-        for (int i = 0; i < _w.N; i++)
+        for (int i = 0; i < snap.N; i++)
         {
-            if (_w.Alive[i])
+            if (snap.Alive[i])
             {
-                genSum += _w.Gen[i];
-                starSum += (int)_w.StarPhaseOf(i);
+                genSum += snap.Gen[i];
+                starSum += (int)snap.StarPhase[i];
             }
         }
-        return (_w.Live, _w.Merges, _w.Events.Count, starSum, genSum, _main.Selected);
+        return (snap.Live, snap.Merges, snap.Events.Count, starSum, genSum, _main.Selected);
     }
 
     public void RefreshObjectListIfNeeded()
@@ -552,27 +574,28 @@ public partial class GodUi : CanvasLayer
 
         int shipCount = 0;
         int firstShip = -1;
+        var snap = _main.Snapshot;
 
-        for (int i = 0; i < _w.N; i++)
+        for (int i = 0; i < snap.N; i++)
         {
-            if (!_w.Alive[i]) continue;
-            if (_w.IsShip(i))
+            if (!snap.Alive[i]) continue;
+            if (snap.IsShip[i])
             {
                 shipCount++;
                 if (firstShip < 0) firstShip = i;
                 continue;
             }
 
-            bool starOrRemnant = _w.StarPhaseOf(i) != StarPhase.None || _w.KindOf(i) == Kind.Star;
-            bool planetOrMoon = _w.KindOf(i) is Kind.Planet or Kind.Moon;
-            bool named = !string.IsNullOrEmpty(_w.Name[i]);
+            bool starOrRemnant = snap.StarPhase[i] != StarPhase.None || snap.Kind[i] == Kind.Star;
+            bool planetOrMoon = snap.Kind[i] is Kind.Planet or Kind.Moon;
+            bool named = !string.IsNullOrEmpty(snap.Name[i]);
 
             if (starOrRemnant || planetOrMoon || named)
             {
                 int slot = i;
-                int gen = _w.Gen[i];
-                string name = _w.Name[i] ?? $"Vật thể #{i}";
-                string kind = KindName(_w, i);
+                int gen = snap.Gen[i];
+                string name = snap.Name[i] ?? $"Vật thể #{i}";
+                string kind = KindName(snap, i);
                 string text = $"{name}  ({kind})";
 
                 var b = Btn(text, () => OnObjectRowClicked(slot, gen));
@@ -589,10 +612,10 @@ public partial class GodUi : CanvasLayer
         if (shipCount > 0)
         {
             int shipSlot = firstShip;
-            int shipGen = firstShip >= 0 ? _w.Gen[firstShip] : 0;
+            int shipGen = firstShip >= 0 ? snap.Gen[firstShip] : 0;
             var b = Btn($"Tàu vũ trụ ({shipCount} tàu)", () =>
             {
-                if (shipSlot >= 0 && Live(shipSlot) && _w.Gen[shipSlot] == shipGen)
+                if (shipSlot >= 0 && snap.IsAlive(shipSlot) && snap.Gen[shipSlot] == shipGen)
                     _main.JumpTo(shipSlot);
             });
             b.Alignment = HorizontalAlignment.Left;
@@ -634,45 +657,61 @@ public partial class GodUi : CanvasLayer
         return null;
     }
 
-    bool Sel(out int i)
+    bool Sel(out int i, out int gen)
     {
         i = _main.Selected;
-        return i >= 0 && i < _w.N && _w.Alive[i];
+        var snap = _main.Snapshot;
+        if (i >= 0 && snap.IsAlive(i))
+        {
+            gen = snap.Gen[i];
+            return true;
+        }
+        gen = -1;
+        return false;
     }
+    bool Sel(out int i) => Sel(out i, out _);
 
     void EditMatter(int elem, double shareOfMass)
     {
-        if (!Sel(out int i)) return;
-        GodTools.AddMatter(_w, i, elem, shareOfMass * _w.M[i]);
-        UpdateObjectTab();
+        if (!Sel(out int i, out int gen)) return;
+        double curM = _main.Snapshot.M[i];
+        _main.QueueGodAction(w =>
+        {
+            GodTools.AddMatter(w, i, elem, shareOfMass * curM);
+        }, i, gen);
     }
 
     void Seed(double level)
     {
-        if (!Sel(out int i) || !_w.IsWorld(i)) return;
-        string name = _w.Name[i] ?? $"Vật thể #{i}";
-        if (GodTools.SeedLife(_w, i, level) >= 0) _main.Toast(level > 0 ? $"Đã gieo sự sống {level * 100:F0}% lên {name}" : $"Đã diệt sạch sự sống trên {name}");
-        UpdateObjectTab();
+        if (!Sel(out int i, out int gen) || !_main.Snapshot.IsWorld(i)) return;
+        string name = _main.Snapshot.Name[i] ?? $"Vật thể #{i}";
+        _main.QueueGodAction(w =>
+        {
+            if (GodTools.SeedLife(w, i, level) >= 0)
+                _main.Toast(level > 0 ? $"Đã gieo sự sống {level * 100:F0}% lên {name}" : $"Đã diệt sạch sự sống trên {name}");
+        }, i, gen);
     }
 
     void UpdateObjectTab()
     {
         if (_lblTarget == null) return;
-        if (!Sel(out int i))
+        if (!Sel(out int i, out _))
         {
             _lblTarget.Text = "Chưa chọn vật thể nào. Bấm vào một vật thể trong không gian.";
             _objBody.Visible = false;
             return;
         }
+        var snap = _main.Snapshot;
         _objBody.Visible = true;
-        double m = _w.M[i];
-        _lblTarget.Text = $"{_w.Name[i] ?? $"Vật thể #{i}"} — {KindVi[(int)_w.KindOf(i)]}, {m / World.EarthMass:G4} Trái Đất";
-        for (int e = 0; e < World.NElem; e++) _elemLabels[e].Text = $"{100 * _w.Comp[i * World.NElem + e] / m:F1}%";
-        bool world = _w.IsWorld(i);
-        _sliderSeed.Editable = world; _btnSeed.Disabled = !world; _btnWipe.Disabled = !world || _w.Life[i] <= 0;
+        double m = snap.M[i];
+        _lblTarget.Text = $"{snap.Name[i] ?? $"Vật thể #{i}"} — {KindVi[(int)snap.Kind[i]]}, {m / World.EarthMass:G4} Trái Đất";
+        for (int e = 0; e < World.NElem; e++)
+            _elemLabels[e].Text = m > 0 ? $"{100 * snap.Comp[i * World.NElem + e] / m:F1}%" : "0%";
+        bool world = snap.IsWorld(i);
+        _sliderSeed.Editable = world; _btnSeed.Disabled = !world; _btnWipe.Disabled = !world || snap.Life[i] <= 0;
         _btnSeed.Text = $"Gieo sự sống {_sliderSeed.Value * 100:F0}%";
         _lblLife.Text = !world ? "Sự sống: chỉ hành tinh và vệ tinh mới mang được."
-            : _w.Life[i] > 0 ? $"Sự sống hiện tại: {_w.Life[i] * 100:F1}% ({LifeStageVi[_w.LifeStage(i)]})"
+            : snap.Life[i] > 0 ? $"Sự sống hiện tại: {snap.Life[i] * 100:F1}% ({LifeStageVi[snap.LifeStage(i)]})"
             : "Sự sống: chưa có.";
     }
 
@@ -700,11 +739,15 @@ public partial class GodUi : CanvasLayer
     {
         var v = Tab("Vũ trụ");
         v.AddChild(new Label { Text = "Luật đang chạy" });
-        foreach (var rule in _w.Rules)
+        foreach (var rule in _main.Snapshot.Rules)
         {
             string id = rule.Id;
             var chk = new CheckBox { Text = $"{(RuleVi.TryGetValue(id, out string? vi) ? vi : id)}  (mỗi {rule.RhythmYears:G3} năm)", ButtonPressed = rule.Enabled, FocusMode = Control.FocusModeEnum.None };
-            chk.Toggled += on => { GodTools.SetRule(_w, id, on); _main.Toast($"Luật {(RuleVi.TryGetValue(id, out string? n) ? n : id)}: {(on ? "bật" : "tắt")}"); };
+            chk.Toggled += on =>
+            {
+                _main.QueueGodAction(w => GodTools.SetRule(w, id, on));
+                _main.Toast($"Luật {(RuleVi.TryGetValue(id, out string? n) ? n : id)}: {(on ? "bật" : "tắt")}");
+            };
             v.AddChild(chk);
         }
         v.AddChild(new HSeparator());
@@ -720,7 +763,7 @@ public partial class GodUi : CanvasLayer
     {
         if (_constList == null) return;
         foreach (Node c in _constList.GetChildren()) c.QueueFree();
-        foreach (var (name, val) in _w.C.All())
+        foreach (var (name, val) in _main.Snapshot.Consts)
         {
             var row = new HBoxContainer();
             row.AddChild(new Label { Text = name, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, ClipText = true });
@@ -728,8 +771,18 @@ public partial class GodUi : CanvasLayer
             string cname = name;
             txt.TextSubmitted += text =>
             {
-                bool ok = Number(text, out double nv) && GodTools.SetConst(_w, cname, nv);
-                _main.Toast(ok ? $"{cname} = {nv.ToString("G6", CultureInfo.InvariantCulture)}" : $"{cname}: số không hợp lệ");
+                if (Number(text, out double nv))
+                {
+                    _main.QueueGodAction(w =>
+                    {
+                        bool ok = GodTools.SetConst(w, cname, nv);
+                        _main.Toast(ok ? $"{cname} = {nv.ToString("G6", CultureInfo.InvariantCulture)}" : $"{cname}: số không hợp lệ");
+                    });
+                }
+                else
+                {
+                    _main.Toast($"{cname}: số không hợp lệ");
+                }
                 txt.ReleaseFocus();
             };
             row.AddChild(txt);
@@ -747,9 +800,13 @@ public partial class GodUi : CanvasLayer
         RefreshEvents();
     }
 
-    public static string TranslateEvent(World w, RuleEvent e)
+    public static string TranslateEvent(World w, RuleEvent e) => TranslateEventInternal(e, slot => slot >= 0 && slot < w.N ? (w.Name[slot] ?? $"Vật thể #{slot}") : "Thiên thể", slot => slot >= 0 && slot < w.N && w.Alive[slot], slot => slot >= 0 && slot < w.N ? w.Civ[slot] : -1, c => c >= 0 && c < w.Civs.Count ? w.Civs[c].Name : "?", c => c >= 0 && c < w.Civs.Count ? w.Civs[c].Home : -1, w.C.CivLifeMin);
+
+    public static string TranslateEvent(RenderSnapshot snap, RuleEvent e) => TranslateEventInternal(e, slot => slot >= 0 && slot < snap.N ? (snap.Name[slot] ?? $"Vật thể #{slot}") : "Thiên thể", slot => snap.IsAlive(slot), slot => slot >= 0 && slot < snap.N ? snap.Civ[slot] : -1, c => c >= 0 && c < snap.Civs.Count ? snap.Civs[c].Name : "?", c => c >= 0 && c < snap.Civs.Count ? snap.Civs[c].Home : -1, snap.Consts.TryGetValue("CivLifeMin", out double clm) ? clm : 0.4);
+
+    static string TranslateEventInternal(RuleEvent e, Func<int, string> getName, Func<int, bool> isAlive, Func<int, int> getCiv, Func<int, string> getCivName, Func<int, int> getCivHome, double civLifeMin)
     {
-        string name = e.ObjectSlot >= 0 && e.ObjectSlot < w.N ? (w.Name[e.ObjectSlot] ?? $"Vật thể #{e.ObjectSlot}") : "Thiên thể";
+        string name = e.ObjectSlot >= 0 ? getName(e.ObjectSlot) : "Thiên thể";
         string yr = $"[b][Năm {e.Year:N0}][/b] {name}: ";
 
         if (e.RuleId == "temperature")
@@ -801,7 +858,7 @@ public partial class GodUi : CanvasLayer
             return $"{yr}Sự sống thay đổi ({e.Change}).";
         }
 
-        if (e.RuleId == "civ") return yr + CivLine(w, e, false);
+        if (e.RuleId == "civ") return yr + CivLineInternal(e, false, getName, isAlive, getCiv, getCivName, getCivHome, civLifeMin);
 
         if (e.RuleId == "impact")
         {
@@ -811,7 +868,7 @@ public partial class GodUi : CanvasLayer
         if (e.RuleId == "contact")
         {
             int by = (int)e.A;
-            string eater = by >= 0 && by < w.N && w.Alive[by] ? (w.Name[by] ?? $"Vật thể #{by}") : "một vật khác";
+            string eater = by >= 0 && isAlive(by) ? getName(by) : "một vật khác";
             return $"{yr}[color=#ff8844]bị {eater} nuốt chửng[/color] ({e.B / World.EarthMass:G3} Trái Đất).";
         }
 
@@ -845,36 +902,41 @@ public partial class GodUi : CanvasLayer
 
     /// One line of a civilisation's story. `dated`: start with the year and the place (the object panel's chronicle);
     /// the journal already has both in front.
-    public static string CivLine(World w, RuleEvent e, bool dated = true)
+    public static string CivLine(World w, RuleEvent e, bool dated = true) => CivLineInternal(e, dated, slot => slot >= 0 && slot < w.N ? (w.Name[slot] ?? $"Vật thể #{slot}") : "?", slot => slot >= 0 && slot < w.N && w.Alive[slot], slot => slot >= 0 && slot < w.N ? w.Civ[slot] : -1, c => c >= 0 && c < w.Civs.Count ? w.Civs[c].Name : "?", c => c >= 0 && c < w.Civs.Count ? w.Civs[c].Home : -1, w.C.CivLifeMin);
+
+    public static string CivLine(RenderSnapshot snap, RuleEvent e, bool dated = true) => CivLineInternal(e, dated, slot => slot >= 0 && slot < snap.N ? (snap.Name[slot] ?? $"Vật thể #{slot}") : "?", slot => snap.IsAlive(slot), slot => slot >= 0 && slot < snap.N ? snap.Civ[slot] : -1, c => c >= 0 && c < snap.Civs.Count ? snap.Civs[c].Name : "?", c => c >= 0 && c < snap.Civs.Count ? snap.Civs[c].Home : -1, snap.Consts.TryGetValue("CivLifeMin", out double clm) ? clm : 0.4);
+
+    static string CivLineInternal(RuleEvent e, bool dated, Func<int, string> getName, Func<int, bool> isAlive, Func<int, int> getCiv, Func<int, string> getCivName, Func<int, int> getCivHome, double civLifeMin)
     {
         int slot = e.ObjectSlot;
-        string place = slot >= 0 && slot < w.N ? (w.Name[slot] ?? $"Vật thể #{slot}") : "?";
-        int civ = slot >= 0 && slot < w.N ? w.Civ[slot] : -1;
+        string place = slot >= 0 ? getName(slot) : "?";
+        int civ = slot >= 0 ? getCiv(slot) : -1;
         if (e.Change is "civ.colony" or "civ.ship.first" or "civ.ship.turned" or "civ.ship.lost") civ = (int)e.A;
-        string who = civ >= 0 && civ < w.Civs.Count ? w.Civs[civ].Name : "?";
-        bool home = civ >= 0 && civ < w.Civs.Count && w.Civs[civ].Home == slot;
+        string who = civ >= 0 ? getCivName(civ) : "?";
+        bool home = civ >= 0 && getCivHome(civ) == slot;
         string head = dated ? $"năm {e.Year:N0}, {place}: " : "";
         if (e.Change == "civ.start")
             return $"{head}[color=#ffd700]Văn minh {who} trỗi dậy[/color] sau {e.A:N0} năm sinh quyển cực thịnh.";
         if (e.Change == "civ.ship.first")
         {
             int goal = (int)e.B;
-            string to = goal >= 0 && goal < w.N && w.Name[goal] != null ? w.Name[goal]! : "một thế giới khác";
+            string to = goal >= 0 ? getName(goal) : "một thế giới khác";
             return $"{head}[color=#ffd700]{who} phóng con tàu đầu tiên[/color], hướng tới {to}.";
         }
         if (e.Change == "civ.ship.turned")
         {
             int owner = (int)e.B;
-            return $"{head}Tàu của {who} tới nơi thì {place} đã có văn minh {(owner >= 0 && owner < w.Civs.Count ? w.Civs[owner].Name : "khác")}. Không ai bước xuống.";
+            string ownerName = owner >= 0 ? getCivName(owner) : "khác";
+            return $"{head}Tàu của {who} tới nơi thì {place} đã có văn minh {ownerName}. Không ai bước xuống.";
         }
         if (e.Change == "civ.ship.lost")
         {
             int goal = (int)e.B;
-            string to = goal >= 0 && goal < w.N && w.Alive[goal] && w.Name[goal] != null ? $" trên đường tới {w.Name[goal]}" : "; nơi nó hướng tới không còn";
+            string to = goal >= 0 && isAlive(goal) ? $" trên đường tới {getName(goal)}" : "; nơi nó hướng tới không còn";
             return $"{head}[color=#ff8866]{who} mất một con tàu[/color]{to}.";
         }
         if (e.Change == "civ.colony")
-            return $"{head}[color=#ffd700]{who} lập thuộc địa[/color]{(e.C < w.C.CivLifeMin / 5 ? " trong vòm kín" : " giữa sinh quyển sẵn có")}.";
+            return $"{head}[color=#ffd700]{who} lập thuộc địa[/color]{(e.C < civLifeMin / 5 ? " trong vòm kín" : " giữa sinh quyển sẵn có")}.";
         if (e.Change == "civ.end" && e.A < 0)
             return home ? $"{head}[color=#ff4444]{who} bị thiêu rụi cùng quê hương khi nó bị nuốt chửng.[/color]" : $"{head}[color=#ff4444]Thuộc địa của {who} mất cùng thế giới bị nuốt chửng.[/color]";
         if (e.Change == "civ.end")
@@ -894,8 +956,9 @@ public partial class GodUi : CanvasLayer
     public void RefreshEvents()
     {
         if (_txtEvents == null) return;
-        int count = _w.Events.Count;
-        double last = count > 0 ? _w.Events[count - 1].Year : double.NaN;
+        var snap = _main.Snapshot;
+        int count = snap.Events.Count;
+        double last = count > 0 ? snap.Events[count - 1].Year : double.NaN;
         if (count == _eventsCount && last.Equals(_eventsLastYear)) return; // nothing new: keep the scroll where it is
         _eventsCount = count; _eventsLastYear = last;
         if (count == 0) { _txtEvents.Text = "Chưa có sự kiện nào. Thử nhảy tới 1 triệu năm."; return; }
@@ -905,15 +968,15 @@ public partial class GodUi : CanvasLayer
         int lines = 0;
         while (i >= end && lines < 100)
         {
-            var e = _w.Events[i];
+            var e = snap.Events[i];
             int run = 1;
             while (i - run >= end)
             {
-                var prev = _w.Events[i - run];
+                var prev = snap.Events[i - run];
                 if (prev.RuleId == e.RuleId && prev.Change == e.Change && prev.ObjectSlot == e.ObjectSlot && prev.Year == e.Year) run++;
                 else break;
             }
-            string line = TranslateEvent(_w, e);
+            string line = TranslateEvent(snap, e);
             if (run > 1) line += $" [b]×{run}[/b]";
             sb.AppendLine(line).AppendLine();
             i -= run;
