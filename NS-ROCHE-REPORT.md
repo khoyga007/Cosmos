@@ -2,6 +2,45 @@
 
 Branch `celine/roche-no-reshred`, base/current `a1c832fe09352a5328797a87160bb8e620d15ccd`; pre-C6 comparison `461ce87^1 = e58c000c994056d72ded043526dc500d7cd5aa92`.
 
+## R delivery — source672b81d
+
+Repaired source `672b81da508ab6275f0ae0fd63f4a3aba1f6fa7e`; own branch, no merge/push, game source unchanged. Macro correction/swept counterproposal ACKed by Claire at00:26:22Z. C7 parked; subsequent S1→S2→S3 await Selica S0 and R merge/review. §14 quiet200-system1ms/destruction4ms goals are NOT met by R; Claire explicitly accepts this as an intermediate handoff.
+
+Final exact-source fresh Release full CLI: **482 OK / 0 FAILED / exit0**; audit remains4D/3R, non-strict accepted debt. NS absolute median7 **5.932300ms** passes intermediate8ms; paired own-baseline ratio2.225655 is diagnostic. First standalone5.279150ms and scale5k4.983875ms also passed8ms. Contrary full-suite10.571362ms and collectible-ALC26.057450ms measurements failed8ms and are preserved/reported in append-only `PERF-LOG.md`. Do not claim an unconditional performance guarantee or new4ms pass. Stop-rule checkpoint: no more production micro-patches after final source; architecture work follows owner decision.
+
+Stock/reference namespace/units preserved: one World, no hard system partition, all eight fixed gravity substeps, deterministic event cap16. Collect once/publicAdvance (housekeeping does not repeat the already completed Advance scan), local child admission, quantum swept detection, generation-safe recycled slots, atomic cache cleared start/end. The prior contact/gravity surface-bound code outside Roche remains kernel/S1 debt, not silently claimed fixed.
+
+Validation: Roche41 (includes a pass wholly inside one substep), conservation47, NS zero-time M/P/Comp, repeated-zero no cascade, cohesionless bound cloud,200-step bounded counts/no late cap, exact NS replay `EA0ACEF137DC1CE0`, natural NS/BH death1e10yr jump + replay `97950F09996305B3` (~178ms isolated). Natural test disables civilisation matter conversion to isolate stellar Comp accounting; actual gas/ice/rock/metal/carbon/radio drift is rounding-level, while positive-time momentum drift is the preexisting one-way-rock/rails approximation. Accepted admission model limits and finite oracle counts appear in C6-REPORT amendment.
+
+Scaling (seven runs each):1000 rocks3.440000ms,5000 rocks4.983875ms,20000 rocks17.012625ms after NS.20k is above both8ms and4ms; not a200-system claim. Exact hashes respectively `4A45C998B54B1F21`, `C2BB44B21A0AAB7B`, `27A221F971CF33E6`.
+
+Fresh `dotnet build game/Cosmos.Game.sln -c Release`:0errors,1preexisting nullable warning. Its solution maps game Debug/core Release. Debug runtime Core DLL UTC2026-10-08T01:23:10.4745686Z (186368bytes), Game DLL UTC01:27:19.6686072Z (146432bytes). Console Godot4.7.2 headless: selftest13commands exact replay `1CCDBCA414ED430D`, uitest29commands `E393FCDFD0364E2B`, both exit0. Windowed FPS/GPU were not tested. Logs/harness paths are in PERF-LOG; raw finalfull `E:/Temp/cosmos-ns-study/macro-full-final-672b81d.log`.
+
+### Fixture recapture
+
+Default hashed `RocheChangesPerStep`256→16 moves every default hash; stepping/capture/admission scenes may additionally change for intended physical approximation.18 fresh captures after conservation/Roche assertions, owner heads-up sent. Single-star progenitor cases contain no tidal victims, so their movement is the numerical Const field alone. No stale DLL capture.
+
+| Scene | a1c832f baseline | R capture |
+|---|---|---|
+| sol0 | BBC63D2996FAE88F | 75E8C47E1AC402CF |
+| sol0-step | 4063F53F08CB21B2 | 327AE24E4577BA72 |
+| sol0-life | 4A51313215F96FC5 | 35B16EB52313D605 |
+| sol0-edit | 32DDE80C54679D92 | ACCBD976F6E8E052 |
+| sol2000 | 82F35AA059FE5804 | 07936E66DC6723C4 |
+| sol2000-step | 3AFDAA9CB3C047FC | 2099B278C2B1BCBC |
+| sol2000-jump | 4E91B3C52D73C0CF | 04FA41EDCB7A6B0F |
+| star1 | 16BA0A372AE8C21B | 060CC85B029B745B |
+| star2 | A2CA19CD75B36BE4 | 3010CEB003861124 |
+| star10 | AC47DAE6B6B08CD7 | 0541838CF60D6697 |
+| star30 | 7DFF61BCBEAA658D | 65C76F86F29A054D |
+| birth1.23 | 89D797BDF91DA090 | DE60EE8407A29E50 |
+| birth2.0000000000000004 | AFA16CBAD36AB034 | E634B0AB05451474 |
+| birth7.999999999 | B5B49F0C980349EA | 3CE1EA25AB4FF8AA |
+| birth8 | 1309AE888DF43879 | 9494F5A54908EF39 |
+| birth20 | FD484FE9BC27BA16 | ED5ACD6AC0F231D6 |
+| birth20.0000001 | 28219D4E31380FA4 | E035C66C00FD3FE4 |
+| birth31.123 | 77753EA5494C4736 | FF6A5ACDD27D6976 |
+
 ## Current review checkpoint and changed direction
 
 Predecessor's required 200-step trace completed: hash `4F59D25326AE9391`, 5450 live/7 attractors,323 merges,809 fragments,13170 disruptions,6518 reservoirs. It did not become a cheap steady state: last eight steps averaged638.99ms, maximum4416.53ms. Raw `current-release-100-settle200.log` includes every eight-step checkpoint. Capacity bounded live N; it did not bound cumulative work/history.
@@ -14,7 +53,7 @@ Performance still failed the old3x gate after exact-preserving changes: survival
 
 **Claire changed direction at 2026-10-08 00:21:06Z:** stop micro-optimization. Use two-body peri/current-distance acceleration admission instead of global surface acceleration; quantize tidal events to substeps without splitting the gravity pass; globally collect once per Advance and append new-fragment candidates locally; cap topology changes per public Advance. New acceptance is absolute **median7 ≤8ms/Advance at5k, Release**, plus conservation/replay and scaling1k/5k/20k; torture includes a1e10yr jump with natural stellar deaths. This supersedes the old3x target; ratio remains diagnostic.
 
-Counterproposal sent before macro code: endpoint-only checking can entirely miss a fast pass entering and exiting a Roche sphere inside one substep. Use swept relative start/end chord crossing and date the breakup at the substep end instead. Error≤h/8 applies to detected uncapped events; any cap adds explicit deferred work. A peri-only broad phase is a two-body approximation when third bodies perturb trajectories; do not call it globally conservative. Waiting for Claire's response to this correction before replacing stepping semantics.
+Counterproposal sent before macro code and subsequently ACKed00:26:22Z: endpoint-only checking can entirely miss a fast pass entering and exiting a Roche sphere inside one substep. Use swept relative start/end chord crossing and date the breakup at the substep end instead. Error≤h/8 applies to detected uncapped events; any cap adds explicit deferred work. A peri-only broad phase is a two-body approximation when third bodies perturb trajectories; do not call it globally conservative.
 
 Units clarification:361 gravity slices was across8 Advances (45.125/Advance vs8 normal), and31 collects/~960852 accumulated candidates was across8 Advances (3.875collects/Advance,~30995 per collect) in a different post-repair diagnostic. Collection is triggered initially and after breakup, not automatically once per gravity slice. Both costs nevertheless multiply with disruption count.
 
