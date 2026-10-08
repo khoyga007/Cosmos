@@ -1,0 +1,11 @@
+seed 1004
+stop maxSteps at step 1000000 (world step 1000096, year 1864.223841048651)
+capacity 5512, live max 5512, first full step 15, steps at full 365
+belt initial objects 5240, mass 2.6303808566809636E-05
+rock merges into compact 277, into other pullers 1383; puller deaths 2 (into compact 1); world Merges delta minus attributed deaths 334
+compact dM attributed 50.00000014078307 vs measured 50.000000140544415
+roche events 3025, fragments 3839, zero-fragment events 2359
+step 201: puller slot 0 m=333333 Earth -> heir 5250 (compact)
+step 216687: puller slot 2 m=0.816248 Earth -> heir 3
+hash D3F1F946F5D24717
+wall 4249.7s
