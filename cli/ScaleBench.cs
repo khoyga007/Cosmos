@@ -170,7 +170,9 @@ static class ScaleBench
 
     public static void Run(string[] a)
     {
-        if (a.Length > 1 && a[1] == "rules") { RulesMode(a); return; }
+        if (a.Length > 1 && a[1] == "rules") { RulesPaired(a); return; }
+        if (a.Length > 1 && a[1] == "rules-seq") { RulesMode(a); return; }
+        if (a.Length > 1 && a[1] == "natural") { Natural(a); return; }
         var sys = List(a, 1, "1,10,50,200");
         var rk = List(a, 2, "500,5000");
         int steps = a.Length > 3 ? int.Parse(a[3], CultureInfo.InvariantCulture) : 40;
@@ -223,7 +225,7 @@ static class ScaleBench
         int rounds = a.Length > 5 ? int.Parse(a[5], CultureInfo.InvariantCulture) : 3;
         double cap = a.Length > 6 ? double.Parse(a[6], CultureInfo.InvariantCulture) : 500;
         string[] ids = AllRuleIds();
-        Console.WriteLine("# S0 per-rule — cùng cảnh, TẮT HẾT rule rồi bật lại từng cái một; delta = giá riêng của rule đó");
+        Console.WriteLine("# S0 per-rule TUẦN TỰ (rules-seq) — bản CŨ, đo lần lượt nên trôi máy theo phút; dùng `scale rules` (ghép cặp) mới đúng");
         Console.WriteLine($"# median {rounds} vòng, steps≤{steps}, cap {cap:F0} ms/pha, seed {Seed}, H={H}. Delta âm = dưới nhiễu đo.");
         foreach (int k in sys)
             foreach (int r in rk)
@@ -238,6 +240,92 @@ static class ScaleBench
                 }
                 foreach (var (id, ms, st) in rows.OrderByDescending(x => x.Ms))
                     Console.WriteLine($"    +{id,-12} {ms,10:F3} ms/Advance  ({(off.MsPerStep > 0 ? ms / off.MsPerStep * 100 : 0),6:F1}% của rules-off, steps {st})");
+            }
+    }
+
+    // ---- SỰ KIỆN TỰ NHIÊN: K hệ, ZERO lệnh sau khi dựng, chạy hết ngân sách wall-clock.
+    // Mốc so cho cổng "no-god" của S2/S3: 200 hệ, 0 lệnh, chạy dài + nhảy 1e9..1e10 năm PHẢI ra event.
+    // Đếm bằng API CÔNG KHAI (không sửa core/): World.Events (ring Rules.cs:69, FIFO Rules.cs:124),
+    // World.RocheDisruptions / RocheReservoirs (Roche.cs:40-42), World.EscapedTransfers (Escape.cs:18),
+    // World.GammaBursts (CosmicEvents.cs:40), World.Merges (World.cs:55), World.Year (Rules.cs:59).
+    static void Natural(string[] a)
+    {
+        var sys = List(a, 2, "1,10,50,200");
+        int rocksPer = a.Length > 3 ? int.Parse(a[3], CultureInfo.InvariantCulture) : 500;
+        double budgetMs = a.Length > 4 ? double.Parse(a[4], CultureInfo.InvariantCulture) : 20000;
+        Console.WriteLine("# S0 NATURAL EVENTS — dựng K hệ xong là KHÔNG còn lệnh nào; đếm event tự nhiên trong ngân sách wall-clock");
+        Console.WriteLine($"# .NET {Environment.Version}, {Environment.ProcessorCount} logical CPUs, Release, seed {Seed}, H={H}, rocksPer={rocksPer}, ngân sách {budgetMs:F0} ms/hệ");
+        Console.WriteLine("# nguồn: rules=World.Events, roche=RocheDisruptions, escape=EscapedTransfers, burst=GammaBursts, merge=Merges.");
+        Console.WriteLine("# 1 Advance = H/C.YearTime năm. NGOẠI SUY chỉ có nghĩa khi nói rõ cửa sổ đo: đây là mốc so, không phải dự báo.");
+        foreach (int k in sys)
+        {
+            Scene s;
+            try { s = Build(k, rocksPer); }
+            catch (OutOfMemoryException e) { Console.WriteLine($"K={k,-5} rocksPer={rocksPer,-6} FAIL OutOfMemory: {e.Message}"); continue; }
+            World w = s.W;
+            double ypa = H / w.C.YearTime;                      // năm mỗi Advance
+            long e0 = w.Events.Count, r0 = w.RocheDisruptions.Count, x0 = w.EscapedTransfers.Count, g0 = w.GammaBursts.Count, m0 = w.Merges;
+            double y0 = w.Year;
+            int na = 0; for (int i = 0; i < w.N; i++) if (w.Attracts(i)) na++;
+            var sw = Stopwatch.StartNew();
+            int adv = 0;
+            do { w.Advance(H); adv++; } while (sw.Elapsed.TotalMilliseconds < budgetMs);
+            sw.Stop();
+            double years = w.Year - y0, ms = sw.Elapsed.TotalMilliseconds, per = ms / adv;
+            long ev = w.Events.Count - e0, ro = w.RocheDisruptions.Count - r0, ex = w.EscapedTransfers.Count - x0, gb = w.GammaBursts.Count - g0, mg = w.Merges - m0;
+            long tot = ev + ro + ex + gb + mg;
+            bool ringFull = w.Events.Count >= World.EventCapacity;
+            Console.WriteLine($"K={k,-5} rocksPer={rocksPer,-6} N={w.N,-8} na={na,-6} year/Advance={ypa:E3}");
+            Console.WriteLine($"    chạy {adv,4} Advance = {years:E3} năm  ({ms,9:F0} ms, {per,9:F3} ms/Advance)   rules={ev} roche={ro} escape={ex} burst={gb} merge={mg}  TỔNG={tot}{(ringFull ? "  (ring Rules.cs:69 ĐẦY: con số rules là SÀN)" : "")}");
+            double advFor1e6 = 1e6 / ypa, wall = advFor1e6 * per / 1000.0;
+            string rate = years > 0 ? $"{tot / years * 1e6:F3}" : "n/a";
+            string bound = years > 0 ? $"< {(tot + 1) / years * 1e6:F3}" : "n/a";
+            Console.WriteLine($"    1e6 năm = {advFor1e6:E3} Advance; ở {per:F3} ms/Advance phải chạy {wall:E3} s = {wall / 86400:F2} ngày máy");
+            Console.WriteLine($"    event/1e6 năm: quan sát {tot} trong {years:E3} năm => điểm {rate}, cận trên {bound}; event/Advance={tot / (double)adv:E3}");
+        }
+    }
+
+    // ---- GIÁ TỪNG RULE, GHÉP CẶP: mỗi vòng đo [rules OFF] rồi ngay cạnh [chỉ 1 rule] => trôi máy triệt tiêu.
+    // Đây là thống kê Claire đã chốt: MEDIAN của các delta ghép cặp, kèm min/max để thấy nhiễu.
+    // Cảnh báo: chỉ 1 rule được bật, nên rule ăn theo rule khác (vd temperature đọc stars) có thể RẺ hơn thực tế.
+    static void RulesPaired(string[] a)
+    {
+        var sys = List(a, 2, "50");
+        var rk = List(a, 3, "500");
+        int steps = a.Length > 4 ? int.Parse(a[4], CultureInfo.InvariantCulture) : 40;
+        int rounds = a.Length > 5 ? int.Parse(a[5], CultureInfo.InvariantCulture) : 5;
+        double cap = a.Length > 6 ? double.Parse(a[6], CultureInfo.InvariantCulture) : 1200;
+        string[] ids = AllRuleIds();
+        Console.WriteLine("# S0 per-rule PAIRED — trong CÙNG một vòng: [rules OFF] và [chỉ 1 rule] đo cạnh nhau; delta = hiệu từng cặp");
+        Console.WriteLine($"# median {rounds} cặp, steps≤{steps}, cap {cap:F0} ms/pha, seed {Seed}, H={H}. Delta âm = dưới nhiễu đo.");
+        Console.WriteLine("# id            median_ms      min       max   %rules-off  steps");
+        foreach (int k in sys)
+            foreach (int r in rk)
+            {
+                var d = new Dictionary<string, List<double>>();
+                foreach (string id in ids) d[id] = new List<double>();
+                var offs = new List<double>();
+                int st = 0, n = 0;
+                for (int rd = 0; rd < rounds; rd++)
+                {
+                    Result b = Phase(k, r, steps, 1, cap, ids);
+                    offs.Add(b.MsPerStep); st = b.Steps; n = b.N;
+                    foreach (string id in ids)
+                    {
+                        string keep = id;
+                        Result o = Phase(k, r, steps, 1, cap, ids.Where(x => x != keep).ToArray());
+                        d[keep].Add(o.MsPerStep - b.MsPerStep);
+                    }
+                }
+                offs.Sort();
+                double boff = offs[offs.Count / 2];
+                Console.WriteLine($"K={k} rocksPer={r} N={n}: rules OFF median = {boff:F3} ms/Advance (steps {st}, {rounds} vòng)");
+                foreach (string id in ids)
+                {
+                    var v = d[id]; v.Sort();
+                    double med = v[v.Count / 2];
+                    Console.WriteLine($"    {id,-12} {med,10:F3} {v[0],9:F3} {v[v.Count - 1],9:F3} {(boff > 0 ? med / boff * 100 : 0),10:F1}% {st,6}");
+                }
             }
     }
 }
