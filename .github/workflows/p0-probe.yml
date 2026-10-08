@@ -32,3 +32,23 @@ jobs:
         with:
           name: p0-seed${{ matrix.seed }}
           path: out/
+  collect:
+    needs: probe
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: results
+          pattern: p0-seed*
+          merge-multiple: true
+      - name: publish raw results to branch hark/p0-results
+        run: |
+          cd results
+          git init -q -b hark/p0-results
+          git config user.name "Hark p0-probe"; git config user.email "hark@hark.com"
+          git add -A
+          git commit -qm "p0-probe raw results, run ${{ github.run_id }}, source ${{ github.sha }}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" hark/p0-results
