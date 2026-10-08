@@ -204,7 +204,7 @@ echo.
 echo [CHAY] %TITLE%
 if "%ENGINE%"=="godot" (
     set TARGET_EXE=%GODOT_EXE%
-    set ARGS=--gpu-index 1 --path godot --scene=%SCENE% --mode=%MODE% --fps-cap=%FPS_CAP% --duration=10.0 --warmup=2.0 --out="%OUT_JSON%"
+    set ARGS=--gpu-index 0 --path godot --scene=%SCENE% --mode=%MODE% --fps-cap=%FPS_CAP% --duration=10.0 --warmup=2.0 --out="%OUT_JSON%"
 ) else (
     set TARGET_EXE=%BEVY_EXE%
     set ARGS=--scene=%SCENE% --mode=%MODE% --fps-cap=%FPS_CAP% --duration=10.0 --warmup=2.0 --out="%OUT_JSON%"
