@@ -60,6 +60,7 @@ if (args.Length > 0 && args[0] == "ships") return ShipChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "conserve") return ConserveChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "cosmic") return CosmicChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "roche") return RocheChecks.Run() ? 0 : 1;
+if (args.Length > 4 && args[0] == "p0-probe") return P0Probe.Run(args);
 if (args.Length > 0 && args[0] == "ns-drop-check") return NsDropChecks.Run(false) ? 0 : 1;
 if (args.Length > 0 && args[0] == "ns-drop") return NsDropChecks.Run() ? 0 : 1;
 if (args.Length > 1 && args[0] == "ns-drop-paired") return NsPairedBench.Run(args[1]) ? 0 : 1;
