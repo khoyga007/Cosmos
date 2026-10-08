@@ -296,7 +296,7 @@ public sealed partial class World
     {
         if (!double.IsFinite(h) || h < 0 || !double.IsFinite(C.YearTime) || C.YearTime <= 0)
             throw new ArgumentOutOfRangeException(nameof(h), "Advance requires finite non-negative time and positive YearTime.");
-        _profAdvances++;
+        _prof.Advances++;
         SteerShips(h);
         _rocheChanges = 0; _rocheMaterialCache.Clear(); _rocheAdvanceMaterialCache = true;
         double hs = h/Sub, g = C.G, began = Year;
@@ -325,7 +325,7 @@ public sealed partial class World
 
     void AdvanceSlice(double hs, double g)
     {
-        _profSubsteps++;
+        _prof.Substeps++;
         // The pulling objects are gathered once per small step, with the numbers every kick needs. Positions,
         // radii and masses are all constant for the whole step (kicks move velocities; Merge runs after), so a
         // copy is the same value the old inner loop read one object at a time.
@@ -344,8 +344,9 @@ public sealed partial class World
             maxKickDrift += Math.Abs(g) * M[j] / (R[j] * R[j]) * hs * hs;
         }
         // Pulling objects kick first; gravity only reads positions. A rock's sweep then has both final velocities.
-        _profGravityPairs += (long)_na * (_na - 1); // directed body pairs, self excluded
-        _profContactSweeps += (long)_na * (_na - 1) / 2;
+        // P*(P-1) body pairs + P*(Live-P) rock pairs, with frozen membership throughout this slice.
+        _prof.GravityPairs += (long)_na * (Live - 1);
+        _prof.ContactSweeps += (long)_na * (_na - 1) / 2;
         for (int k = 0; k < _na; k++) KickBody(_att[k], hs);
         for (int k = 0; k < _na; k++)
         {
@@ -366,8 +367,7 @@ public sealed partial class World
         else Parallel.For(0, _chunks, new ParallelOptions { MaxDegreeOfParallelism = Threads > 0 ? Threads : Environment.ProcessorCount }, _kickChunk);
         for (int c = 0; c < _chunks; c++)
         {
-            _profGravityPairs += _chunkWork[c].GravityPairs;
-            _profContactSweeps += _chunkWork[c].ContactSweeps;
+            _prof.ContactSweeps += _prof.ChunkSweeps[c];
             var chunk = _chunkHits[c];
             if (chunk.Count == 0) continue;
             _hits.AddRange(chunk); chunk.Clear();
@@ -412,14 +412,13 @@ public sealed partial class World
         int lo = (int)((long)c * N / _chunks), hi = (int)((long)(c + 1) * N / _chunks);
         int[] near = _chunkNear[c];
         var hits = _chunkHits[c];
-        long rocks = 0, sweeps = 0;
+        long sweeps = 0;
         for (int i = lo; i < hi; i++)
             if (Alive[i] && !Attracts(i))
             {
-                rocks++;
                 sweeps += KickRock(i, _subHs, _subMaxAttSpeed, _subMaxKickDrift, near, hits);
             }
-        _chunkWork[c] = new KickWork(rocks * _na, sweeps);
+        _prof.ChunkSweeps[c] = sweeps;
     }
 
     // One index chunk of the position drift. Only this object's own X/Y and Vx/Vy are touched, so there is no

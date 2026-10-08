@@ -7,29 +7,30 @@ public readonly record struct WorkCounters(long Advances, long Substeps, long Gr
     long ContactSweeps, long RocheCollections, long RocheAdmissionPairs, long RocheCandidateChecks,
     long RuleApplications, long Merges);
 
-/// A chunk/kernel returns counts; only its caller reduces them into World diagnostics.
-public readonly record struct KickWork(long GravityPairs, long ContactSweeps);
-
 public sealed partial class World
 {
-    long _profAdvances, _profSubsteps, _profGravityPairs, _profContactSweeps;
-    long _profRocheCollections, _profRocheAdmissionPairs, _profRocheCandidateChecks;
-    long _profRuleApplications, _profMergeOrigin;
-    readonly KickWork[] _chunkWork = new KickWork[MaxRockChunks];
-    readonly Dictionary<string, long> _profRules = new();
+    // Keep cold diagnostic fields together rather than expanding the hot World's scalar layout.
+    sealed class WorkState
+    {
+        public long Advances, Substeps, GravityPairs, ContactSweeps;
+        public long RocheCollections, RocheAdmissionPairs, RocheCandidateChecks, RuleApplications, MergeOrigin;
+        public readonly long[] ChunkSweeps = new long[MaxRockChunks];
+        public readonly Dictionary<string, long> Rules = new();
+    }
+    readonly WorkState _prof = new();
 
     /// Read/reset only between simulation operations, under the same exclusive ownership as World.
-    public WorkCounters Prof => new(_profAdvances, _profSubsteps, _profGravityPairs, _profContactSweeps,
-        _profRocheCollections, _profRocheAdmissionPairs, _profRocheCandidateChecks,
-        _profRuleApplications, Merges - _profMergeOrigin);
+    public WorkCounters Prof => new(_prof.Advances, _prof.Substeps, _prof.GravityPairs, _prof.ContactSweeps,
+        _prof.RocheCollections, _prof.RocheAdmissionPairs, _prof.RocheCandidateChecks,
+        _prof.RuleApplications, Merges - _prof.MergeOrigin);
 
-    public long RuleApplications(string id) => _profRules.TryGetValue(id, out long count) ? count : 0;
+    public long RuleApplications(string id) => _prof.Rules.TryGetValue(id, out long count) ? count : 0;
 
     public void ResetProf()
     {
-        _profAdvances = _profSubsteps = _profGravityPairs = _profContactSweeps = 0;
-        _profRocheCollections = _profRocheAdmissionPairs = _profRocheCandidateChecks = 0;
-        _profRuleApplications = 0; _profMergeOrigin = Merges;
-        _profRules.Clear();
+        _prof.Advances = _prof.Substeps = _prof.GravityPairs = _prof.ContactSweeps = 0;
+        _prof.RocheCollections = _prof.RocheAdmissionPairs = _prof.RocheCandidateChecks = 0;
+        _prof.RuleApplications = 0; _prof.MergeOrigin = Merges;
+        _prof.Rules.Clear();
     }
 }

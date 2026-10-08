@@ -133,7 +133,7 @@ public sealed partial class World
         _rocheCandidates.Clear(); _rocheHosts.Clear();
         if (!_rocheAdvanceMaterialCache) _rocheMaterialCache.Clear();
         if (!RocheEnabled) return;
-        _profRocheCollections++;
+        _prof.RocheCollections++;
         _rocheEarthRadiusRef = EarthRadiusRef;
         _rocheCandidateSeconds = seconds; _rocheCandidateOrbital = orbital;
         double minDensity = C.Density.Min(), maxK = Math.Max(C.RocheRigid,C.RocheFluid);
@@ -149,7 +149,7 @@ public sealed partial class World
     void AppendRocheCandidates(int body)
     {
         if (!Alive[body] || IsShip(body) || StarPhaseOf(body) != StarPhase.None) return;
-        _profRocheAdmissionPairs += _rocheHosts.Count; // host rows tested, including early rejection
+        _prof.RocheAdmissionPairs += _rocheHosts.Count; // host rows tested, including early rejection
         double minDensity = C.Density.Min(), maxK = Math.Max(C.RocheRigid,C.RocheFluid);
         for (int k = 0; k < _rocheHosts.Count; k++)
         {
@@ -219,7 +219,7 @@ public sealed partial class World
                 : PrimaryContactTime(dx, dy, Vx[i] - Vx[p], Vy[i] - Vy[p], C.G * (M[i] + M[p]), radius);
             if (at <= seconds && at < best.Time) best = (at, i, p, Gen[i], Gen[p]);
         }
-        _profRocheCandidateChecks += visited;
+        _prof.RocheCandidateChecks += visited;
         return best;
     }
 
@@ -246,7 +246,7 @@ public sealed partial class World
             }
             if (crossed) BreakRoche(body,host);
         }
-        _profRocheCandidateChecks += visited;
+        _prof.RocheCandidateChecks += visited;
     }
 
     double NextRocheBoundary(double target)
@@ -290,7 +290,7 @@ public sealed partial class World
                 _rocheRockEntries.Add((i,p,Gen[i],Gen[p],year));
             }
         }
-        _profRocheCandidateChecks += visited;
+        _prof.RocheCandidateChecks += visited;
     }
 
     void Reservoir(int host, double x, double y, double mass, double vx, double vy, double angular, double[] matter)

@@ -174,8 +174,8 @@ public sealed partial class World
 
     void ApplyRule(Rule rule)
     {
-        _profRuleApplications++;
-        _profRules.TryGetValue(rule.Id, out long calls); _profRules[rule.Id] = calls + 1;
+        _prof.RuleApplications++;
+        _prof.Rules.TryGetValue(rule.Id, out long calls); _prof.Rules[rule.Id] = calls + 1;
         RuleYears = Year - rule.LastYear;
         rule.Apply(this);
         rule.LastYear = Year;
