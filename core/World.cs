@@ -296,6 +296,7 @@ public sealed partial class World
     {
         if (!double.IsFinite(h) || h < 0 || !double.IsFinite(C.YearTime) || C.YearTime <= 0)
             throw new ArgumentOutOfRangeException(nameof(h), "Advance requires finite non-negative time and positive YearTime.");
+        _profAdvances++;
         SteerShips(h);
         _rocheChanges = 0; _rocheMaterialCache.Clear(); _rocheAdvanceMaterialCache = true;
         double hs = h/Sub, g = C.G, began = Year;
@@ -324,6 +325,7 @@ public sealed partial class World
 
     void AdvanceSlice(double hs, double g)
     {
+        _profSubsteps++;
         // The pulling objects are gathered once per small step, with the numbers every kick needs. Positions,
         // radii and masses are all constant for the whole step (kicks move velocities; Merge runs after), so a
         // copy is the same value the old inner loop read one object at a time.
@@ -342,6 +344,8 @@ public sealed partial class World
             maxKickDrift += Math.Abs(g) * M[j] / (R[j] * R[j]) * hs * hs;
         }
         // Pulling objects kick first; gravity only reads positions. A rock's sweep then has both final velocities.
+        _profGravityPairs += (long)_na * (_na - 1); // directed body pairs, self excluded
+        _profContactSweeps += (long)_na * (_na - 1) / 2;
         for (int k = 0; k < _na; k++) KickBody(_att[k], hs);
         for (int k = 0; k < _na; k++)
         {
@@ -362,6 +366,8 @@ public sealed partial class World
         else Parallel.For(0, _chunks, new ParallelOptions { MaxDegreeOfParallelism = Threads > 0 ? Threads : Environment.ProcessorCount }, _kickChunk);
         for (int c = 0; c < _chunks; c++)
         {
+            _profGravityPairs += _chunkWork[c].GravityPairs;
+            _profContactSweeps += _chunkWork[c].ContactSweeps;
             var chunk = _chunkHits[c];
             if (chunk.Count == 0) continue;
             _hits.AddRange(chunk); chunk.Clear();
@@ -406,8 +412,14 @@ public sealed partial class World
         int lo = (int)((long)c * N / _chunks), hi = (int)((long)(c + 1) * N / _chunks);
         int[] near = _chunkNear[c];
         var hits = _chunkHits[c];
+        long rocks = 0, sweeps = 0;
         for (int i = lo; i < hi; i++)
-            if (Alive[i] && !Attracts(i)) KickRock(i, _subHs, _subMaxAttSpeed, _subMaxKickDrift, near, hits);
+            if (Alive[i] && !Attracts(i))
+            {
+                rocks++;
+                sweeps += KickRock(i, _subHs, _subMaxAttSpeed, _subMaxKickDrift, near, hits);
+            }
+        _chunkWork[c] = new KickWork(rocks * _na, sweeps);
     }
 
     // One index chunk of the position drift. Only this object's own X/Y and Vx/Vy are touched, so there is no
@@ -418,7 +430,7 @@ public sealed partial class World
         for (int i = lo; i < hi; i++) if (Alive[i]) { X[i] += Vx[i] * _subHs; Y[i] += Vy[i] * _subHs; }
     }
 
-    void KickRock(int i, double hs, double maxAttSpeed, double maxKickDrift, int[] nearBuf, List<(int, int)> hits)
+    int KickRock(int i, double hs, double maxAttSpeed, double maxKickDrift, int[] nearBuf, List<(int, int)> hits)
     {
         double x = X[i], y = Y[i], ri = R[i], ax = 0, ay = 0;
         int near = 0;
@@ -439,6 +451,7 @@ public sealed partial class World
             if (SweptContact(x - X[j], y - Y[j], (Vx[i] - Vx[j]) * hs, (Vy[i] - Vy[j]) * hs, ri + R[j]))
                 hits.Add((i, j));
         }
+        return near; // exactly the number of swept tests, no shared counter in the kernel
     }
 
     // Relative straight drift against a circle. The axis test rejects almost all belt/body pairs cheaply.
