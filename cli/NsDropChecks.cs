@@ -55,6 +55,7 @@ static class NsDropChecks
         var fb=Ledger(fluid);fluid.Advance(0);var fa=Ledger(fluid);
         Check(fluid.Live==1&&fluid.RocheDisruptions.Count==1&&fluid.RocheReservoirs.Count==1&&fluid.EscapedMass==0
             &&fb.Zip(fa).All(p=>Math.Abs(p.First-p.Second)<1e-14),"cohesionless inner cloud stays bound/accounted, no unstable resolved fragments");
+        if(!ok)return false; // Fail-first regressions need not benchmark a known runaway cascade.
         bool noCap=true;for(int k=0;k<200;k++)
         {
             int old=w.RocheDisruptions.Count;w.Advance(.5);

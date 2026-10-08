@@ -297,29 +297,39 @@ public sealed partial class World
         if (!double.IsFinite(h) || h < 0 || !double.IsFinite(C.YearTime) || C.YearTime <= 0)
             throw new ArgumentOutOfRangeException(nameof(h), "Advance requires finite non-negative time and positive YearTime.");
         SteerShips(h);
-        _rocheChanges = 0;
-        CollectRocheCandidates(h);
-        CheckRocheHere();
-        if (_rocheChanges > 0) CollectRocheCandidates(h);
-        double hs = h / Sub, g = C.G, began = Year;
-        for (int sub = 0; sub < Sub; sub++)
+        _rocheMaterialCache.Clear();
+        _rocheAdvanceMaterialCache = true;
+        try
         {
-            double remaining = hs, elapsed = 0;
-            do
+            _rocheChanges = 0;
+            CollectRocheCandidates(h);
+            CheckRocheHere();
+            if (_rocheChanges > 0) CollectRocheCandidates(h);
+            double hs = h / Sub, g = C.G, began = Year;
+            for (int sub = 0; sub < Sub; sub++)
             {
-                var entry = NextRocheEntry(remaining);
-                double slice = entry.Body >= 0 ? entry.Time : remaining;
-                AdvanceSlice(slice, g);
-                elapsed += slice; remaining -= slice;
-                if (entry.Body >= 0 && Alive[entry.Body] && Alive[entry.Host]
-                    && Gen[entry.Body] == entry.BodyGen && Gen[entry.Host] == entry.HostGen)
+                double remaining = hs, elapsed = 0;
+                do
                 {
-                    Year = began + (sub * hs + elapsed) / C.YearTime;
-                    try { BreakRoche(entry.Body, entry.Host); CollectRocheCandidates(h - (sub * hs + elapsed)); }
-                    finally { Year = began; }
-                }
-                if (entry.Body < 0) break;
-            } while (remaining > 0);
+                    var entry = NextRocheEntry(remaining);
+                    double slice = entry.Body >= 0 ? entry.Time : remaining;
+                    AdvanceSlice(slice, g);
+                    elapsed += slice; remaining -= slice;
+                    if (entry.Body >= 0 && Alive[entry.Body] && Alive[entry.Host]
+                        && Gen[entry.Body] == entry.BodyGen && Gen[entry.Host] == entry.HostGen)
+                    {
+                        Year = began + (sub * hs + elapsed) / C.YearTime;
+                        try { BreakRoche(entry.Body, entry.Host); CollectRocheCandidates(h - (sub * hs + elapsed)); }
+                        finally { Year = began; }
+                    }
+                    if (entry.Body < 0) break;
+                } while (remaining > 0);
+            }
+        }
+        finally
+        {
+            _rocheAdvanceMaterialCache = false;
+            _rocheMaterialCache.Clear();
         }
         Step++;
         Year += h / C.YearTime;

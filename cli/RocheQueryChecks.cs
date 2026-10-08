@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Reflection;
 using Cosmos.Core;
 
@@ -17,11 +18,41 @@ static class RocheQueryChecks
             var collect=typeof(World).GetMethod("CollectRocheCandidates",flags)!.CreateDelegate<Action<double,bool,bool>>(w);
             var query=typeof(World).GetMethod("NextRocheEntry",flags)!.CreateDelegate<Func<double,(double,int,int,int,int)>>(w);
             var limit=typeof(World).GetMethod("RocheLimitCore",flags)!.CreateDelegate<Func<int,int,bool,double>>(w);
+            var density=typeof(World).GetMethod("MaterialDensity",flags)!.CreateDelegate<Func<int,double>>(w);
             foreach(double seconds in new[] { 0d,1e-9,.001,.0625,.5,10d,100d })
             {
                 collect(seconds,false,true);
                 var candidates=(List<(int Body,int Host,int BodyGen,int HostGen)>)typeof(World).GetField("_rocheCandidates",flags)!.GetValue(w)!;
                 var snapshot=candidates.ToArray();
+                // Frozen original collector predicates, including SIMD-lane tolerance and scalar tail.
+                bool vector=Vector.IsHardwareAccelerated&&w.N>=Vector<double>.Count;
+                double acceleration=0,maxSpeed=0,minDensity=w.C.Density.Min(),maxK=Math.Max(w.C.RocheRigid,w.C.RocheFluid);
+                var hosts=new List<(int Slot,double Upper,double Drift)>();
+                for(int p=0;p<w.N;p++)if(w.Alive[p])
+                {
+                    if(vector)maxSpeed=Math.Max(maxSpeed,w.Vx[p]*w.Vx[p]+w.Vy[p]*w.Vy[p]);
+                    if(!w.Attracts(p))continue;
+                    hosts.Add((p,maxK*w.R[p]*Math.Cbrt(density(p)/minDensity),Math.Sqrt(w.Vx[p]*w.Vx[p]+w.Vy[p]*w.Vy[p])*seconds));
+                    acceleration+=w.C.G*w.M[p]/(w.R[p]*w.R[p]);
+                }
+                var expectedCandidates=new List<(int,int,int,int)>();
+                for(int i=0;i<w.N;i++)
+                {
+                    if(!w.Alive[i]||w.IsShip(i)||w.StarPhaseOf(i)!=StarPhase.None)continue;
+                    double drift=(vector?Math.Sqrt(maxSpeed):Math.Sqrt(w.Vx[i]*w.Vx[i]+w.Vy[i]*w.Vy[i]))*seconds;
+                    foreach(var host in hosts)
+                    {
+                        int p=host.Slot;if(w.M[p]<=w.M[i])continue;
+                        double dx=w.X[i]-w.X[p],dy=w.Y[i]-w.Y[p],reach=host.Upper+drift+host.Drift+2*acceleration*seconds*seconds;
+                        bool lane=vector&&i<w.N-w.N%Vector<double>.Count;
+                        if(dx*dx+dy*dy<=reach*reach*(lane?1+w.C.RocheEntryTolerance:1)&&limit(i,p,true)>w.R[p]+w.R[i])
+                            expectedCandidates.Add((i,p,w.Gen[i],w.Gen[p]));
+                    }
+                }
+                if(!snapshot.SequenceEqual(expectedCandidates))
+                {
+                    differences++;if(differences<=5)Console.WriteLine($"FAILED roche-collector: dt{seconds:R} old{expectedCandidates.Count}/new{snapshot.Length}, order/set mismatch");
+                }
                 var expected=(Time:double.PositiveInfinity,Body:-1,Host:-1,BodyGen:0,HostGen:0);
                 // Frozen pre-cull query (a1c832f). This oracle intentionally retains its floating-point
                 // solver, ordering, and tolerance; testing a duplicate of the new filter would prove nothing.

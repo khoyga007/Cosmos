@@ -46,6 +46,7 @@ public sealed partial class World
     readonly List<(int Body, int Host, int BodyGen, int HostGen, double Year)> _rocheRockEntries = new();
     Rule _rocheRule = null!;
     int _rocheChanges;
+    bool _rocheAdvanceMaterialCache;
     bool RocheEnabled => _rocheRule != null && _rocheRule.Enabled && Rules.Contains(_rocheRule) && C.G > 0;
 
     void InitRocheRule()
@@ -125,22 +126,32 @@ public sealed partial class World
     void CollectRocheCandidates(double seconds, bool orbital = false, bool includeRocks = true)
     {
         _rocheCandidates.Clear();
-        _rocheMaterialCache.Clear();
+        if (!_rocheAdvanceMaterialCache) _rocheMaterialCache.Clear();
         if (!RocheEnabled) return;
         _rocheEarthRadiusRef = EarthRadiusRef;
         double minDensity = C.Density.Min(), maxK = Math.Max(C.RocheRigid, C.RocheFluid);
         var hosts = new List<(int Slot, double Upper, double Drift)>();
         bool vector = !orbital && includeRocks && !_deferRocks && Vector.IsHardwareAccelerated && N >= Vector<double>.Count;
         double acceleration = 0, maxSpeedSquared = 0;
+        double minX = double.PositiveInfinity, minY = double.PositiveInfinity,
+            maxX = double.NegativeInfinity, maxY = double.NegativeInfinity;
         for (int p = 0; p < N; p++) if (Alive[p])
         {
-            if (vector) maxSpeedSquared = Math.Max(maxSpeedSquared,Vx[p]*Vx[p]+Vy[p]*Vy[p]);
+            if (vector)
+            {
+                maxSpeedSquared = Math.Max(maxSpeedSquared,Vx[p]*Vx[p]+Vy[p]*Vy[p]);
+                minX = Math.Min(minX,X[p]); maxX = Math.Max(maxX,X[p]);
+                minY = Math.Min(minY,Y[p]); maxY = Math.Max(maxY,Y[p]);
+            }
             if (!Attracts(p)) continue;
             hosts.Add((p, maxK * R[p] * Math.Cbrt(MaterialDensity(p) / minDensity),
                 Math.Sqrt(Vx[p]*Vx[p]+Vy[p]*Vy[p])*seconds));
             acceleration += C.G*M[p]/(R[p]*R[p]);
         }
         double acceleratedDrift = 2 * acceleration * seconds * seconds;
+        // The compact-primary surface bound can cover the entire world. Then every distance
+        // predicate passes in BOTH paths: emit directly in canonical scalar order, without a global sort.
+        if (vector && acceleratedDrift > Math.BitIncrement(double.Hypot(maxX-minX,maxY-minY))) vector = false;
         if (vector)
         {
             // Standard SIMD broad phase over the existing SoA arrays. Only nearby lanes read material.
