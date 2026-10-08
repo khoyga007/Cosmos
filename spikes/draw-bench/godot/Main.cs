@@ -48,6 +48,16 @@ public partial class Main : Node2D
     {
         ParseArguments();
 
+        string activeAdapter = RenderingServer.GetVideoAdapterName();
+        GD.Print($"[Godot Active Adapter] {activeAdapter}");
+        if (!activeAdapter.Contains("NVIDIA", StringComparison.OrdinalIgnoreCase) && !activeAdapter.Contains("GeForce", StringComparison.OrdinalIgnoreCase))
+        {
+            GD.PrintErr($"[CRITICAL OPTIMUS ERROR] Godot dang chay tren card '{activeAdapter}', KHONG PHAI NVIDIA dGPU!");
+            GD.PrintErr("[BAO VE MAY YANG] DUNG BENCHMARK NGAY LAP TUC DE TRANH TDR / TREO MAY!");
+            GetTree().Quit(1);
+            return;
+        }
+
         if (_fpsCap > 0)
         {
             Engine.MaxFps = _fpsCap;

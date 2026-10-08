@@ -7,13 +7,14 @@ Spike đo đạc hiệu năng render 2D (MultiMesh vs Bevy Wgpu Point Mesh) ph�
 
 ## 1. GÓI BẢO VỆ AN TOÀN 5 ĐIỂM
 
-1. **Kiểm tra dGPU chặt chẽ ở đầu script (Preflight Check)**:
-   - Truy vấn trực tiếp `Win32_VideoController`.
-   - Bắt buộc phát hiện `NVIDIA GeForce GTX 1650` (hoặc dGPU NVIDIA).
-   - Nếu phát hiện chỉ chạy trên `Intel(R) UHD Graphics` -> **DỪNG NGAY LẬP TỨC**, in cảnh báo đỏ, không đo để tránh nghẽn GPU tích hợp.
+1. **Kiểm tra dGPU chặt chẽ (Preflight Check & In-Process Validation)**:
+   - *Preflight*: `check_gpu.ps1` truy vấn `Win32_VideoController`; bắt buộc có `NVIDIA GeForce GTX 1650`. Nếu chỉ có `Intel(R) UHD Graphics` -> dừng ngay lập tức.
+   - *In-Process (Chống lỗi Laptop Optimus)*: Cả Godot (`RenderingServer.GetVideoAdapterName()`) và Bevy (`AdapterInfo.name`) kiểm tra card đồ họa thực tế đang render ở frame đầu tiên. Nếu rơi vào Intel UHD thay vì NVIDIA -> thoát ngay với exit code 1, kích hoạt fail-stop dừng toàn bộ lượt đo.
+   - *Ép dGPU*: Bevy thiết lập `WGPU_POWER_PREF=high` và `PowerPreference::HighPerformance`; Godot chạy với tham số `--gpu-index 1`.
 2. **Watchdog cấp Hệ điều hành 25 giây (`watchdog_runner.ps1`)**:
    - Mỗi cảnh đo kéo dài 10s (warmup 2s).
-   - Nếu một cảnh bị treo driver/TDR hoặc chạy quá 25 giây: Watchdog OS tự động kích hoạt `taskkill /F /T` cưỡng chế ngắt tiến trình, ghi nhận kết quả `TIMEOUT` vào JSON và trả về exit code 124.
+   - Nếu một cảnh bị treo hoặc chạy quá 25 giây: Watchdog OS tự động kích hoạt `taskkill /F /T` cưỡng chế ngắt tiến trình, ghi nhận kết quả `TIMEOUT` vào JSON và trả về exit code 124.
+   - *Giới hạn kỹ thuật*: Watchdog chạy ở user-mode nên không thể can thiệp nếu GPU gặp hard hang cấp kernel driver (BSOD). Tuy nhiên, việc loại bỏ triệt để Intel UHD, ép NVIDIA GTX 1650, và chạy lượt capped 60 FPS sẽ ngăn chặn nguy cơ quá nhiệt/quá tải driver ngay từ đầu.
 3. **Cơ chế Fail-Stop (Tăng dần từ nhẹ tới nặng)**:
    - Thứ tự kịch bản: `A (100k)` → `D1 (100k + 1k bodies)` → `D2 (300k + 1k bodies)` → `D3 (1M + 1k bodies)` → `B (1M)` → `C (1M + Bloom + 50k Particles)`.
    - Nếu bất kỳ cảnh nào thất bại hoặc bị watchdog ngắt -> **DỪNG NGAY TOÀN BỘ BENCHMARK**, không chạy tiếp cảnh nặng hơn!

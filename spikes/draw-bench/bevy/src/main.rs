@@ -481,6 +481,15 @@ fn bench_tick(
     };
     metrics.last_frame_instant = Some(now);
 
+    if let Some(info) = &adapter_info {
+        if !info.name.contains("NVIDIA") && !info.name.contains("GeForce") {
+            eprintln!("[CRITICAL OPTIMUS ERROR] Bevy dang render tren card '{}', KHONG PHAI NVIDIA dGPU!", info.name);
+            eprintln!("[BAO VE MAY YANG] DUNG BENCHMARK NGAY LAP TUC DE TRANH TDR / TREO MAY!");
+            app_exit.write(AppExit::from_code(1));
+            return;
+        }
+    }
+
     let dt = time.delta_secs_f64();
     metrics.elapsed_total += dt;
     let t = metrics.elapsed_total as f32;
@@ -639,6 +648,7 @@ fn finish_benchmark(
 }
 
 fn main() {
+    std::env::set_var("WGPU_POWER_PREF", "high");
     let config = parse_args();
 
     let mut app = App::new();
