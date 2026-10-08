@@ -45,6 +45,10 @@ if (args.Length > 1 && args[0] == "jump-bench")
     return 0;
 }
 if (args.Length > 0 && args[0] == "advance-bench") { AdvanceBench.Run(args); return 0; }
+if (args.Length > 0 && (args[0] == "prof" || args[0] == "--prof")) { ProfBench.Run(args); return 0; }
+if (args.Length > 0 && args[0] == "prof-check") return ProfChecks.Run() ? 0 : 1;
+if (args.Length > 0 && args[0] == "comet-scale") return CometScaleChecks.Run() ? 0 : 1;
+if (args.Length > 1 && args[0] == "prof-paired") return ProfBench.Paired(args[1]) ? 0 : 1;
 if (args.Length > 0 && (args[0] == "scale" || args[0] == "--scale")) { ScaleBench.Run(args); return 0; }
 if (args.Length > 0 && args[0] == "civ-dates") return CivDates.Run(args);
 if (args.Length > 0 && args[0] == "civ-jump") return CivJumpBench.Run(args);
@@ -176,6 +180,8 @@ allOk &= NsDropChecks.Run();
 allOk &= RocheQueryChecks.Run();
 allOk &= SpeciesChecks.Run();
 allOk &= CapNodeChecks.Run();
+allOk &= ProfChecks.Run();
+allOk &= CometScaleChecks.Run();
 allOk &= Audit.Run();
 return allOk ? 0 : 1;
 

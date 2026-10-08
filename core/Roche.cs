@@ -133,6 +133,7 @@ public sealed partial class World
         _rocheCandidates.Clear(); _rocheHosts.Clear();
         if (!_rocheAdvanceMaterialCache) _rocheMaterialCache.Clear();
         if (!RocheEnabled) return;
+        _prof.RocheCollections++;
         _rocheEarthRadiusRef = EarthRadiusRef;
         _rocheCandidateSeconds = seconds; _rocheCandidateOrbital = orbital;
         double minDensity = C.Density.Min(), maxK = Math.Max(C.RocheRigid,C.RocheFluid);
@@ -148,6 +149,7 @@ public sealed partial class World
     void AppendRocheCandidates(int body)
     {
         if (!Alive[body] || IsShip(body) || StarPhaseOf(body) != StarPhase.None) return;
+        _prof.RocheAdmissionPairs += _rocheHosts.Count; // host rows tested, including early rejection
         double minDensity = C.Density.Min(), maxK = Math.Max(C.RocheRigid,C.RocheFluid);
         for (int k = 0; k < _rocheHosts.Count; k++)
         {
@@ -186,10 +188,12 @@ public sealed partial class World
     {
         var best = (Time: double.PositiveInfinity, Body: -1, Host: -1, BodyGen: 0, HostGen: 0);
         if (!RocheEnabled || _rocheChanges >= C.RocheChangesPerStep) return best;
+        long visited = 0;
         var upperByHost = new Dictionary<int, double>();
         double minDensity = C.Density.Min(), maxK = Math.Max(C.RocheRigid, C.RocheFluid);
         foreach (var pair in _rocheCandidates)
         {
+            visited++;
             int i = pair.Body, p = pair.Host;
             if (!Alive[i] || !Alive[p] || Gen[i] != pair.BodyGen || Gen[p] != pair.HostGen) continue;
             double dx = X[i] - X[p], dy = Y[i] - Y[p], d2 = dx * dx + dy * dy;
@@ -215,16 +219,19 @@ public sealed partial class World
                 : PrimaryContactTime(dx, dy, Vx[i] - Vx[p], Vy[i] - Vy[p], C.G * (M[i] + M[p]), radius);
             if (at <= seconds && at < best.Time) best = (at, i, p, Gen[i], Gen[p]);
         }
+        _prof.RocheCandidateChecks += visited;
         return best;
     }
 
     void CheckRocheHere()
     {
         if (!RocheEnabled) return;
+        long visited = 0;
         // Locally appended children are checked after the original candidate sequence. There is no
         // global recollection/sort or extra gravity pass per event; the public-step budget also bounds work.
         for (int cursor = 0; cursor < _rocheCandidates.Count && _rocheChanges < C.RocheChangesPerStep; cursor++)
         {
+            visited++;
             var pair = _rocheCandidates[cursor]; int body = pair.Body, host = pair.Host;
             if (!Alive[body] || !Alive[host] || Gen[body] != pair.BodyGen || Gen[host] != pair.HostGen) continue;
             double dx = X[body]-X[host], dy = Y[body]-Y[host], contact = R[host]+R[body];
@@ -239,6 +246,7 @@ public sealed partial class World
             }
             if (crossed) BreakRoche(body,host);
         }
+        _prof.RocheCandidateChecks += visited;
     }
 
     double NextRocheBoundary(double target)
@@ -265,10 +273,12 @@ public sealed partial class World
         _rocheMaterialCache.Clear(); _rocheEarthRadiusRef = EarthRadiusRef;
         double minDensity = C.Density.Min(), maxK = Math.Max(C.RocheRigid, C.RocheFluid);
         var upper = new Dictionary<int,double>();
+        long visited = 0;
         for (int i = 0; i < N; i++)
         {
             if (!Alive[i] || Attracts(i)) continue;
             int p = _prim![i]; if (p < 0 || !Alive[p]) continue;
+            visited++;
             if (!upper.TryGetValue(p,out double broad))
                 upper[p] = broad = maxK * R[p] * Math.Cbrt(MaterialDensity(p) / minDensity);
             if (PrimaryContactTime(_bx![i],_by![i],_bvx![i],_bvy![i],C.G*(M[i]+M[p]),broad) > seconds) continue;
@@ -280,6 +290,7 @@ public sealed partial class World
                 _rocheRockEntries.Add((i,p,Gen[i],Gen[p],year));
             }
         }
+        _prof.RocheCandidateChecks += visited;
     }
 
     void Reservoir(int host, double x, double y, double mass, double vx, double vy, double angular, double[] matter)
