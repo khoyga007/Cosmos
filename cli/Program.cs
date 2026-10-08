@@ -45,6 +45,7 @@ if (args.Length > 1 && args[0] == "jump-bench")
     return 0;
 }
 if (args.Length > 0 && args[0] == "advance-bench") { AdvanceBench.Run(args); return 0; }
+if (args.Length > 0 && (args[0] == "scale" || args[0] == "--scale")) { ScaleBench.Run(args); return 0; }
 if (args.Length > 0 && args[0] == "civ-dates") return CivDates.Run(args);
 if (args.Length > 0 && args[0] == "civ-jump") return CivJumpBench.Run(args);
 if (args.Length > 0 && args[0] == "kinds") return KindChecks.Run() ? 0 : 1;
