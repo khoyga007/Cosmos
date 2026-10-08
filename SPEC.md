@@ -350,3 +350,10 @@ Yang asked whether aggregation still leaves an emergent simulation. Answer recor
 - Anti-script guards (binding): (1) mass laws derived from the same physics and constants, no free numbers for looks; (2) paired run, same small scene resolved-per-rock vs mass: merge/escape/capture/Roche/impact rates must not differ systematically, else FAIL; (3) a rate decides only THAT a parcel is withdrawn; from then on it is a body and physics decides everything.
 - Shatter fragments follow the same rule: largest fragments bodies, tail mass (law 4).
 15.11 two-representation principle: Yang did not object when asked; treated as accepted.
+
+### 15.13 Confirmed by Yang 2026-10-08 + Celine source corrections
+- [Y] Look-only click does NOT promote a parcel to a body. Inspecting shows mass-level data (and a sampled representative, labelled as sample). Only a physical trigger or a god ACT withdraws a parcel (law 3).
+- [Y] 15.9 "physics good enough" = all three: GATES pass; mad-god fuzz (15.7) hours clean; Yang breaks it by hand and it holds. Civ reaction work stays closed until then.
+- Quasi-star (corrects 15.5 wording): it is a black hole ALREADY inside a massive gas envelope, accreting, envelope held up by that accretion; not a supermassive star relabelled. Route: huge gas → supermassive star → core collapses to BH inside envelope = quasi-star → envelope consumed/blown off → bare massive BH. Ref arXiv:0711.4078. State must carry BH mass + envelope mass separately.
+- Escaped MATTER is not escaped heat. Matter leaving a system keeps M, P, Comp. It goes to an interstellar diffuse mass (same mass representation, per region) or crosses a declared world boundary where the ledger records M/P/E/Comp leaving. "Escaped heat" scalar = radiation/energy only. Law 1 residuals must include the boundary term.
+- Celine's full review: E:/Cosmos-celine-scale/THERMAL-LAW-REVIEW.md (to be brought into repo docs with her next docs commit).
