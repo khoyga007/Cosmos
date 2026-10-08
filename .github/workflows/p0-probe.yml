@@ -1,0 +1,29 @@
+# Hark P0 probe (issue #2, round 1): measure-only, 16 seeds of the NS-drop scene, up to 1e6 Advance(.5) each.
+name: p0-probe
+on:
+  workflow_dispatch:
+  push:
+    branches: [hark/p0-probe]
+    paths: [.github/workflows/p0-probe.yml]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    strategy:
+      fail-fast: false
+      matrix:
+        seed: [1234, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010, 1011, 1012, 1013, 1014, 1015]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '8.0.x' }
+      - run: dotnet build cli -c Release
+      - name: probe
+        env: { P0_THREADS: '1', P0_WALL_SECONDS: '19800' }
+        run: |
+          nproc; lscpu | grep 'Model name' || true
+          dotnet cli/bin/Release/net8.0/Cosmos.Cli.dll p0-probe ${{ matrix.seed }} 1000000 1000 out 50000
+          cat out/seed${{ matrix.seed }}-summary.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: p0-seed${{ matrix.seed }}, path: out/ }
