@@ -111,6 +111,8 @@ struct BenchConfig {
     scene: String,
     mode: String,
     points: usize,
+    bodies: usize,
+    fps_cap: u32,
     has_bloom_and_particles: bool,
     duration_sec: f64,
     warmup_sec: f64,
@@ -125,8 +127,18 @@ struct OrbitData {
     omega: Vec<f32>,
 }
 
+#[derive(Resource)]
+struct BodyData {
+    radii: Vec<f32>,
+    theta0: Vec<f32>,
+    omega: Vec<f32>,
+}
+
 #[derive(Component)]
 struct OrbitMeshMarker;
+
+#[derive(Component)]
+struct BodyMeshMarker;
 
 #[derive(Resource)]
 struct BenchMetrics {
@@ -136,6 +148,7 @@ struct BenchMetrics {
     cpu_push_times_ms: Vec<f64>,
     rail_mat_handle: Option<Handle<RailMaterial>>,
     mesh_handle: Option<Handle<Mesh>>,
+    body_mesh_handle: Option<Handle<Mesh>>,
 }
 
 #[derive(Serialize)]
@@ -144,10 +157,13 @@ struct BenchResult {
     engine_version: String,
     scene: String,
     points: usize,
+    bodies: usize,
     mode: String,
+    fps_cap: u32,
     has_bloom_and_particles: bool,
     frame_count_measured: usize,
     frame_ms_avg: f64,
+    frame_ms_p50: f64,
     frame_ms_p95: f64,
     frame_ms_p99: f64,
     fps_avg: f64,
@@ -166,6 +182,9 @@ fn parse_args() -> BenchConfig {
     let mut warmup_sec = 2.0;
     let mut out_path = "results_bevy.json".to_string();
     let mut headless = false;
+    let mut fps_cap = 0u32;
+    let mut override_points = None;
+    let mut override_bodies = None;
 
     for arg in std::env::args() {
         if let Some(val) = arg.strip_prefix("--scene=") {
@@ -182,22 +201,47 @@ fn parse_args() -> BenchConfig {
             }
         } else if let Some(val) = arg.strip_prefix("--out=") {
             out_path = val.trim().to_string();
+        } else if let Some(val) = arg.strip_prefix("--fps-cap=") {
+            if let Ok(v) = val.trim().parse::<u32>() {
+                fps_cap = v;
+            }
+        } else if let Some(val) = arg.strip_prefix("--points=") {
+            if let Ok(v) = val.trim().parse::<usize>() {
+                override_points = Some(v);
+            }
+        } else if let Some(val) = arg.strip_prefix("--bodies=") {
+            if let Ok(v) = val.trim().parse::<usize>() {
+                override_bodies = Some(v);
+            }
         } else if arg == "--headless" {
             headless = true;
         }
     }
 
-    let (points, has_bloom_and_particles) = match scene.as_str() {
-        "A" => (100_000, false),
-        "B" => (1_000_000, false),
-        "C" => (1_000_000, true),
-        _ => (100_000, false),
+    let (mut points, mut bodies, has_bloom_and_particles) = match scene.as_str() {
+        "A" => (100_000, 0, false),
+        "B" => (1_000_000, 0, false),
+        "C" => (1_000_000, 0, true),
+        "D1" | "D_100K" => (100_000, 1_000, false),
+        "D2" | "D_300K" => (300_000, 1_000, false),
+        "D3" | "D_1M" => (1_000_000, 1_000, false),
+        "D" => (100_000, 1_000, false),
+        _ => (100_000, 0, false),
     };
+
+    if let Some(p) = override_points {
+        points = p;
+    }
+    if let Some(b) = override_bodies {
+        bodies = b;
+    }
 
     BenchConfig {
         scene,
         mode,
         points,
+        bodies,
+        fps_cap,
         has_bloom_and_particles,
         duration_sec,
         warmup_sec,
@@ -238,6 +282,40 @@ fn init_orbit_data(count: usize) -> (OrbitData, Vec<[f32; 4]>) {
     }
 
     (OrbitData { radii, theta0, omega }, colors)
+}
+
+fn init_body_data(count: usize) -> (BodyData, Vec<[f32; 4]>) {
+    let mut radii = Vec::with_capacity(count);
+    let mut theta0 = Vec::with_capacity(count);
+    let mut omega = Vec::with_capacity(count);
+    let mut colors = Vec::with_capacity(count);
+
+    let mut seed = 9999u64;
+    let mut next_float = || -> f32 {
+        seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        ((seed >> 32) as u32 as f64 / 4294967296.0) as f32
+    };
+
+    for _ in 0..count {
+        let r = 80.0 + next_float() * 420.0;
+        let t0 = next_float() * std::f32::consts::PI * 2.0;
+        let w = 22.0 / r.sqrt();
+
+        radii.push(r);
+        theta0.push(t0);
+        omega.push(w);
+
+        // Major physical bodies (§15): distinct bright gold/white/cyan colors
+        let color = [
+            0.8 + 0.2 * next_float(),
+            0.6 + 0.4 * next_float(),
+            0.3 + 0.5 * next_float(),
+            1.0,
+        ];
+        colors.push(color);
+    }
+
+    (BodyData { radii, theta0, omega }, colors)
 }
 
 fn setup_bench(
@@ -307,6 +385,31 @@ fn setup_bench(
         metrics.mesh_handle = Some(mesh_h);
     }
 
+    if config.bodies > 0 {
+        let (body_data, body_colors) = init_body_data(config.bodies);
+        let mut body_mesh = Mesh::new(PrimitiveTopology::PointList, RenderAssetUsages::default());
+        let mut b_pos = Vec::with_capacity(config.bodies);
+        for i in 0..config.bodies {
+            let r = body_data.radii[i];
+            let t0 = body_data.theta0[i];
+            b_pos.push([r * t0.cos(), r * t0.sin(), 0.0]);
+        }
+        body_mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, b_pos);
+        body_mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, body_colors);
+
+        let b_mesh_h = meshes.add(body_mesh);
+        let b_mat_h = cpu_materials.add(CpuPointMaterial::default());
+
+        commands.spawn((
+            Mesh2d(b_mesh_h.clone()),
+            MeshMaterial2d(b_mat_h),
+            BodyMeshMarker,
+        ));
+
+        metrics.body_mesh_handle = Some(b_mesh_h);
+        commands.insert_resource(body_data);
+    }
+
     if config.has_bloom_and_particles && !config.headless {
         let mut glow_mesh = Mesh::new(PrimitiveTopology::PointList, RenderAssetUsages::default());
         let mut glow_pos = Vec::with_capacity(200);
@@ -356,13 +459,14 @@ fn setup_bench(
     }
 
     commands.insert_resource(orbit_data);
-    println!("[Bevy DrawBench] Ready: Scene {}, Mode {}, Points: {}", config.scene, config.mode, config.points);
+    println!("[Bevy DrawBench] Ready: Scene {}, Mode {}, Points: {}, Bodies: {}", config.scene, config.mode, config.points, config.bodies);
 }
 
 fn bench_tick(
     time: Res<Time>,
     config: Res<BenchConfig>,
     orbit: Option<Res<OrbitData>>,
+    bodies: Option<Res<BodyData>>,
     adapter_info: Option<Res<RenderAdapterInfo>>,
     mut metrics: ResMut<BenchMetrics>,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -407,6 +511,24 @@ fn bench_tick(
         }
     }
 
+    if let Some(body_data) = bodies {
+        if let Some(b_mesh_h) = &metrics.body_mesh_handle {
+            if let Some(mut mesh) = meshes.get_mut(b_mesh_h) {
+                if let Some(bevy::mesh::VertexAttributeValues::Float32x3(positions)) =
+                    mesh.attribute_mut(Mesh::ATTRIBUTE_POSITION)
+                {
+                    let count = body_data.radii.len();
+                    for i in 0..count {
+                        let r = body_data.radii[i];
+                        let theta = body_data.theta0[i] + body_data.omega[i] * t;
+                        positions[i][0] = r * theta.cos();
+                        positions[i][1] = r * theta.sin();
+                    }
+                }
+            }
+        }
+    }
+
     let cpu_push_ms = push_start.elapsed().as_secs_f64() * 1000.0;
 
     if metrics.elapsed_total >= config.warmup_sec {
@@ -417,6 +539,15 @@ fn bench_tick(
     if metrics.elapsed_total >= config.duration_sec {
         finish_benchmark(&config, &adapter_info, &metrics);
         app_exit.write(AppExit::Success);
+    }
+
+    if config.fps_cap > 0 {
+        let target_frame_ms = 1000.0 / config.fps_cap as f64;
+        let elapsed_ms = now.elapsed().as_secs_f64() * 1000.0;
+        if elapsed_ms < target_frame_ms {
+            let sleep_dur = std::time::Duration::from_secs_f64((target_frame_ms - elapsed_ms) / 1000.0);
+            std::thread::sleep(sleep_dur);
+        }
     }
 }
 
@@ -449,6 +580,7 @@ fn finish_benchmark(
         }
     };
 
+    let p50_frame_ms = percentile(0.50);
     let p95_frame_ms = percentile(0.95);
     let p99_frame_ms = percentile(0.99);
 
@@ -469,10 +601,13 @@ fn finish_benchmark(
         engine_version: "0.19.1".to_string(),
         scene: config.scene.clone(),
         points: config.points,
+        bodies: config.bodies,
         mode: config.mode.clone(),
+        fps_cap: config.fps_cap,
         has_bloom_and_particles: config.has_bloom_and_particles,
         frame_count_measured: count,
         frame_ms_avg: (avg_frame_ms * 10000.0).round() / 10000.0,
+        frame_ms_p50: (p50_frame_ms * 10000.0).round() / 10000.0,
         frame_ms_p95: (p95_frame_ms * 10000.0).round() / 10000.0,
         frame_ms_p99: (p99_frame_ms * 10000.0).round() / 10000.0,
         fps_avg: if avg_frame_ms > 0.0 {
@@ -550,6 +685,7 @@ fn main() {
         cpu_push_times_ms: Vec::new(),
         rail_mat_handle: None,
         mesh_handle: None,
+        body_mesh_handle: None,
     });
     app.insert_resource(config);
 

@@ -1,54 +1,67 @@
 # SPIKE ĐO VẼ: GODOT 4.7.2 vs BEVY 0.19.1
+## GÓI BẢO VỆ AN TOÀN 5 ĐIỂM (CẤP PHẦN CỨNG) DÀNH CHO MÁY YANG
 
-Spike đo đạc hiệu năng render 2D (MultiMesh vs Bevy Wgpu Point Mesh) phục vụ quyết định kiến trúc trước pha S4 của dự án Cosmos.
+Spike đo đạc hiệu năng render 2D (MultiMesh vs Bevy Wgpu Point Mesh) phục vụ quyết định kiến trúc trước pha S4 của dự án Cosmos, được trang bị gói bảo vệ 5 điểm chống treo máy / TDR driver hang.
 
-## 1. Cách Chạy (Dành cho Yang)
-1. Đảm bảo cắm sạc laptop và không chạy các ứng dụng nặng khác (để GPU không bị throttle).
-2. Vào thư mục `spikes\draw-bench\` (hoặc thư mục gốc Cosmos).
-3. Click đúp vào file `run-draw-bench.bat`.
-4. Script sẽ tự động chạy lần lượt 12 kịch bản đo (mỗi cảnh 10 giây, bỏ 2 giây đầu, tự thoát).
-5. Màn hình console sẽ tự động in bảng tổng hợp so sánh hoàn chỉnh và lưu kết quả JSON vào thư mục `results\`.
+---
 
-## 2. Bảng So Sánh Dự Kiến (Trống — Điền sau khi chạy run-draw-bench.bat)
+## 1. GÓI BẢO VỆ AN TOÀN 5 ĐIỂM
 
-| Engine | Cảnh | Biến Thể | Điểm / Hạt | FPS Avg | Frame ms (Avg / p95 / p99) | CPU Push (ms) | RAM (MB) | GPU Adapter |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| **Godot** | A | CPU Push | 100,000 | ... | ... / ... / ... | ... | ... | ... |
-| **Godot** | A | Shader RAIL | 100,000 | ... | ... / ... / ... | ... | ... | ... |
-| **Bevy** | A | CPU Push | 100,000 | ... | ... / ... / ... | ... | ... | ... |
-| **Bevy** | A | Shader RAIL | 100,000 | ... | ... / ... / ... | ... | ... | ... |
-| **Godot** | B | CPU Push | 1,000,000 | ... | ... / ... / ... | ... | ... | ... |
-| **Godot** | B | Shader RAIL | 1,000,000 | ... | ... / ... / ... | ... | ... | ... |
-| **Bevy** | B | CPU Push | 1,000,000 | ... | ... / ... / ... | ... | ... | ... |
-| **Bevy** | B | Shader RAIL | 1,000,000 | ... | ... / ... / ... | ... | ... | ... |
-| **Godot** | C | CPU Push | 1,000,000 + FX | ... | ... / ... / ... | ... | ... | ... |
-| **Godot** | C | Shader RAIL | 1,000,000 + FX | ... | ... / ... / ... | ... | ... | ... |
-| **Bevy** | C | CPU Push | 1,000,000 + FX | ... | ... / ... / ... | ... | ... | ... |
-| **Bevy** | C | Shader RAIL | 1,000,000 + FX | ... | ... / ... / ... | ... | ... | ... |
+1. **Kiểm tra dGPU chặt chẽ ở đầu script (Preflight Check)**:
+   - Truy vấn trực tiếp `Win32_VideoController`.
+   - Bắt buộc phát hiện `NVIDIA GeForce GTX 1650` (hoặc dGPU NVIDIA).
+   - Nếu phát hiện chỉ chạy trên `Intel(R) UHD Graphics` -> **DỪNG NGAY LẬP TỨC**, in cảnh báo đỏ, không đo để tránh nghẽn GPU tích hợp.
+2. **Watchdog cấp Hệ điều hành 25 giây (`watchdog_runner.ps1`)**:
+   - Mỗi cảnh đo kéo dài 10s (warmup 2s).
+   - Nếu một cảnh bị treo driver/TDR hoặc chạy quá 25 giây: Watchdog OS tự động kích hoạt `taskkill /F /T` cưỡng chế ngắt tiến trình, ghi nhận kết quả `TIMEOUT` vào JSON và trả về exit code 124.
+3. **Cơ chế Fail-Stop (Tăng dần từ nhẹ tới nặng)**:
+   - Thứ tự kịch bản: `A (100k)` → `D1 (100k + 1k bodies)` → `D2 (300k + 1k bodies)` → `D3 (1M + 1k bodies)` → `B (1M)` → `C (1M + Bloom + 50k Particles)`.
+   - Nếu bất kỳ cảnh nào thất bại hoặc bị watchdog ngắt -> **DỪNG NGAY TOÀN BỘ BENCHMARK**, không chạy tiếp cảnh nặng hơn!
+4. **2 Lượt đo cho mỗi cảnh (Capped 60 FPS & Uncapped)**:
+   - Lượt 1: **Capped 60 FPS** — Phản ánh chính xác trải nghiệm thực tế Yang thấy khi chơi game trên màn hình 60Hz.
+   - Lượt 2: **Uncapped FPS** — Đo trần throughput tối đa của phần cứng.
+   - Đo và báo cáo đầy đủ: **FPS avg, Frame time avg, p50 (median), p95**.
+5. **Kịch bản Cảnh D (§15 SPEC — Mô hình "Khối + Vật thể")**:
+   - Khối bụi/đá vụn parcel mass biểu diễn bằng 100k / 300k / 1M điểm hạt render qua GPU shader.
+   - Kết hợp ~1.000 bodies thật (những thiên thể lớn nhất, có quỹ đạo Keplerian riêng và được CPU cập nhật tọa độ mỗi frame).
 
-*(Ghi chú Cảnh C: 1M chấm + 200 quầng sáng bloom/glow + 50k hạt nổ GPU explosion particles).*
+---
 
-## 3. Ghi Nhận Công Sức & Khảo Sát Kỹ Thuật (Godot vs Bevy)
+## 2. Cách Chạy (Dành Cho Yang)
 
-### Thống kê dòng code (LOC)
-- **Godot (C# + GDShader)**: ~380 dòng code.
-  - `Main.cs`: 330 dòng (setup MultiMesh, CPU buffer push, Shader parameter, GpuParticles2D, đo đạc thống kê percentile, JSON export).
-  - `orbit_rail.gdshader`: 16 dòng (vertex evaluation từ INSTANCE_CUSTOM).
-  - `project.godot` + csproj: 34 dòng cấu hình.
-- **Bevy (Rust + WGSL)**: ~650 dòng code.
-  - `src/main.rs`: 580 dòng (setup ECS systems, Custom Material2d plugins, Hanabi particle effect, CPU mesh attribute update, Windows working set FFI, JSON export).
-  - `orbit_rail.wgsl` + `orbit_cpu.wgsl`: 60 dòng (WGSL vertex shader tích hợp mesh2d_functions).
-  - `Cargo.toml`: 16 dòng.
+1. Cắm sạc laptop và không mở các tác vụ 3D/video nặng khác.
+2. Chạy file batch an toàn tại đường dẫn tuyệt đối:
+   `E:\Cosmos-draw-bench\spikes\draw-bench\run-draw-bench.bat`
+3. Script sẽ tự kiểm tra dGPU NVIDIA, chạy tuần tự từng kịch bản tăng dần (mỗi cảnh bọc watchdog 25s).
+4. Sau khi hoàn tất (hoặc nếu có cảnh dừng sớm), script tự động chạy `aggregate_results.py` in bảng Markdown so sánh hoàn chỉnh lên màn hình console và lưu kết quả JSON vào thư mục `results\`.
 
-### Đánh giá độ khó, thiếu hụt và sự đánh đổi của Bevy
-1. **API Thay Đổi Nhanh Giữa Các Bản (Churn)**:
-   - Bevy 0.19 thay đổi nhiều API cốt lõi: `EventWriter` đổi thành `MessageWriter`, `RenderCreation::Automatic(Box<WgpuSettings>)` đòi hỏi cấp phát heap `Box`, các Bundle component cũ bị xoá chuyển sang tuples. Code mẫu trên mạng thường xuyên bị outdate.
-2. **Hệ Thống UI & Font / Text Tiếng Việt**:
-   - Godot: Có sẵn hệ thống Control Node, RichTextLabel hỗ trợ BBCode, font fallback tự động, xử lý font tiếng Việt hoàn chỉnh out-of-the-box.
-   - Bevy: Core engine chỉ có Bevy UI mức độ sơ khai; không có RichTextLabel đầy đủ tính năng; muốn có giao diện bảng/HUD phức tạp như Cosmos phải tự viết hoặc nhúng `bevy_egui`. Font tiếng Việt cần tự cấu hình text shaping qua HarfBuzz/Cosmic-text cẩn thận.
-3. **Hiệu Ứng Hạt (Particle System)**:
-   - Godot: Built-in `GPUParticles2D` cực kỳ mạnh, khai báo chỉ 5-10 dòng là có ngay 50k hạt nổ có spread, velocity, color over lifetime.
-   - Bevy: Core không có particle system. Bắt buộc phải kéo thêm crate ngoài `bevy_hanabi 0.19.0`, viết pipeline dạng AST `ExprWriter`, modifier graph khá phức tạp.
-4. **Thời Gian Build & Dung Lượng Binary**:
-   - Godot C#: Build Release chỉ mất ~4-8 giây.
-   - Bevy Rust: Clean build Release mất ~2-3 phút (hơn 250 crates phụ thuộc). Binary release độc lập nặng ~35 MB.
+---
+
+## 3. Bảng Khung Kết Quả Đo
+
+| Engine | Cảnh | Biến Thể | Điểm / Khối | Cap FPS | FPS Avg | Frame ms (Avg / p50 / p95) | CPU Push (ms) | RAM (MB) | GPU Adapter |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| **Godot** | A | Shader | 100,000 | 60 FPS | ... | ... / ... / ... | ... | ... | ... |
+| **Godot** | A | Shader | 100,000 | Uncapped | ... | ... / ... / ... | ... | ... | ... |
+| **Bevy** | A | Shader | 100,000 | 60 FPS | ... | ... / ... / ... | ... | ... | ... |
+| **Bevy** | A | Shader | 100,000 | Uncapped | ... | ... / ... / ... | ... | ... | ... |
+| **Godot** | D1 (§15) | Shader | 100k + 1k bodies | 60 FPS | ... | ... / ... / ... | ... | ... | ... |
+| **Godot** | D1 (§15) | Shader | 100k + 1k bodies | Uncapped | ... | ... / ... / ... | ... | ... | ... |
+| **Bevy** | D1 (§15) | Shader | 100k + 1k bodies | 60 FPS | ... | ... / ... / ... | ... | ... | ... |
+| **Bevy** | D1 (§15) | Shader | 100k + 1k bodies | Uncapped | ... | ... / ... / ... | ... | ... | ... |
+| **Godot** | D2 (§15) | Shader | 300k + 1k bodies | 60 FPS | ... | ... / ... / ... | ... | ... | ... |
+| **Godot** | D2 (§15) | Shader | 300k + 1k bodies | Uncapped | ... | ... / ... / ... | ... | ... | ... |
+| **Bevy** | D2 (§15) | Shader | 300k + 1k bodies | 60 FPS | ... | ... / ... / ... | ... | ... | ... |
+| **Bevy** | D2 (§15) | Shader | 300k + 1k bodies | Uncapped | ... | ... / ... / ... | ... | ... | ... |
+| **Godot** | D3 (§15) | Shader | 1M + 1k bodies | 60 FPS | ... | ... / ... / ... | ... | ... | ... |
+| **Godot** | D3 (§15) | Shader | 1M + 1k bodies | Uncapped | ... | ... / ... / ... | ... | ... | ... |
+| **Bevy** | D3 (§15) | Shader | 1M + 1k bodies | 60 FPS | ... | ... / ... / ... | ... | ... | ... |
+| **Bevy** | D3 (§15) | Shader | 1M + 1k bodies | Uncapped | ... | ... / ... / ... | ... | ... | ... |
+| **Godot** | B | Shader | 1,000,000 | 60 FPS | ... | ... / ... / ... | ... | ... | ... |
+| **Godot** | B | Shader | 1,000,000 | Uncapped | ... | ... / ... / ... | ... | ... | ... |
+| **Bevy** | B | Shader | 1,000,000 | 60 FPS | ... | ... / ... / ... | ... | ... | ... |
+| **Bevy** | B | Shader | 1,000,000 | Uncapped | ... | ... / ... / ... | ... | ... | ... |
+| **Godot** | C | Shader | 1M + Bloom/Part | 60 FPS | ... | ... / ... / ... | ... | ... | ... |
+| **Godot** | C | Shader | 1M + Bloom/Part | Uncapped | ... | ... / ... / ... | ... | ... | ... |
+| **Bevy** | C | Shader | 1M + Bloom/Part | 60 FPS | ... | ... / ... / ... | ... | ... | ... |
+| **Bevy** | C | Shader | 1M + Bloom/Part | Uncapped | ... | ... / ... / ... | ... | ... | ... |

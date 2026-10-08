@@ -15,12 +15,22 @@ public partial class Main : Node2D
     private double _warmup = 2.0;
 
     private int _pointCount = 100_000;
+    private int _bodyCount = 0;
+    private int _fpsCap = 0;
     private bool _hasBloomAndParticles = false;
 
     private MultiMeshInstance2D _mmInstance = null!;
     private MultiMesh _mm = null!;
     private float[] _buf = null!;
     private ShaderMaterial? _railMaterial;
+
+    // Body objects (Scene D: major physical bodies)
+    private MultiMeshInstance2D? _mmBodiesInstance;
+    private MultiMesh? _mmBodies;
+    private float[]? _bodyBuf;
+    private float[]? _bodyRadii;
+    private float[]? _bodyTheta0;
+    private float[]? _bodyOmega;
 
     // Orbit parameters
     private float[] _radii = null!;
@@ -38,30 +48,67 @@ public partial class Main : Node2D
     {
         ParseArguments();
 
+        if (_fpsCap > 0)
+        {
+            Engine.MaxFps = _fpsCap;
+        }
+        else
+        {
+            Engine.MaxFps = 0;
+        }
+
         switch (_sceneName.ToUpperInvariant())
         {
             case "A":
                 _pointCount = 100_000;
+                _bodyCount = 0;
                 _hasBloomAndParticles = false;
                 break;
             case "B":
                 _pointCount = 1_000_000;
+                _bodyCount = 0;
                 _hasBloomAndParticles = false;
                 break;
             case "C":
                 _pointCount = 1_000_000;
+                _bodyCount = 0;
                 _hasBloomAndParticles = true;
+                break;
+            case "D1":
+            case "D_100K":
+                _pointCount = 100_000;
+                _bodyCount = 1_000;
+                _hasBloomAndParticles = false;
+                break;
+            case "D2":
+            case "D_300K":
+                _pointCount = 300_000;
+                _bodyCount = 1_000;
+                _hasBloomAndParticles = false;
+                break;
+            case "D3":
+            case "D_1M":
+                _pointCount = 1_000_000;
+                _bodyCount = 1_000;
+                _hasBloomAndParticles = false;
+                break;
+            case "D":
+                if (_pointCount == 100_000) _pointCount = 100_000;
+                if (_bodyCount == 0) _bodyCount = 1_000;
+                _hasBloomAndParticles = false;
                 break;
             default:
                 GD.PrintErr($"Unknown scene: {_sceneName}, defaulting to A (100k)");
                 _pointCount = 100_000;
+                _bodyCount = 0;
                 break;
         }
 
-        GD.Print($"[Godot DrawBench] Starting Scene {_sceneName} ({_pointCount:N0} points), Mode {_mode}, Duration {_duration}s, Warmup {_warmup}s");
+        GD.Print($"[Godot DrawBench] Starting Scene {_sceneName} ({_pointCount:N0} points, {_bodyCount:N0} bodies), Mode {_mode}, FpsCap {_fpsCap}, Duration {_duration}s, Warmup {_warmup}s");
 
         InitOrbitData();
         InitMultiMesh();
+        InitBodies();
 
         if (_hasBloomAndParticles)
         {
@@ -91,6 +138,12 @@ public partial class Main : Node2D
                 double.TryParse(arg.Substring("--duration=".Length).Trim(), System.Globalization.CultureInfo.InvariantCulture, out _duration);
             else if (arg.StartsWith("--warmup="))
                 double.TryParse(arg.Substring("--warmup=".Length).Trim(), System.Globalization.CultureInfo.InvariantCulture, out _warmup);
+            else if (arg.StartsWith("--fps-cap="))
+                int.TryParse(arg.Substring("--fps-cap=".Length).Trim(), out _fpsCap);
+            else if (arg.StartsWith("--points="))
+                int.TryParse(arg.Substring("--points=".Length).Trim(), out _pointCount);
+            else if (arg.StartsWith("--bodies="))
+                int.TryParse(arg.Substring("--bodies=".Length).Trim(), out _bodyCount);
         }
     }
 
@@ -205,6 +258,66 @@ public partial class Main : Node2D
         AddChild(_mmInstance);
     }
 
+    private void InitBodies()
+    {
+        if (_bodyCount <= 0) return;
+
+        var rng = new Random(9999);
+        _bodyRadii = new float[_bodyCount];
+        _bodyTheta0 = new float[_bodyCount];
+        _bodyOmega = new float[_bodyCount];
+        Color[] bodyColors = new Color[_bodyCount];
+
+        for (int i = 0; i < _bodyCount; i++)
+        {
+            float r = 80.0f + (float)rng.NextDouble() * 420.0f;
+            float t0 = (float)(rng.NextDouble() * Math.PI * 2.0);
+            float w = 22.0f / (float)Math.Sqrt(r);
+
+            _bodyRadii[i] = r;
+            _bodyTheta0[i] = t0;
+            _bodyOmega[i] = w;
+
+            // Distinct bright colors for major bodies (stars/planets/named asteroids §15)
+            bodyColors[i] = new Color(
+                0.8f + 0.2f * (float)rng.NextDouble(),
+                0.6f + 0.4f * (float)rng.NextDouble(),
+                0.3f + 0.5f * (float)rng.NextDouble(),
+                1.0f
+            );
+        }
+
+        _mmBodies = new MultiMesh
+        {
+            TransformFormat = MultiMesh.TransformFormatEnum.Transform2D,
+            UseColors = true,
+            Mesh = new QuadMesh { Size = new Vector2(8.0f, 8.0f) },
+            InstanceCount = _bodyCount
+        };
+
+        const int stride = 12;
+        _bodyBuf = new float[_bodyCount * stride];
+        for (int i = 0; i < _bodyCount; i++)
+        {
+            int o = i * stride;
+            _bodyBuf[o + 0] = 1.0f;
+            _bodyBuf[o + 5] = 1.0f;
+            Color c = bodyColors[i];
+            _bodyBuf[o + 8] = c.R;
+            _bodyBuf[o + 9] = c.G;
+            _bodyBuf[o + 10] = c.B;
+            _bodyBuf[o + 11] = c.A;
+        }
+
+        RenderingServer.MultimeshSetBuffer(_mmBodies.GetRid(), _bodyBuf);
+        _mmBodiesInstance = new MultiMeshInstance2D
+        {
+            Multimesh = _mmBodies,
+            Material = new CanvasItemMaterial { BlendMode = CanvasItemMaterial.BlendModeEnum.Add }
+        };
+        AddChild(_mmBodiesInstance);
+    }
+
     private void InitBloomAndParticles()
     {
         // 1. 200 bloom / glow spots
@@ -307,6 +420,26 @@ public partial class Main : Node2D
             RenderingServer.MultimeshSetBuffer(_mm.GetRid(), _buf);
         }
 
+        if (_bodyCount > 0 && _bodyBuf != null && _mmBodies != null)
+        {
+            const int strideB = 12;
+            float t = (float)_elapsedTotal;
+            float cx = 960.0f;
+            float cy = 540.0f;
+            for (int i = 0; i < _bodyCount; i++)
+            {
+                float angle = _bodyTheta0![i] + _bodyOmega![i] * t;
+                float r = _bodyRadii![i];
+                float px = cx + r * (float)Math.Cos(angle);
+                float py = cy + r * (float)Math.Sin(angle);
+
+                int o = i * strideB;
+                _bodyBuf[o + 3] = px;
+                _bodyBuf[o + 7] = py;
+            }
+            RenderingServer.MultimeshSetBuffer(_mmBodies.GetRid(), _bodyBuf);
+        }
+
         long tPushEnd = Stopwatch.GetTimestamp();
         double cpuPushMs = (tPushEnd - tPushStart) * 1000.0 / Stopwatch.Frequency;
 
@@ -328,6 +461,7 @@ public partial class Main : Node2D
         SetProcess(false);
 
         double avgFrameMs = _frameTimesMs.Count > 0 ? _frameTimesMs.Average() : 0.0;
+        double p50FrameMs = Percentile(_frameTimesMs, 0.50);
         double p95FrameMs = Percentile(_frameTimesMs, 0.95);
         double p99FrameMs = Percentile(_frameTimesMs, 0.99);
         double avgCpuPushMs = _cpuPushTimesMs.Count > 0 ? _cpuPushTimesMs.Average() : 0.0;
@@ -343,10 +477,13 @@ public partial class Main : Node2D
             ["engine_version"] = engineVer,
             ["scene"] = _sceneName,
             ["points"] = _pointCount,
+            ["bodies"] = _bodyCount,
             ["mode"] = _mode,
+            ["fps_cap"] = _fpsCap,
             ["has_bloom_and_particles"] = _hasBloomAndParticles,
             ["frame_count_measured"] = _frameTimesMs.Count,
             ["frame_ms_avg"] = Math.Round(avgFrameMs, 4),
+            ["frame_ms_p50"] = Math.Round(p50FrameMs, 4),
             ["frame_ms_p95"] = Math.Round(p95FrameMs, 4),
             ["frame_ms_p99"] = Math.Round(p99FrameMs, 4),
             ["fps_avg"] = avgFrameMs > 0 ? Math.Round(1000.0 / avgFrameMs, 2) : 0,
