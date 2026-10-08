@@ -297,33 +297,29 @@ public sealed partial class World
         if (!double.IsFinite(h) || h < 0 || !double.IsFinite(C.YearTime) || C.YearTime <= 0)
             throw new ArgumentOutOfRangeException(nameof(h), "Advance requires finite non-negative time and positive YearTime.");
         SteerShips(h);
-        _rocheChanges = 0;
-        CollectRocheCandidates(h);
-        CheckRocheHere();
-        if (_rocheChanges > 0) CollectRocheCandidates(h);
-        double hs = h / Sub, g = C.G, began = Year;
-        for (int sub = 0; sub < Sub; sub++)
+        _rocheChanges = 0; _rocheMaterialCache.Clear(); _rocheAdvanceMaterialCache = true;
+        double hs = h/Sub, g = C.G, began = Year;
+        try
         {
-            double remaining = hs, elapsed = 0;
-            do
+            CollectRocheCandidates(h);
+            CheckRocheHere();
+            for (int sub = 0; sub < Sub; sub++)
             {
-                var entry = NextRocheEntry(remaining);
-                double slice = entry.Body >= 0 ? entry.Time : remaining;
-                AdvanceSlice(slice, g);
-                elapsed += slice; remaining -= slice;
-                if (entry.Body >= 0 && Alive[entry.Body] && Alive[entry.Host]
-                    && Gen[entry.Body] == entry.BodyGen && Gen[entry.Host] == entry.HostGen)
-                {
-                    Year = began + (sub * hs + elapsed) / C.YearTime;
-                    try { BreakRoche(entry.Body, entry.Host); CollectRocheCandidates(h - (sub * hs + elapsed)); }
-                    finally { Year = began; }
-                }
-                if (entry.Body < 0) break;
-            } while (remaining > 0);
+                BeginRocheSweep();
+                AdvanceSlice(hs,g);
+                Year = began+(sub+1)*hs/C.YearTime; _rocheSweeping = h > 0;
+                try { CheckRocheHere(); }
+                finally { _rocheSweeping = false; Year = began; }
+            }
         }
-        Step++;
-        Year += h / C.YearTime;
-        RunRules();
+        finally
+        {
+            _rocheAdvanceMaterialCache = false; _rocheSweeping = false; _rocheMaterialCache.Clear(); Year = began;
+        }
+        Step++; Year += h/C.YearTime;
+        _rocheAdvanceRules = true;
+        try { RunRules(); }
+        finally { _rocheAdvanceRules = false; }
     }
 
     void AdvanceSlice(double hs, double g)

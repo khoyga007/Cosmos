@@ -144,6 +144,13 @@ static class RocheChecks
         reversed.C.Density[reversed.Elem("ice")]=reversed.C.Density[reversed.Elem("rock")];reversed.RecalcRadii();
         limits.C.RocheIceStrengthPa=0;
         Check(reversed.RocheLimit(ri,rp)==limits.RocheLimit(icy,host),"Roche material roles follow reordered element ids");
+        var flyby=Scene(factor:3,speed:0);double flybyLimit=flyby.RocheLimit(1,0),surface=flyby.R[0]+flyby.R[1];
+        flyby.Do(new Command(CmdKind.Move,Target:1,X:flyby.X[0]-3*flybyLimit,Y:flyby.Y[0]+(surface+flybyLimit)/2,
+            Vx:6*flybyLimit/(.5/World.Sub),Vy:0,Index:1));
+        flyby.Advance(.5);
+        Check(flyby.RocheDisruptions.Count==1&&flyby.RocheDisruptions[0].Year>0
+            &&flyby.RocheDisruptions[0].Year<=.5/World.Sub/flyby.C.YearTime,
+            "fast pass enters/exits inside one substep: swept chord catches it, date at substep boundary");
         return ok;
     }
 }

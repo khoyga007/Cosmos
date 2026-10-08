@@ -8,10 +8,10 @@ using Cosmos.Core;
 
 static class ElementChecks
 {
-    // S1 re-capture 2026-10-06; A2 re-capture 2026-10-07; C6/rebase fresh capture 2026-10-08: new Consts fields & C6 Roche on base.
-    static readonly ulong[] Legacy = { 0xBBC63D2996FAE88F, 0x4063F53F08CB21B2, 0x4A51313215F96FC5, 0x32DDE80C54679D92,
-        0x82F35AA059FE5804, 0x3AFDAA9CB3C047FC, 0x4E91B3C52D73C0CF, 0x16BA0A372AE8C21B, 0xA2CA19CD75B36BE4,
-        0xAC47DAE6B6B08CD7, 0x7DFF61BCBEAA658D };
+    // R 2026-10-08 capture: hashed RocheChangesPerStep 256->16; swept substep dates/peri admission replace event slicing.
+    static readonly ulong[] Legacy = { 0x75E8C47E1AC402CF, 0x327AE24E4577BA72, 0x35B16EB52313D605, 0xACCBD976F6E8E052,
+        0x07936E66DC6723C4, 0x2099B278C2B1BCBC, 0x04FA41EDCB7A6B0F, 0x060CC85B029B745B, 0x3010CEB003861124,
+        0x0541838CF60D6697, 0x65C76F86F29A054D };
 
     public static bool Run()
     {

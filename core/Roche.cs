@@ -19,7 +19,7 @@ public sealed partial class Consts
     public double RocheFragments = 64; // [P] numerical object budget, not microscopic grain count.
     public double RocheRockBudget = 10000; // [P] numerical total small-object budget.
     public double RocheFragmentMass = 4e-8; // [P] representation budget, capped below AttractMass too.
-    public double RocheChangesPerStep = 256; // [P] bounds zero-time cascade cost, pending bodies stay physical objects.
+    public double RocheChangesPerStep = 16; // [P] fixed topology budget; pending bodies stay physical objects.
     public double RocheRhythmYears = 1; // [P] housekeeping rhythm; physical entry is cut independently.
     public double RocheEnergySpread = .9; // [P] Dones approximation, Hyodo2016 eq2; no spin/self-gravity fit.
     public double RocheStreamWidth = .01; // [P] numerical initial transverse stream width, as fraction of parent radius.
@@ -46,12 +46,18 @@ public sealed partial class World
     readonly List<(int Body, int Host, int BodyGen, int HostGen, double Year)> _rocheRockEntries = new();
     Rule _rocheRule = null!;
     int _rocheChanges;
+    bool _rocheAdvanceMaterialCache;
+    readonly List<(int Slot, int Generation, double Mass, double Radius, double Upper)> _rocheHosts = new();
+    double _rocheCandidateSeconds;
+    bool _rocheCandidateOrbital, _rocheSweeping, _rocheAdvanceRules;
+    double[]? _rocheSweepX, _rocheSweepY;
+    int[]? _rocheSweepGen;
     bool RocheEnabled => _rocheRule != null && _rocheRule.Enabled && Rules.Contains(_rocheRule) && C.G > 0;
 
     void InitRocheRule()
     {
         _rocheRule = new Rule("roche", "X,Y,Vx,Vy,M,R,Comp,Roche*", "objects,reservoir,escaped", C.RocheRhythmYears,
-            w => { w.CollectRocheCandidates(0); w.CheckRocheHere(); });
+            w => { if (w._rocheAdvanceRules) return; w.CollectRocheCandidates(0); w.CheckRocheHere(); });
         Rules.Add(_rocheRule);
     }
 
@@ -124,96 +130,84 @@ public sealed partial class World
 
     void CollectRocheCandidates(double seconds, bool orbital = false, bool includeRocks = true)
     {
-        _rocheCandidates.Clear();
-        _rocheMaterialCache.Clear();
+        _rocheCandidates.Clear(); _rocheHosts.Clear();
+        if (!_rocheAdvanceMaterialCache) _rocheMaterialCache.Clear();
         if (!RocheEnabled) return;
         _rocheEarthRadiusRef = EarthRadiusRef;
-        double minDensity = C.Density.Min(), maxK = Math.Max(C.RocheRigid, C.RocheFluid);
-        var hosts = new List<(int Slot, double Upper, double Drift)>();
-        bool vector = !orbital && includeRocks && !_deferRocks && Vector.IsHardwareAccelerated && N >= Vector<double>.Count;
-        double acceleration = 0, maxSpeedSquared = 0;
-        for (int p = 0; p < N; p++) if (Alive[p])
-        {
-            if (vector) maxSpeedSquared = Math.Max(maxSpeedSquared,Vx[p]*Vx[p]+Vy[p]*Vy[p]);
-            if (!Attracts(p)) continue;
-            hosts.Add((p, maxK * R[p] * Math.Cbrt(MaterialDensity(p) / minDensity),
-                Math.Sqrt(Vx[p]*Vx[p]+Vy[p]*Vy[p])*seconds));
-            acceleration += C.G*M[p]/(R[p]*R[p]);
-        }
-        double acceleratedDrift = 2 * acceleration * seconds * seconds;
-        if (vector)
-        {
-            // Standard SIMD broad phase over the existing SoA arrays. Only nearby lanes read material.
-            double bodyBound = Math.Sqrt(maxSpeedSquared)*seconds;
-            foreach (var host in hosts)
-            {
-                int p=host.Slot;
-                double reach=host.Upper+bodyBound+host.Drift+acceleratedDrift;
-                var px=new Vector<double>(X[p]); var py=new Vector<double>(Y[p]);
-                var bound=new Vector<double>(reach*reach*(1+C.RocheEntryTolerance));
-                int i=0;
-                for (; i+Vector<double>.Count<=N; i+=Vector<double>.Count)
-                {
-                    var xx=new Vector<double>(X,i)-px; var yy=new Vector<double>(Y,i)-py;
-                    var mask=Vector.LessThanOrEqual(xx*xx+yy*yy,bound);
-                    if (Vector.EqualsAll(mask,Vector<long>.Zero)) continue;
-                    for(int lane=0;lane<Vector<double>.Count;lane++) if(mask[lane]!=0) Include(i+lane);
-                }
-                for (; i < N; i++)
-                {
-                    double dx = X[i] - X[p], dy = Y[i] - Y[p];
-                    if (dx*dx + dy*dy <= reach*reach) Include(i);
-                }
-                void Include(int body)
-                {
-                    if (Alive[body] && M[body]<M[p] && !IsShip(body) && StarPhaseOf(body)==StarPhase.None
-                        && RocheLimitCore(body,p,true)>R[p]+R[body])
-                        _rocheCandidates.Add((body,p,Gen[body],Gen[p]));
-                }
-            }
-            // Preserve the scalar source/host order, including simultaneous first entries.
-            _rocheCandidates.Sort((a,b)=>a.Body!=b.Body?a.Body.CompareTo(b.Body):a.Host.CompareTo(b.Host));
-            return;
-        }
+        _rocheCandidateSeconds = seconds; _rocheCandidateOrbital = orbital;
+        double minDensity = C.Density.Min(), maxK = Math.Max(C.RocheRigid,C.RocheFluid);
+        for (int p = 0; p < N; p++) if (Alive[p] && Attracts(p))
+            _rocheHosts.Add((p,Gen[p],M[p],R[p],maxK*R[p]*Math.Cbrt(RocheProperties(p,true).Density/minDensity)));
         for (int i = 0; i < N; i++)
         {
             if ((!includeRocks || _deferRocks) && !Attracts(i)) continue;
-            if (!Alive[i] || IsShip(i) || StarPhaseOf(i) != StarPhase.None) continue;
-            double bodyDrift = orbital ? 0 : Math.Sqrt(Vx[i]*Vx[i]+Vy[i]*Vy[i])*seconds;
-            foreach (var host in hosts)
-            {
-                int p = host.Slot; if (M[p] <= M[i]) continue;
-                double dx = X[i] - X[p], dy = Y[i] - Y[p];
-                if (orbital)
-                {
-                    double ux = Vx[i] - Vx[p], uy = Vy[i] - Vy[p];
-                    double r = Math.Sqrt(dx * dx + dy * dy), mu = C.G * (M[p] + M[i]), angular = dx * uy - dy * ux;
-                    if (!(r > 0)) continue;
-                    double energy = (ux * ux + uy * uy) / 2 - mu / r;
-                    double eccentricity = Math.Sqrt(Math.Max(0, 1 + 2 * energy * angular * angular / (mu * mu)));
-                    double peri = angular * angular / (mu * (1 + eccentricity));
-                    if (peri > host.Upper && r > host.Upper) continue;
-                    _rocheCandidates.Add((i, p, Gen[i], Gen[p])); continue;
-                }
-                // Reject over the whole integrator call. Acceleration outside contact is surface-bounded.
-                double contact = R[p] + R[i];
-                double reach = host.Upper + bodyDrift + host.Drift + acceleratedDrift;
-                if (dx * dx + dy * dy <= reach * reach && RocheLimitCore(i,p,true) > contact)
-                    _rocheCandidates.Add((i, p, Gen[i], Gen[p]));
-            }
+            AppendRocheCandidates(i);
         }
+    }
+
+    void AppendRocheCandidates(int body)
+    {
+        if (!Alive[body] || IsShip(body) || StarPhaseOf(body) != StarPhase.None) return;
+        double minDensity = C.Density.Min(), maxK = Math.Max(C.RocheRigid,C.RocheFluid);
+        for (int k = 0; k < _rocheHosts.Count; k++)
+        {
+            var row = _rocheHosts[k]; int host = row.Slot;
+            if (!Alive[host] || !Attracts(host) || M[host] <= M[body]) continue;
+            if (row.Generation != Gen[host] || row.Mass != M[host] || row.Radius != R[host])
+                _rocheHosts[k] = row = (host,Gen[host],M[host],R[host],maxK*R[host]*Math.Cbrt(RocheProperties(host,true).Density/minDensity));
+            double dx = X[body]-X[host], dy = Y[body]-Y[host], r2 = dx*dx+dy*dy;
+            if (!(r2 > 0)) continue;
+            double r = Math.Sqrt(r2), ux = Vx[body]-Vx[host], uy = Vy[body]-Vy[host], v2 = ux*ux+uy*uy;
+            double mu = C.G*(M[body]+M[host]), angular = dx*uy-dy*ux, energy = v2/2-mu/r;
+            double upper = row.Upper;
+            double eccentricity = Math.Sqrt(Math.Max(0,1+2*energy*angular*angular/(mu*mu)));
+            double peri = angular*angular/(mu*(1+eccentricity));
+            // Two-body admission, deliberately approximate under perturbations by other hosts.
+            if (peri > upper && r > upper) continue;
+            if (!_rocheCandidateOrbital && energy >= 0 && r > upper)
+            {
+                // Use acceleration at this separation, not a compact primary's surface acceleration.
+                double reach = upper+Math.Sqrt(v2)*_rocheCandidateSeconds+2*mu/r2*_rocheCandidateSeconds*_rocheCandidateSeconds;
+                if (r > reach) continue;
+            }
+            if (RocheLimitCore(body,host,true) > R[host]+R[body])
+                _rocheCandidates.Add((body,host,Gen[body],Gen[host]));
+        }
+    }
+
+    void BeginRocheSweep()
+    {
+        _rocheSweepX ??= new double[X.Length]; _rocheSweepY ??= new double[Y.Length];
+        _rocheSweepGen ??= new int[Gen.Length];
+        Array.Copy(X,_rocheSweepX,N); Array.Copy(Y,_rocheSweepY,N); Array.Copy(Gen,_rocheSweepGen,N);
     }
 
     (double Time, int Body, int Host, int BodyGen, int HostGen) NextRocheEntry(double seconds)
     {
         var best = (Time: double.PositiveInfinity, Body: -1, Host: -1, BodyGen: 0, HostGen: 0);
         if (!RocheEnabled || _rocheChanges >= C.RocheChangesPerStep) return best;
+        var upperByHost = new Dictionary<int, double>();
+        double minDensity = C.Density.Min(), maxK = Math.Max(C.RocheRigid, C.RocheFluid);
         foreach (var pair in _rocheCandidates)
         {
             int i = pair.Body, p = pair.Host;
             if (!Alive[i] || !Alive[p] || Gen[i] != pair.BodyGen || Gen[p] != pair.HostGen) continue;
+            double dx = X[i] - X[p], dy = Y[i] - Y[p], d2 = dx * dx + dy * dy;
+            if (!upperByHost.TryGetValue(p, out double upper))
+                upperByHost[p] = upper = Math.BitIncrement(maxK * R[p] * Math.Cbrt(MaterialDensity(p) / minDensity)
+                    * Math.Sqrt(1 + C.RocheEntryTolerance));
+            if (upper > 0 && d2 > upper * upper)
+            {
+                double ux = Vx[i] - Vx[p], uy = Vy[i] - Vy[p], v2 = ux * ux + uy * uy;
+                double mu = C.G * (M[i] + M[p]), distance = Math.Sqrt(d2);
+                // Before reaching the larger cohesionless sphere, energy bounds speed by
+                // sqrt(v²+2mu/upper). Straight fallback is slower still. Do not cull nearly
+                // parabolic bound orbits: cancellation in the legacy anomaly solver may round time to zero.
+                double inva = 2 / distance - v2 / mu;
+                if ((inva <= 0 || inva * distance > 1e-6)
+                    && distance - upper > seconds * Math.Sqrt(v2 + 2 * mu / upper)) continue;
+            }
             double radius = RocheLimitCore(i, p, true); if (!(radius > R[p] + R[i])) continue;
-            double dx = X[i] - X[p], dy = Y[i] - Y[p];
             // Once the intact bodies overlap, the ordinary contact path owns the outcome.
             double contact = R[p] + R[i];
             if (dx * dx + dy * dy <= contact * contact) continue;
@@ -226,12 +220,24 @@ public sealed partial class World
 
     void CheckRocheHere()
     {
-        while (true)
+        if (!RocheEnabled) return;
+        // Locally appended children are checked after the original candidate sequence. There is no
+        // global recollection/sort or extra gravity pass per event; the public-step budget also bounds work.
+        for (int cursor = 0; cursor < _rocheCandidates.Count && _rocheChanges < C.RocheChangesPerStep; cursor++)
         {
-            var entry = NextRocheEntry(0);
-            if (entry.Body < 0) return;
-            BreakRoche(entry.Body, entry.Host);
-            CollectRocheCandidates(0);
+            var pair = _rocheCandidates[cursor]; int body = pair.Body, host = pair.Host;
+            if (!Alive[body] || !Alive[host] || Gen[body] != pair.BodyGen || Gen[host] != pair.HostGen) continue;
+            double dx = X[body]-X[host], dy = Y[body]-Y[host], contact = R[host]+R[body];
+            if (dx*dx+dy*dy <= contact*contact) continue; // ordinary contact owns intact overlaps.
+            double limit = RocheLimitCore(body,host,true); if (!(limit > contact)) continue;
+            double radius = limit*Math.Sqrt(1+C.RocheEntryTolerance);
+            bool crossed = dx*dx+dy*dy <= radius*radius;
+            if (!crossed && _rocheSweeping && _rocheSweepGen![body] == Gen[body] && _rocheSweepGen[host] == Gen[host])
+            {
+                double x0 = _rocheSweepX![body]-_rocheSweepX[host], y0 = _rocheSweepY![body]-_rocheSweepY[host];
+                crossed = SweptContact(x0,y0,dx-x0,dy-y0,radius);
+            }
+            if (crossed) BreakRoche(body,host);
         }
     }
 
@@ -282,6 +288,31 @@ public sealed partial class World
         _rocheReservoirs.Add(new(host, Gen[host], x, y, mass, mass * vx, mass * vy, angular, Array.AsReadOnly(matter)));
     }
 
+    double StableRocheFragmentMass(int body, int host, double separation, double budgetMass)
+    {
+        // Invert the SAME size/strength law used for intact objects, at the children's planned location.
+        // A cloud inside the cohesionless limit has no stable zero-strength resolved fragment size.
+        double distance = Math.BitDecrement(separation / (1 + 4 * C.RocheEntryTolerance));
+        if (!(distance > R[host]) || !(budgetMass > 0)) return 0;
+        var material = RocheProperties(body, false);
+        double radius = Math.Min(R[body], distance - R[host]);
+        double loose = material.K * R[host] * Math.Cbrt(MaterialDensity(host) / material.Density);
+        if (loose > distance)
+        {
+            if (!(material.Strength > 0)) return 0;
+            double ratio = loose / distance, excess = ratio * ratio * ratio - 1;
+            double densitySI = material.Density * C.RocheDensityKgM3;
+            double metres = Math.Sqrt(material.Strength / (C.RochePhysicalG * C.G * densitySI * densitySI * excess));
+            radius = Math.Min(radius, metres * EarthRadiusRef / (C.EarthRadiusKm * 1000));
+        }
+        // Leave roundoff clearance: entry regards a point on the limit as already disrupting.
+        radius = Math.BitDecrement(radius);
+        double fraction = radius / R[body];
+        // Use the lower half of the stable mass range, rather than planting every child on the
+        // failure boundary: subsequent simultaneous captures can shift the host's COM slightly.
+        return Math.Min(budgetMass, .5 * M[body] * fraction * fraction * fraction);
+    }
+
     void BreakRoche(int i, int p)
     {
         if (!Alive[i] || !Alive[p]) return;
@@ -321,14 +352,16 @@ public sealed partial class World
         int small = 0; for (int s = 0; s < N; s++) if (Alive[s] && !Attracts(s)) small++;
         int count = (int)Math.Max(0, Math.Min(Math.Min(C.RocheFragments, X.Length - Live + 1), C.RocheRockBudget - small));
         count -= count % 2;
-        double represented = Math.Min(captured, count * Math.Min(C.RocheFragmentMass, C.AttractMass * .5));
-        if (!(represented > 0)) { count = 0; represented = 0; }
-        double unresolved = captured - represented;
         double reduced = captured > 0 ? pm * captured / (pm + captured) : 0;
         double angular = reduced * capturedAngular, circular = captured > 0 ? Math.Pow(angular / captured, 2) / (C.G * pm) : 0;
         double beforeEnergy = reduced * (ux * ux + uy * uy) / 2 - C.G * pm * captured / capturedRadius;
         double circularEnergy = circular > 0 ? -C.G * pm * captured / (2 * circular) : double.PositiveInfinity;
         bool ring = captured > 0 && circular > R[p] && circular < roche && circularEnergy <= beforeEnergy;
+        double fragmentMass = StableRocheFragmentMass(i, p, ring ? circular : capturedRadius,
+            Math.Min(C.RocheFragmentMass, C.AttractMass * .5));
+        double represented = Math.Min(captured, count * fragmentMass);
+        if (!(represented > 0) || !(represented/count > 0)) { count = 0; represented = 0; }
+        double unresolved = captured - represented;
         double centerX = ring ? (pm * X[p] + captured * captureX) / (pm + captured) : captureX;
         double centerY = ring ? (pm * Y[p] + captured * captureY) / (pm + captured) : captureY;
         double centerVx = ring ? (pm * Vx[p] + captured * vx) / (pm + captured) : vx;
@@ -358,6 +391,7 @@ public sealed partial class World
                 centerVy + (ring ? sign * speed * Math.Cos(angle) : 0), fragment, mix, par: p, grp: group);
             if (slot < 0) throw new InvalidOperationException("Reserved Roche fragment slots disappeared.");
             Touched[slot] = Year;
+            AppendRocheCandidates(slot);
             for (int e = 0; e < ElementCount; e++) remaining[e] -= Comp[slot * ElementCount + e];
         }
         Reservoir(p, centerX, centerY, unresolved, centerVx, centerVy, ring ? angular * (unresolved / captured) : 0, remaining);
