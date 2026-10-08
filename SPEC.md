@@ -336,3 +336,9 @@ GATES met (quiet ≤1 ms, destruction ≤4 ms, frame p95 ≤20 ms) + mad-god fuz
 - **Hash/replay** include mass distribution/epoch, internal L, pending promotions, seeds/stream counters, Gen; particles and lazy render caches excluded.
 - **Gates report separately**: real bodies / masses / quadrature cells / GPU particles / promotions-demotions / pending age + work. Benchmarks: NS cutting a ring, many hot roots, god pick/force, long jumps. Particles are never reported as bodies.
 15.8 status: (i)-(v) answered above; residual open = concrete dial values, measured in step 2.
+
+### 15.11 Object-model principle restated (Yang asked 2026-10-08: "mọi thứ đều là object có còn đúng không?")
+Old (06/10, commit f0817b1): "no grains, every thing is an object under one set of constants". Two halves:
+- KEPT: one set of constants, one set of laws for all matter. A mass is NOT a second kind of matter with private rules (that was the grain mistake). Same G, densities, composition table, Roche, temperature, star thresholds apply to bodies and masses alike; a parcel withdrawn from a mass is an ordinary body, and a demoted body leaves no trace of special status.
+- DROPPED: "every thing is individually tracked". Matter now has two REPRESENTATIONS — body and mass — chosen by disequilibrium (law 3). Representation is bookkeeping; it must never change physics (15.10 representation residual is measured, not hidden).
+Rule of thumb for any new feature: write the law once, for matter; then state how it reads a body and how it reads a mass. A law that only works on one representation is incomplete, not done. Earlier SPEC text saying every rock/fragment is an object is superseded here.
