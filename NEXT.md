@@ -8,6 +8,8 @@ Causes (1-2 read in code, 3-4 unverified):
 3. Roche journal says "bắt giữ thành vành đai": the rule may itself put fragments on bound orbits. Check core/Roche.cs.
 4. Roche shreds 1e-13..1e-18 Earth-mass grains, incl. "sinh 0 mảnh" events. Unphysical (material strength, not self-gravity) and wasted ms.
 
+5. SAME ROOT, second symptom (Yang screenshot 10-08, year 33.6): placing a star fails with toast "Không tạo được: hết chỗ hoặc thông số sai" (game/Main.cs:817) at 5511 objects / 11 pullers. World capacity is fixed at rocks + 512 = 5512 (core/World.cs:242); Add returns -1 when no free slot and N == X.Length (core/World.cs:184). Roche fragments ate the 512 spare slots and nothing is ever swallowed, so slots never free: god loses the power to create. Why 5511 not 5512: unverified. Fixed capacity = "hard count = debt" by Yang's own engine principle. Toast also lies by merging two causes; split "world full" from "bad parameters".
+
 Order of work:
 - a. Read Celine probe report (bridge thread cosmos, msgs 0c6eca91 + 9a737ccf + ced1ad7a; 11 questions, measure-only). If absent: Yang has not prompted her yet — say so, do not re-queue.
 - b. Tell Yang the numbers in plain words. STOP. He decides the next round (rule: Yang in the loop, one round per agent, no chains).
