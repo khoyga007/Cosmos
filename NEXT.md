@@ -1,3 +1,6 @@
+## HEAT LAW 2026-10-08 — READ SPEC §15 FIRST
+Yang GO. Rocks = mass (aggregate), bodies only when something happens; one-way law + Usable gauge; self-merging. §15.6 build order: (1) Usable gauge+invariant on current code [Celine], (2) one-system belt-as-mass + shatter slice, (3) K=200. Supersedes §14C per-rock RAIL. Local gravity S1 A+B, sim worker F, PROF continue.
+
 # Cosmos — state
 
 READ `SPEC.md` FIRST (game, model, engine decisions, round-1 work packages). This file = what is running now.

@@ -278,3 +278,47 @@ J. THE UNIVERSE IS NOT STILL (Yang 2026-10-08: "vũ trụ không đứng yên, k
    - The RAIL tier must not sterilise the world. Chaos has to arise by itself: (1) pullers are always integrated, so planets scatter/eject/collide for real; (2) roots feel other systems, so stellar flybys and captures happen; (3) star life and death (rules) fire in every tier and in jumps; (4) a RAIL rock is woken by anything in C1-C5, incl. a sibling whose orbit CHANGED (its band moved -> re-test that system's rocks, amortised). If a mechanism that would naturally wreck a system cannot fire while its objects ride rails, that is a defect, not an accepted loss.
    - Gate added to S2/S3 ("no-god run"): 200 systems, zero commands, long stepping + 1e9..1e10-yr jumps -> events DO occur (star deaths, collisions, ejections, breakups; count reported), and every Advance stays inside the gates.
 K. LANGUAGE (Yang asked 2026-10-08 "tại sao C# mà không phải Rust"). No rewrite now: the 224 ms was algorithmic, language would not have changed it; core 4.4k + checks 5.3k lines, every hash would move while the project is on the edge. Menu item 13 (after H3 SIMD kernel in C# is measured): port ONLY the kick kernel behind Celine's seam to Rust (cdylib, C ABI, P/Invoke over pinned SoA arrays, rayon or own pool), 7-run paired vs the tuned C# kernel on the same scenes. Keep whichever wins by >=20%; if Rust wins big there, widen the native part seam by seam (broad phase, rails solver). Same-machine repeatability must hold (fixed thread chunking, no fast-math reordering).
+
+## 15. Heat Law (Luật Nhiệt) — v0, Yang GO 2026-10-08
+
+Status: direction approved by Yang. v0 = build target for step 1-2 only; Celine critique (bridge 56c055b6) amends before step 3. Supersedes §14C per-rock RAIL tier and "500 FREE rocks/system". §14 A, B, D-budget, E, F, G, H, J, K, GATES stay.
+
+### 15.0 Game definition (Yang, binding)
+Emergent interactive simulation. God = entity manipulating PHYSICS, creates matter from nothing; neutral, self-determined, unbound. No missions, no score, no judging. Physics = god's hands, not backdrop: every consequence must be real causality. Civilisations react to what physics shows them — NOT designed or built until physics passes 15.9. Unlimited god → no input is an edge case; edge cases are the main threat.
+
+### 15.1 Three forms of matter
+- **Body**: star, planet, moon, large fragment, anything god is acting on. Target ~tens per system. Full local gravity (§14A/B).
+- **Mass (khối)**: belt, ring, debris cloud, gas, swarm. Dynamic state: M, Comp, P, COM, L (orbital + internal), distribution over radius/phase cells, **heat** (velocity dispersion), epoch. Gravitates (cells, not single COM point: inside-ring force must be right). Evolves by macro laws. Drawn game-side as GPU particles from state; particles carry no ledger, no identity.
+- **Escaped heat**: one universe-total scalar. Never recovered.
+C6 reservoir is a ledger snapshot only (no force, no evolution) — not reusable as-is.
+
+### 15.2 Laws
+1. **Conservation.** M/Comp/P/L/E conserved across the three forms. Only god commands break it; each records the amount injected/removed.
+2. **One-way.** Collisions convert ordered motion to heat; heat escapes. Hot mass cools, flattens, settles (rate from density × dispersion). Stars burn fuel. Universe gauge `Usable` = fuel + ordered kinetic + potential not yet fallen. Without a god command `Usable` never rises → invariant checked every Advance. Definition must not false-alarm on gravitational clumping (open, 15.8).
+3. **Detail follows disequilibrium.** A parcel is WITHDRAWN from a mass into a body when statistics cannot describe it: predicted impact on a body, predicted Roche entry, god acts on it, self-clumping heavy enough (new moon/planet). Withdraw subtracts M/Comp/P/L and distribution moments exactly; never mass in both places; no fresh circular velocity. Predict BEFORE crossing, not on end-of-Advance overlap. Demote when relative velocity < local dispersion and inside extent: add back at real position/velocity. Decisions from sim state + commands only, never camera. Look-only click does NOT promote; a pick command carries MassId/Gen + position/phase + epoch, core picks the parcel deterministically.
+4. **Destruction is capped.** Shatter = N largest fragments (tens) as bodies + one hot mass. Cost follows large fragments, not dust. Bodies stir masses (heating); masses emit comets / impact flux at deterministic sim-state rates → §14J holds: no sterilised universe.
+5. **Self-merging (Yang).** Too much in one place becomes fewer things, each route a named physical process, NOT a count gate: (a) compact objects past a compactness threshold → one black hole + released energy; (b) many separate bodies, crowded but not compact → swarm mass (cluster), heaviest few stay bodies; (c) huge gas/matter lump → supermassive star → quasi-star → black hole; (d) many rocks → planet → heavy enough ignites. Thresholds continuous in physical quantities (no "Nth object behaves differently"). Global hard cap = last-resort net only; when it fires it must be visible to the player.
+
+### 15.3 Draw vs compute
+Draw by view (cull + LOD, far system = one dot). Compute by heat, never by view. Yang 08/10: confirmed.
+
+### 15.4 Budget (estimates from S0 coefficient 1.5e-6 ms/pair, NOT measured)
+Quiet K=200 × ~20 bodies ≈ 0.5 ms. Planet shattered in all 200 systems ≈ 3 ms. 1000 heavy bodies spread far apart = 1000 real bodies ≈ 12 ms → sim slows, known miss, no law rescues it. Mass-law cost assumed ~0: must be measured in step 2.
+
+### 15.5 Known departures from real physics (told to Yang)
+Merge/settle timescales compressed vs reality; thresholds tuned to the machine; practical heat/Usable proxies instead of textbook entropy (self-gravitating entropy is counter-intuitive).
+
+### 15.6 Build order — smallest first
+1. `Usable` gauge + conservation invariant on CURRENT code. Reports per Advance; test fails on rise without god command. Foundation for mad-god fuzz.
+2. One system: one belt as a mass, shatter one planet. Measure ms + ledger closure; Yang judges the look by eye against rock-objects.
+3. Only after 2 passes: all debris/belts/rings as masses, law 5, K=200.
+Stop rule (§14) applies per step.
+
+### 15.7 Mad-god fuzz (required with step 2)
+Headless, random extreme commands for hours; asserts: no NaN/inf, ledger closes, `Usable` rule, per-Advance work cap, no hang. Every failure replayable from journal.
+
+### 15.8 Open (Celine critique pending)
+(i) `Usable` definition under gravitational clumping; (ii) does demotion remove chaos; (iii) law-5 threshold discontinuities; (iv) how far timescales may compress; (v) what of C6 reservoir / Stars.cs / merge code is reusable.
+
+### 15.9 "Physics good enough" — proposed, Yang has not confirmed
+GATES met (quiet ≤1 ms, destruction ≤4 ms, frame p95 ≤20 ms) + mad-god fuzz hours clean + Yang breaks it by hand and accepts.
