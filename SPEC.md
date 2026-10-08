@@ -236,3 +236,33 @@ Todo: (1) "god torture" cli suite: NS drop, BH drop, G x100, mass 1e6, create 10
 Owner: Celine (core, after roche-no-reshred), Selica QA runs suite. Related: Roche broad-phase debt (see C6).
 Amend §13 (Yang 2026-10-08): "what the player wants in this game is DESTRUCTION". So destructive god actions (BH/NS drop, collisions, breakups, G abuse) are the MAIN PLAY LOOP, not edge cases. Perf budget + torture suite must treat them as primary scenes; destruction must also look good (fragments/debris/rings readable) and cost bounded. Design note only; concept details = Yang.
 Amend §13 (Yang 2026-10-08): universe is NOT static; with no god input stars die over time (red giant, white dwarf, supernova -> NS, BH). So NS/BH inside a system also arise NATURALLY, incl. inside long FastForward (1e9..1e10 yr). Perf invariant + torture suite cover natural events and long jumps, not only god actions. World must tell stories without god (DF principle).
+
+## §14 Scale architecture — 100-200 systems, heavy destruction, smooth (Yang 2026-10-08: "anh không cần biết, em làm thế nào để có"; design = Claire's, no asking him)
+TARGET: 200 star systems in ONE World, destruction in several at once, window never stalls. Sim budget <=8 ms/Advance Release on Yang's machine; window frame p95 <=20 ms whatever the sim does. Rocks per system = `Consts` field (start 500 -> 100k rocks; 5000 -> 1M is stretch, needs S4).
+WHY NOW FAILS: (1) Advance inside `_Process` (game/Main.cs:383) -> slow step freezes window. (2) no cost model: worst-case bounds from SURFACE gravity (Roche.cs:149, World.cs:346) + per-event slicing/rescans, unbounded. (3) gravity flat rocks x ALL pullers x 8: 200 systems = 2000 pullers x 100k rocks x 8 = 1.6e9 pair evals/Advance.
+INVARIANTS (keep): one World, one slot array, no stored per-system partition (Yang); command boundary; same binary + same journal = same run. DROPPED: "an optimisation may not move hashes". Hashes move, recapture, say why.
+DETERMINISM RULE: tier/budget decisions read sim state ONLY. Never camera, never wall-clock ms. Core budgets are WORK UNITS (counts). ms budgets live in game/ only (how many Advances per frame).
+
+### Mechanism (written out; intricate)
+A. SYSTEM = derived, not stored. Root = pulling object that no heavier object holds (existing `Par`/`Hill` chain). A system = a root + everything whose Par chain ends at it. Recomputed on topology change only (create/remove/merge/capture/escape), not per step. An object leaving one root's hold and entering another's is re-parented by the existing Hill logic: nothing is fenced.
+B. LOCAL GRAVITY. Each system keeps a puller list = its own pullers + INTRUDERS. Intruder = any pulling object from outside whose distance to the root is inside the system's influence radius R_inf (= k x largest apoapsis among its members; k Const). A pulling object feels: its own list exactly (1/r^2, as now) + every OTHER system as one point mass at its barycentre (200 monopoles). A rock feels its own system's list only. Two roots inside each other's R_inf -> lists unioned (stellar encounter costs more only there). Dropped NS = intruder of the system it lands in -> pulls everything there exactly, costs nothing elsewhere.
+C. ROCK TIERS (pullers are ALWAYS integrated; they are few: ~10/system). A rock is either
+   - RAIL: rides closed two-body orbit round its primary (Rails.cs math; position = primary position + Kepler offset). Stores elements + epoch. Costs ZERO per Advance. Position materialised lazily: only when something reads it (draw buffer, wake, a rule at its rhythm; star-light rules use orbit-average `RailStar`).
+   - FREE: integrated every substep as now.
+   FREE -> RAIL: bound to one primary, no wake condition true for T years (Const).
+   RAIL -> FREE (wake), all from sim state: (1) an intruder enters the system's R_inf: wake that system's rocks whose radial band [peri, apo] meets the intruder's perturbation zone (tidal accel of intruder > eps x primary's pull at the rock; eps Const). (2) primary changes abruptly (supernova, mass loss, removal, merge) -> wake its rocks; slow mass change -> re-derive elements, stay RAIL. (3) radial band overlaps a sibling puller's band [a - k*Hill, a + k*Hill]: such rocks get a scheduled check at next conjunction (time wheel keyed by Year), woken only if the encounter is real; bands that never overlap = never checked. (4) a Command touches the rock. (5) a Roche/contact candidate names it.
+   Loss, accepted (same as FastForward §4): sibling perturbation on RAIL rocks outside (3).
+D. BOUNDED DESTRUCTION. `HotCap` (Const) = max FREE rocks integrated per Advance, `EventCap` = max breakups/merges per Advance. Over cap: lowest-priority debris (smallest mass, then highest slot) is folded into the existing BOUND RESERVOIR / ring aggregate of its host (mass, composition, momentum into the ledger; nothing vanishes); excess events queue to next Advance. All bounds from quantities at CURRENT distance or two-body periapsis; surface-gravity bounds are banned.
+E. LOOK of destruction != sim objects. Core emits event records (where, mass, velocity spread, composition); game/ spawns GPU particles from them. Few real fragments + reservoir carry the physics; thousands of particles carry the picture.
+F. SHELL. Sim on a worker task, window never waits (Ariel msg 551973b6). Draw: cull per system; far system = one glow sprite; RAIL rocks drawn from elements (CPU parallel first; Kepler in vertex shader only if measured need).
+
+### Phases — each ends with numbers; next phase starts only on a pass
+- S0 MEASURE (Selica, cli only, no core edit): `cli -- scale`: build K systems far apart through Commands (K=1,10,50,200; rocksPer=500,5000), report ms/Advance, memory, per-rule cost, capacity blockers, on master as-is. This is the baseline every later phase is paid against.
+- R (Celine, running): Roche no-reshred + swept entry + caps (msgs a78135ee, f60794d2).
+- F (Ariel, running): sim off the window thread.
+- S1 (Celine after R): A + B. Gate: K=200 x 500 rocks, all quiet, <=8 ms.
+- S2 (Celine): C. Gate: K=200 quiet <=1 ms; NS dropped into 1 of 200 systems <=8 ms; wake/sleep replay-deterministic.
+- S3 (Celine + Selica): D + god-torture suite (§13) run at K=200: NS/BH drops in 10 systems at once, G x100, 10k rocks spawned. Gate <=8 ms, ledger closure.
+- S4 (Ariel): E + draw LOD. Gate: window p95 <=20 ms at K=200 with 10 systems breaking up.
+- STOP RULE: a phase that misses its gate twice -> Claire reports the measured ceiling (systems x rocks x simultaneous destruction that DOES fit) to Yang instead of patching on.
+Prototype-then-clean-rebuild decree applies per phase.

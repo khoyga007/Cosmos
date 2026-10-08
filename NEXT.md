@@ -2,6 +2,9 @@
 
 READ `SPEC.md` FIRST (game, model, engine decisions, round-1 work packages). This file = what is running now.
 
+## SCALE PUSH 2026-10-08 — CURRENT PRIORITY (SPEC §14)
+Yang: 100-200 systems, smooth, heavy destruction; how = Claire's, he does not want details. Running: R Celine (roche, msgs a78135ee/f60794d2), F Ariel sim-decouple (551973b6), S0 Selica scale baseline. Then S1 local gravity -> S2 rock rails tier -> S3 caps+torture -> S4 draw LOD. Stop rule in §14. Retracted by Claire: 'collect per gravity slice' (misread 8-Advance totals), 'endpoint-only Roche entry' (misses flybys), 'turn Roche off to play'.
+
 ## C6 Roche performance debt — Claire decision 2026-10-08
 - Selected core `8e2b2f5`; delivery waits Claire's diff review/merge. The experimental limit cache `67194c8` is discarded.
 - Roche candidate collection is about0.22ms at5250 stock objects. It normally runs once per Advance, plus topology/housekeeping rebuilds; this is not0.22ms for each of the8 substeps. Entry queries cost far less.
