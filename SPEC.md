@@ -342,3 +342,11 @@ Old (06/10, commit f0817b1): "no grains, every thing is an object under one set 
 - KEPT: one set of constants, one set of laws for all matter. A mass is NOT a second kind of matter with private rules (that was the grain mistake). Same G, densities, composition table, Roche, temperature, star thresholds apply to bodies and masses alike; a parcel withdrawn from a mass is an ordinary body, and a demoted body leaves no trace of special status.
 - DROPPED: "every thing is individually tracked". Matter now has two REPRESENTATIONS — body and mass — chosen by disequilibrium (law 3). Representation is bookkeeping; it must never change physics (15.10 representation residual is measured, not hidden).
 Rule of thumb for any new feature: write the law once, for matter; then state how it reads a body and how it reads a mass. A law that only works on one representation is incomplete, not done. Earlier SPEC text saying every rock/fragment is an object is superseded here.
+
+### 15.12 Largest rocks stay bodies (Yang approved 2026-10-08)
+Yang asked whether aggregation still leaves an emergent simulation. Answer recorded: emergence is kept at body scale and lost inside a mass, where macro laws SUMMARISE physics instead of running it. To keep rock-scale stories that matter:
+- In every belt/ring/cloud the N largest members by mass are ALWAYS bodies (named, with history, never demoted while they exist). Only the small tail is a mass. N = dial, start ~20-50 per belt; choose by mass cut where possible, not a bare count, and report it.
+- Budget note (estimate): quiet K=200 rises ~0.5 → ~1 ms. At the edge of the 1 ms gate; measure in step 2 before fixing N.
+- Anti-script guards (binding): (1) mass laws derived from the same physics and constants, no free numbers for looks; (2) paired run, same small scene resolved-per-rock vs mass: merge/escape/capture/Roche/impact rates must not differ systematically, else FAIL; (3) a rate decides only THAT a parcel is withdrawn; from then on it is a body and physics decides everything.
+- Shatter fragments follow the same rule: largest fragments bodies, tail mass (law 4).
+15.11 two-representation principle: Yang did not object when asked; treated as accepted.
