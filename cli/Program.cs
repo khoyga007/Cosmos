@@ -62,6 +62,7 @@ if (args.Length > 0 && args[0] == "cosmic") return CosmicChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "roche") return RocheChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "ns-drop-check") return NsDropChecks.Run(false) ? 0 : 1;
 if (args.Length > 0 && args[0] == "ns-drop") return NsDropChecks.Run() ? 0 : 1;
+if (args.Length > 0 && args[0] == "p0rocheab") return P0RocheAB.Run(args.Length > 1 ? args[1] : "evidence/p0-roche-ab") ? 0 : 1;
 if (args.Length > 1 && args[0] == "ns-drop-paired") return NsPairedBench.Run(args[1]) ? 0 : 1;
 if (args.Length > 0 && args[0] == "roche-query") return RocheQueryChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "ns-drop-scaling")
