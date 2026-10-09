@@ -1,0 +1,12 @@
+p0rocheab: seed 1234 variant A xong — first_full=khong, max_live=5250, final_live=5250, merges=0, disruptions=0, frag_spawned=0, ns_absorbed_events=0, wall=10s
+p0rocheab: seed 1234 variant B xong — first_full=108, max_live=5512, final_live=5506, merges=471, disruptions=1520, frag_spawned=1838, ns_absorbed_events=0, wall=16s
+p0rocheab: seed 1234 variant C xong — first_full=khong, max_live=5251, final_live=4812, merges=439, disruptions=0, frag_spawned=0, ns_absorbed_events=0, wall=14s
+p0rocheab: seed 1002 variant A xong — first_full=khong, max_live=5250, final_live=5250, merges=0, disruptions=0, frag_spawned=0, ns_absorbed_events=0, wall=10s
+p0rocheab: seed 1002 variant B xong — first_full=108, max_live=5512, final_live=5319, merges=595, disruptions=1535, frag_spawned=1794, ns_absorbed_events=0, wall=18s
+p0rocheab: seed 1002 variant C xong — first_full=khong, max_live=5251, final_live=4838, merges=413, disruptions=0, frag_spawned=0, ns_absorbed_events=0, wall=12s
+p0rocheab: seed 1011 variant A xong — first_full=khong, max_live=5250, final_live=5250, merges=0, disruptions=0, frag_spawned=0, ns_absorbed_events=0, wall=10s
+p0rocheab: seed 1011 variant B xong — first_full=107, max_live=5512, final_live=5506, merges=382, disruptions=1573, frag_spawned=1812, ns_absorbed_events=0, wall=21s
+p0rocheab: seed 1011 variant C xong — first_full=khong, max_live=5251, final_live=5077, merges=174, disruptions=0, frag_spawned=0, ns_absorbed_events=0, wall=15s
+OK     p0rocheab: doi chung phu seed1234/B khop ban B co do (hash + counters)
+OK     p0rocheab: 9 run + doi chung phu hoan tat
+EXIT=0
