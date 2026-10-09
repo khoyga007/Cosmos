@@ -1,0 +1,3 @@
+1234 old-vs-control rows 41 mismatch 0 | control-vs-new checkpoints 41 all hash+counters identical True | hash@2000 ctl 615AED7AA84B3F98 new 615AED7AA84B3F98 old 615AED7AA84B3F98
+1002 old-vs-control rows 41 mismatch 0 | control-vs-new checkpoints 41 all hash+counters identical True | hash@2000 ctl 368AAADC10CF62A4 new 368AAADC10CF62A4 old 368AAADC10CF62A4
+1011 old-vs-control rows 41 mismatch 0 | control-vs-new checkpoints 41 all hash+counters identical True | hash@2000 ctl 1F7943E22D461C60 new 1F7943E22D461C60 old 1F7943E22D461C60
