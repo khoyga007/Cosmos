@@ -1,0 +1,576 @@
+   2000 rocks + 10 bodies: 5.740 ms/step  (174 steps/s)
+   5000 rocks + 10 bodies: 4.345 ms/step  (230 steps/s)
+  20000 rocks + 10 bodies: 12.346 ms/step  (81 steps/s)
+  50000 rocks + 10 bodies: 29.781 ms/step  (34 steps/s)
+OK     merge: 1 object left after 81 steps, mass 4.000E-004, rock 3.0E-004 ice 1.0E-004
+  Sao Thủy         Planet mass    0.055 earths  radius 0.017  zone 0.095
+  Sao Kim          Planet mass    0.815 earths  radius 0.048  zone 0.344
+  Trái Đất         Planet mass    1.000 earths  radius 0.052  zone 0.449
+  Sao Hỏa          Planet mass    0.107 earths  radius 0.025  zone 0.277
+  Sao Mộc          Planet mass  317.800 earths  radius 0.790  zone 8.523
+  Sao Thổ          Planet mass   95.200 earths  radius 0.521  zone 8.223
+  Sao Thiên Vương  Planet mass   14.500 earths  radius 0.211  zone 6.869
+  Sao Hải Vương    Planet mass   17.100 earths  radius 0.218  zone 9.466
+  Mặt Trăng        Moon   mass    0.012 earths  radius 0.012  zone 0.019
+OK     moon: 472.3 turns around Earth, distance 0.115..0.123 (start 0.120)
+OK     sol: worst planet radius drift 1.36% over 20000 steps; -261 of 5000 rocks merged into bodies
+OK     constants: G 1 -> 2, Earth dips from 45.0 to 14.8
+OK     commands: 7 recorded, replay hash 6546A83B57567794 vs live 6546A83B57567794
+OK     repeat: B37B6CC1C361B697 / B37B6CC1C361B697
+OK     rails vs stepping, 3.7 years: worst planet distance 1.279% apart, worst angle 0.0240 rad apart; Moon-Earth 0.1200 vs 0.1226; off rails 0
+OK     rails vs stepping, 37.3 years: worst planet distance 1.148% apart, worst angle 0.2015 rad apart; Moon-Earth 0.1200 vs 0.1218; off rails 0
+OK     jump 1e6 years, 0 rocks: 6.30 ms, year now 1000007.8, off rails 0; planet distance changed 0.163%, Moon-Earth 0.1222 -> 0.1174..0.1238 over the next 4000 steps (planets 0.637%), 0 merged after
+OK     jump 1e6 years, 5000 rocks: 159.65 ms, year now 1000007.8, off rails 0; planet distance changed 0.163%, Moon-Earth 0.1222 -> 0.1174..0.1238 over the next 4000 steps (planets 0.637%), 0 merged after
+OK     jump 1e6 years, 50000 rocks: 1043.40 ms, year now 1000007.8, off rails 0; planet distance changed 0.163%, Moon-Earth 0.1222 -> 0.1174..0.1238 over the next 4000 steps (planets 0.637%), 8 merged after
+OK     jump replay: hash E6C525086FE16D79 vs live E6C525086FE16D79; bad jumps refused
+OK     rule switch replay: hash F241F9CC61F6952E vs live F241F9CC61F6952E; unknown rule refused
+OK     jump 1e4 years with and without an extra rule: 0 of 2250 objects differ
+OK     Move(Earth): Moon still 0.120 away, Sun and Mars stay
+OK     Saturn's ring: 200 objects, 200 still in the ring after 4000 steps + 1e5-year jump, 200 after moving Saturn
+OK     Move(Sun): Earth and Neptune go along by default, stay behind when moved alone
+OK     hash holds the step count: step 1 vs 2
+OK     escaping object: off rails 1, moved straight to y 50.000; planet still at 45.000000
+OK     rules: year 1.000, YearTime 268.233883 unchanged by G
+OK     rules: rhythm/order/switch ABABBA, next 1.75
+OK     rules: skipped ticks coalesced once at year 3.50: ABABBAAB
+OK     rules: invalid time/rhythm rejected without advancing state
+OK     rules: bounded log 1024, retained 7..1030
+OK     rules: Sol initial K [386.55, 318.46, 288.00, 252.74, 172.72, 143.14, 115.25, 100.27], Earth temperate, no initial events
+OK     rules: Mars pushed: 252.736 -> 130.767 K, events 1; temperature/band.1.0 object 4 year 0.020504 before 245.298 after 239.586 flux 0.478935
+OK     rules: replay temperature/events/hash 32E7AA67420D05B0 / 32E7AA67420D05B0
+OK     rules: event state participates in repeat hash
+OK     rules: temperature off: Mars 130.767 K unchanged across 100 advances
+OK     rules: star light sums 342.492 K; one star 288.000; mass/exponent edit 407.294
+OK     rules: slot 2 reused: fresh temperature 235.151 K, no inherited crossing
+OK     rules: 5000-rock cost enabled 3.797 / disabled 3.658 ms/step, overhead 3.79% (ceiling +10%, Claire revised criterion)
+OK     jumpcost: no-rock exact hashes 8/8 match original chunk path
+OK     jumpcost: deferred satellite follows moving planet r=0.150000; escaping rock stays inertial at (100.000,50000.000), off=1
+OK     jumpcost: no pulling bodies: deferred rocks move by the full inertial interval
+OK     jumpcost: custom rule sees rock positions every chunk through fallback
+OK     jumpcost: temperature disabled: no deferred temperature writes
+OK     jumpcost: deferred journal replay 1B6C9A925FE225A4 / 1B6C9A925FE225A4
+OK     jumpcost: 50000 rocks / 1e6 years: median paired speedup 7.91x (gate 5x, 7 pairs); finite state and Earth layers agree
+OK     layers: Sao Thủy=None Sao Kim=None Trái Đất=Liquid Sao Hỏa=Ice Sao Mộc=Ice Sao Thổ=Ice Sao Thiên Vương=Ice Sao Hải Vương=Ice Mặt Trăng=Vapour
+OK     layers: Sol + 4.5E+09 years: Earth life 1.000 pop 1.000 tech 4.0; story: life.start@100000000, life.stage.0.1@215581746, life.stage.1.2@335476510, life.stage.2.3@445337739, civ.start@3945337739, civ.stage.0.1@3945646949, civ.stage.1.2@3945653949, civ.stage.2.3@3945655949, civ.stage.3.4@3945657649, civ.stage.4.5@3945658649, civ.stage.5.6@3945658949, civ.stage.6.7@3945659139, civ.stage.7.8@3945659214, civ.stage.8.9@3945659314, civ.ship.first@3945659214
+OK     layers: one civilisation, named Dravor, home Trái Đất, born year 3958291132; same seed, same name
+OK     layers: industry ate metal: consumed 4.21E-08, share 0.3200 -> 0.3197, mass unchanged
+OK     layers: colonies under domes, no ship objects left by a jump: Sao Thủy=0.030 Sao Kim=0.044 Sao Hỏa=0.043 Mặt Trăng=0.050
+OK     layers: chronicle: civ.start@3945337739/Trái Đất, civ.stage.0.1@3945646949/Trái Đất, civ.stage.1.2@3945653949/Trái Đất, civ.stage.2.3@3945655949/Trái Đất, civ.stage.3.4@3945657649/Trái Đất, civ.stage.4.5@3945658649/Trái Đất, civ.stage.5.6@3945658949/Trái Đất, civ.stage.6.7@3945659139/Trái Đất, civ.stage.7.8@3945659214/Trái Đất, civ.stage.8.9@3945659314/Trái Đất, civ.ship.first@3945659214/Trái Đất, civ.colony@3958291132/Mặt Trăng, civ.colony@3980781422/Sao Kim, civ.colony@3980781422/Sao Thủy, civ.colony@4003271713/Sao Hỏa
+OK     layers: ten jumps of 4.5E+08: life 1.000 pop 1.000 tech 4.0; story: life.start@100000000, life.stage.0.1@215581746, life.stage.1.2@335476510, life.stage.2.3@445337739, civ.start@3945337739, civ.stage.0.1@3945646949, civ.stage.1.2@3945653949, civ.stage.2.3@3945655949, civ.stage.3.4@3945657649, civ.stage.4.5@3945658649, civ.stage.5.6@3945658949, civ.stage.6.7@3945659139, civ.stage.7.8@3945659214, civ.stage.8.9@3945659314, civ.ship.first@3945659214
+OK     layers: milestone years, 1 jump of 4.5E+09 vs 1000 jumps of 4.5E+06: 11 milestones, worst 0.0000% (bar 0.5%), at civ.start
+OK     layers: Earth pushed out: 206 K, water Ice, pop 0.034 under domes (room 0.034 of 0.05); then: water.2.1@4498058105, life.stage.3.2@4498073108, life.stage.2.1@4498105608, life.stage.1.0@4498150608, life.end@4498242311
+OK     layers: CivDome 0: Earth pop 0.000, worlds left 0, colonies ever founded 0, ends logged 1
+OK     layers: goal slot 1 removed and reused: newcomer pop 0, slot generation 1 -> 2, ship loss in the chronicle
+OK     layers: home world removed: Dravor has home -1
+OK     layers: two ships of two peoples at Mars: colony of civ 0, turned away: 1
+OK     layers: ships flown over 75 years: worlds 1 -> 5 (Sao Thủy=0.0001 Sao Kim=0.0001 Trái Đất=1.0000 Sao Hỏa=0.0001 Mặt Trăng=0.0001), most in flight 1, steps with a ship up 6690, god removed one in year 3945665006.0
+OK     layers: ships replay from the journal: 80E182D06239DB47 / 80E182D06239DB47
+OK     layers: seeded 0.3: Mars 0.000 (life.end@160127), twin Earth slot 10 0.902 water Liquid 302 K (life.stage.2.3@42364893), Earth by itself 0.003 after 1.53E+08 years
+OK     layers: impact of 0.1% mass: life 0.800 -> 0.294, event impact share 1.0E-003
+OK     layers: replay: hash 39223DB7B4B4971D vs live 39223DB7B4B4971D, 2 events equal; WaterFreeze 300 froze Earth
+OK     layers: cut 1 / 200: rich years 1750000000.0 / 1750000000.0, pop 0 / 0
+OK     layers: cut 1 / 200, 2.1E+09 years on: pop 1.0000 / 1.0000, tech 4.000 / 4.000
+OK     layers: cut 1 / 200, fixed biosphere: pop 0.586874 / 0.586874, tech 0.001763 / 0.001763
+OK     layers: seed 0.1 at year 999, life rule ran 1.01 years later: 0.1000000, expected 0.1000000
+OK     layers: CivMetalRef 0, no metal: tech 0.0017
+OK     layers: two objects on one spot + jump: x 0, 0; off rails 1
+OK     layers: hash after push / after SetConst: 75E8C47E1AC402CF / 81BA1DD61BD850E4 / 2AC8754A77836A87
+OK     layers: impact 0.2%: life 0.135, rich years 0
+       layers: jump 1e6 years, 5000 rocks, 200 chunks: 242 ms
+OK     stars: lifetimes .1/1/10 Suns 3.981072E+012/1.000000E+010/2.511886E+007 yr; scale=1
+OK     stars: mass -> light/size/colour: Sun 1 Lsun/5772K/G, red 2672K, blue 17232K
+OK     stars: Sol +1e6yr, 0 rocks: Earth 288.1079406573667K vs master 288.10794065768596, delta -3.19E-010
+OK     stars: Sol +1e6yr, 5000 rocks: Earth 288.10794065736496K vs master 288.10794065744284, delta -7.79E-011
+OK     stars: brown dwarf: not IsWorld, no H fuel burn, light 1.000E-004 -> 4.061E-005
+OK     stars: brown dwarf gains mass -> H ignition -> correct progenitor and remnant, no stored type
+OK     stars: main-sequence mass edit changes lifetime and remnant fate through progenitor numbers
+OK     stars: clock dial changed after first tick: Advance reschedules giant/death at 1 / 1.05 years
+OK     stars: removed stellar rule: jump completes, year=10.000000000000007, fuel=0, no unhandled boundary
+OK     stars: 1 Suns -> WhiteDwarf, mass 0.503 Suns, lost 24.850; 1/200 phase years [star.giant@10000000000,star.remnant.white@10500000000], momentum conserved, 0.4ms
+OK     stars: 1 Suns stretch-exact age/fuel/cooling; light 4.976E-004, radius 6.970E-002
+OK     stars: 10 Suns -> NeutronStar, mass 1.400 Suns, lost 430.000; 1/200 phase years [star.giant@25118864.315095793,star.nova@26374807.530850586,star.remnant.neutron@26374807.530850586], momentum conserved, 0.5ms
+OK     stars: 10 Suns stretch-exact age/fuel/cooling; light 2.472E-004, radius 2.371E-004
+OK     stars: 10-Sun nova and neutron remnant before 30 Myr
+OK     stars: 30 Suns -> BlackHole, mass 7.500 Suns, lost 1125.000; 1/200 phase years [star.giant@1443725.8670059957,star.nova@1515912.1603562955,star.remnant.black@1515912.1603562955], momentum conserved, 0.5ms
+OK     stars: 30 Suns stretch-exact age/fuel/cooling; light 0.000E+000, radius 2.625E-004
+OK     stars: black hole is dark, tiny Schwarzschild-like radius
+OK     stars: giant: radius 8.255->27.996, planet 2174K
+OK     stars: normal collision swallows inner planet without rejuvenating exhausted core
+OK     stars: nova damages nearby biosphere: life .8 -> 5.390E-003
+OK     stars: two stars merge: mass=150.0, burnt fuel mixed=0.043752442, momentum kept
+OK     stars: reused slot resets stellar age, fuel, initial mass
+OK     stars: 1.2-Sun MS swallows .612-Sun WD: MainSequence, mass 1.812 Suns, fuel 0.567412569 (mixed 0.567412569), no spurious death/ejecta
+OK     stars: WD accretion replay 3C5795F4BE7A9E62/3C5795F4BE7A9E62
+OK     stars: surviving white dwarf swallows a planet without rejuvenating its exhausted core
+OK     stars: mass loss widens orbital semimajor through gravity: 10000 -> 837919.4; impulsive loss, no forced planet velocity
+OK     stars: 5-Myr chunks crossing nova: rock origins rebased, observer-independent hash B298526D0CB5F2C2/B298526D0CB5F2C2
+OK     stars: journal replay across giant/nova/remnant hash 0837CF9979CBC1AD/0837CF9979CBC1AD
+OK     stars: stellar fuel participates in Hash
+OK     star-events: seven C6 arbitrary/boundary progenitor regression hashes match
+OK     star-events: World snapshots rows, progenitor conditions and ejecta mix
+OK     star-events: one added row fires once at physical death year 26374807.530850586; remnant mass=63
+OK     star-events: ejecta use the seventh material id; total mass, matter and both momentum components remain conserved
+OK     star-events: custom-table journal replay 98E9DACE327E12C4/98E9DACE327E12C4
+OK     star-events: progenitor 8 Suns lies outside the row's [9,11) conditions
+OK     star-events: progenitor 11 Suns lies outside the row's [9,11) conditions
+OK     star-events: 1/default samples: event years 26374807.530850586/26374807.530850556, identical ejection
+OK     star-events: added range/damage row damages a nearby biosphere without a default nova
+OK     star-events: unknown ids, bad sums/fractions and duplicate event ids are refused at construction
+OK     star-events: default catalog keeps legacy hashes; custom rows and their parameters participate in Hash
+OK     star-events: empty event table still advances the physical phase clock without hidden default events
+OK     star-state: direct WhiteDwarf from numeric snapshot: mass/matter/momentum unchanged, no historical nova/ejecta
+OK     star-state: WhiteDwarf continues cooling without firing death a second time
+OK     star-state: WhiteDwarf snapshot + cooling replay 74FDA4D1FAA11322/74FDA4D1FAA11322
+OK     star-state: direct NeutronStar from numeric snapshot: mass/matter/momentum unchanged, no historical nova/ejecta
+OK     star-state: NeutronStar continues cooling without firing death a second time
+OK     star-state: NeutronStar snapshot + cooling replay 87AD44E494ED4650/87AD44E494ED4650
+OK     star-state: direct BlackHole from numeric snapshot: mass/matter/momentum unchanged, no historical nova/ejecta
+OK     star-state: BlackHole continues cooling without firing death a second time
+OK     star-state: BlackHole snapshot + cooling replay 356BC96B6ACB6FC2/356BC96B6ACB6FC2
+OK     star-state: edited burning fuel reschedules an ordinary Advance boundary from the current year
+OK     star-state: future death follows the event table exactly once at the rescheduled year
+OK     star-state: snapshot replay across Advance and jump 7808BB9A7C29564B/7808BB9A7C29564B
+OK     star-state: invalid snapshots/targets are refused atomically without journal or hash changes
+OK     star-state: brown-dwarf age edit changes cooling without inventing hydrogen burning
+OK     nova-stamps: 1 samples at giant: Earth life=1, pop=1; no retroactive extinction
+OK     nova-stamps: heat/water and swallowed Mercury change at the giant boundary
+OK     nova-stamps: 1 samples, giant +1e6: life.end@10000184206.80744, civ.end@10000050681.267128
+OK     nova-stamps: giant replay B234DF1A0B52AE00/B234DF1A0B52AE00
+OK     nova-stamps: 200 samples at giant: Earth life=0.9999999996185303, pop=1; no retroactive extinction
+OK     nova-stamps: heat/water and swallowed Mercury change at the giant boundary
+OK     nova-stamps: 200 samples, giant +1e6: civ.end@10000050681.26712, life.end@10000184206.807432
+OK     nova-stamps: 1/200 samples: both extinction years agree within 1e-3 year
+OK     nova-stamps: giant replay 255DD34B2CEC3A0A/255DD34B2CEC3A0A
+OK     nova-stamps: new white dwarf: surface 200000K, planet 917.0K, L=102.776
+OK     nova-stamps: 1 samples: physical cooling retains warm interval; band.2.1@2462243.435990451,band.1.0@7561262.770517872
+OK     nova-stamps: both thermal dates satisfy the independently inverted Mestel age-luminosity law
+OK     nova-stamps: cooling replay 54F21E341B3FC1A0/54F21E341B3FC1A0
+OK     nova-stamps: new white dwarf: surface 200000K, planet 917.0K, L=102.776
+OK     nova-stamps: 200 samples: physical cooling retains warm interval; band.2.1@2462243.435990451,band.1.0@7561262.770517872
+OK     nova-stamps: both thermal dates satisfy the independently inverted Mestel age-luminosity law
+OK     nova-stamps: 1/200 thermal crossing years agree within 1e-3 year
+OK     nova-stamps: cooling replay C8D8F541EA50AF92/C8D8F541EA50AF92
+OK     nova-stamps: young neutron-star thermal normalization: 2000000K at 330 yr
+       nova-stamps: (a) 1 Suns 399.9999999999458->39.493769690663264K; band.2.0@10499999999.99998; death=10500000000
+OK     nova-stamps: 1 Suns remnant equilibrium is frozen; no invented intermediate thermal track
+       nova-stamps: (a) 10 Suns 400.00000000003246->65.87228663176906K; band.2.0@26374807.530850567; death=26374807.530850586
+OK     nova-stamps: 10 Suns remnant equilibrium is frozen; no invented intermediate thermal track
+       nova-stamps: (a) 30 Suns 399.999999999996->2.7K; band.2.0@1515912.16035629; death=1515912.1603562955
+OK     nova-stamps: 30 Suns remnant equilibrium is frozen; no invented intermediate thermal track
+OK     boundary: changing a builtin boundary policy changes Hash
+OK     boundary: restoring the canonical policy restores the exact legacy Hash
+OK     boundary: replacing a builtin row with an unflagged same-id row is visible to Hash
+OK     boundary: one extension row settles before giant entry and refreshes after it, without dispatcher edits
+OK     boundary: flagged-extension replay 7A385A564A09CA06/7A385A564A09CA06
+OK     boundary: cooling extension gets old/new state at all four thermal/water edges (8 callbacks)
+OK     contact: swept Moon: 40/40 centre hits at h=.5, moving target
+OK     contact: swept near misses: 40/40 survive
+OK     contact: swept pulling pair keeps mass and both momentum components
+OK     contact: swept rock: 40/40 centre hits at h=.5, moving target
+OK     contact: swept near misses: 40/40 survive
+OK     contact: jump periapsis contact: mass 1.5E-004, 1 samples, 1 live
+OK     contact: jump periapsis contact: mass 1.5E-004, 200 samples, 1 live
+OK     contact: jump periapsis contact: mass 1.0E-009, 1 samples, 1 live
+OK     contact: jump periapsis contact: mass 1.0E-009, 200 samples, 1 live
+OK     contact: jump body pair endpoint: 1 live
+OK     contact: half-circle orbit does not collide through its chord
+OK     contact: future periapsis contact waits until the jump reaches it
+OK     contact: straight unbound rock hits its primary during a jump
+OK     contact: OffRails union across escape then capture: 1
+OK     contact: OffRails counts each free rock once: 2
+OK     contact: old contact deadline cannot hit a reused slot: 2 live, generation 2
+OK     contact: collision replay 32AB1DF4BCBA4E58/32AB1DF4BCBA4E58
+OK     giant: Sol at 9.9 Gyr: ten bodies, Sun still on the main sequence
+OK     giant: 100 solar radii -> 27.996 orbital units (expected 27.996), drawn/contact radius agree, surface 3246K
+OK     giant: Sol +10 Gyr: 9 live, Mercury gone, Venus alive, Earth and outer worlds survive
+OK     giant: Sol giant logs each of 1 swallowed worlds
+OK     giant: 200 solar radii -> 43.027 orbital units (expected 43.027), drawn/contact radius agree, surface 2295K
+OK     giant: Sol +10 Gyr: 8 live, Mercury gone, Venus gone, Earth and outer worlds survive
+OK     giant: Sol giant logs each of 2 swallowed worlds
+OK     giant: Advance: 3 swallowed objects, exactly one merge event per victim
+OK     giant: Advance: swallowed life and population end once, civilisation chronicles retain the deaths
+OK     giant: each victim's layer deaths use its merge's sampled contact year
+OK     giant: Advance death replay FEBF710EF04617F7/FEBF710EF04617F7
+OK     giant: jump: 3 swallowed objects, exactly one merge event per victim
+OK     giant: jump: swallowed life and population end once, civilisation chronicles retain the deaths
+OK     giant: each victim's layer deaths use its merge's sampled contact year
+OK     giant: jump death replay CF4F8F66F3E7EA26/CF4F8F66F3E7EA26
+FAILED elements: eleven C6 default-table regression hashes match the recorded capture
+OK     elements: seventh group sizes matter, density and stellar ledger; World snapshots its table
+OK     elements: old six-cell Create/CreateOrbiting mixes zero-fill the seventh group
+OK     elements: Density[k] edits the corresponding row of this World's table
+OK     elements: seventh-group AddMatter, merge and jump preserve the added matter and total mass
+OK     elements: seventh-group replay 3852CB9292296F81/3852CB9292296F81
+OK     elements: appending an unused group leaves the belts, ring and physical motion identical; it cannot become the 70% main group
+OK     elements: rules and scene mixes follow ids/roles even when table rows are reordered
+OK     elements: invalid sums, NaN and oversized mixes are refused without normalization or state changes
+OK     elements: custom roles participate in the state hash
+OK     elements: a role reads all groups tagged with it, including the added row
+OK     kinds: textbook Sol: Sun=Star, Mercury=Rocky, Venus=Rocky, Earth=Ocean, Mars=Rocky, Jupiter=GasGiant, Saturn=GasGiant, Uranus=IceGiant, Neptune=IceGiant, Moon=Rocky
+OK     kinds: Sol snow line 93.3 is between Mars 58.4 and Jupiter 125.1
+OK     kinds: Earth moved to 0.2 AU (dist 16.6, Temp 474.5 K >= LavaTemp 450) reads Lava
+OK     kinds: HoldsGas: Jupiter=True, Earth=True, Moon=False
+OK     kinds: Kuiper rock moved to 1 AU: class Comet, tail 0.59, ice 3.83E-009 -> 2.95E-009 (1 cut 2.9484E-009 vs 200 cuts 2.9486E-009, diff 2.43E-013)
+OK     kinds: comet spent: logged=True, ice=0, transitioned to Asteroid
+OK     kinds: Sol classes unchanged after 1e6 years: Star, Rocky, Rocky, Ocean, Rocky, GasGiant, GasGiant, IceGiant, IceGiant, Rocky
+OK     kinds: replay hash 794FDF935AD8D2AB vs live 794FDF935AD8D2AB, events match 0
+OK     kinds: ClassOf: dead slot returns None (None), WhiteDwarf phase returns Star (Star)
+OK     kinds: comet orbiting planet in jump: jump ice 8.0000E-010 vs stepping 8.0000E-010, delta 0.00E+000
+OK     kinds: KindOf cost across 5010 objects: 0.163 ms/scan (< 1.0 ms)
+OK     guards: SetConst validation: Density<=0, YearTime<=0, NaN, negative, ShipMass>=AttractMass, Star*<=0, JumpSamples<1 or >10000 rejected; journal records only valid, R/M finite
+OK     guards: Add / AddOrbiting guards: mass<=0, NaN/inf pos/vel/mix, invalid par/parent/grp, r=0 all rejected (-1)
+OK     guards: Do return contract: slot commands return slot (Sun=0, Earth=3), non-target return -2 (SetConst=-2, Rule=-2), fail=-1
+OK     guards: Pre-condition: Moon orbits Earth and reads Kind.Moon
+OK     guards: move-child-par-stale: Move(Moon) +30 puts it outside Earth's Hill zone -> PrimaryOf is Sun (0), KindOf is Planet (Planet, no longer Moon)
+OK     guards: Earth removed
+OK     guards: Earth removed: Par[moon] cleared to -1 by Gone, PrimaryOf(Moon) reads Sun (0 == 0), KindOf reads Planet
+OK     guards: Pre-condition: SubMoon orbits Moon
+OK     guards: Moon removed
+OK     guards: SubMoon orphan: PrimaryOf reads Jupiter (slot 1 == 1), NOT Sun (0), KindOf is Moon
+OK     guards: KindOf cost across 5010 objects: 0.171 ms/scan (rocks fast-path < 1ms)
+OK     guards: Sun (mass 50) remains Kind.Star when AttractMass is 100 > 50
+OK     guards: Sol + 2000 rocks + moved bodies: PrimaryOf(i) matches Rails primary for all 2010 objects
+OK     guards: temperature rule disabled
+OK     guards: Jumped 100 years: year is 100.0
+OK     guards: temperature rule re-enabled
+OK     guards: Rule LastYear reset to current year (100.04 == 100.04) upon re-enabling
+OK     guards: RuleYears after re-enabling is 0.0500 years (does NOT dump 100 accumulated years)
+OK     guards: stars rule re-enabled: NextYear (1000.00) keeps NextStarBoundary ceiling
+OK     guards: Rule.NeedsRockPositions flag is recognized and accessible
+OK     civtable: Default stages: 10 stages with correct thresholds, needs and flags
+OK     civtable: Stage inserted between 1 and 2: Stages count is 11
+OK     civtable: Inserted stage traversed: civ logged events civ.stage.0.1 (True), 1.2 (True), 2.3 (True), 3.4 (True)
+OK     civtable: Default 10 stages without insertion: ends at stage 9 (civ.stage.8.9 logged, no 9.10), hash deterministic D92AA6DE57C9BC66
+OK     civtable: Civilization exists on Earth
+OK     civtable: CivInfo.Stats: populated stats change hash (D92AA6DE57C9BC66 -> 9E5EB25EF1A54309)
+OK     civtable: CivInfo.Stats: hash is independent of dictionary insertion order
+OK     civtable: Custom Stages EarthYears change alters World.Hash() (96E4CB773044F831 -> B5E02BAA9AD6CE5A)
+OK     civtable: Custom Stages BecomesWaste change alters World.Hash() (96E4CB773044F831 vs 322071063D1FA5B2)
+OK     civtable: Stage string-boundary separation (A7865DAF250236CE != E20F863E62A3146E)
+OK     civtable: Stage.Needs cannot be cast to mutable StageNeed[] array
+OK     civtable: Mutating world 1 Stages does not affect world 2 DefaultStages
+OK     civtable: Canonical DefaultStages is immutable; in-place array mutation throws NotSupportedException
+OK     civstats: Check 1: Divergent civ development - RichWorld (Tech 4.00, Stage 9) outpaced PoorWorld (Tech 1.00, Stage 1)
+OK     civstats: Check 2: Metal=0 planet clamped before Bronze Age - Tech: 0.000000 < 1.0, Stage: 0, noBronzeEvent: True
+OK     civstats: Check 3: Tech ceiling 4.0 enforced over 1e9 yr - Tech: 4.000/4.0, Kardashev: 0.94, People: 5.00E+010, Footprint: 51.7 %
+OK     civstats: Check 4: Mercury (ice share 0.0000) has zero dome room without home supply (0)
+OK     civstats: Check 5 pre: Civ rose on Home world (Civ: 0, Pop: 1.0000)
+OK     civstats: Check 5 pre: Dry colony has dome room while Home is alive (0.0494)
+OK     civstats: Check 5: DomeRoom dropped to 0 immediately when Home was destroyed (0)
+OK     civstats: Check 5: Colony on dry planet decayed to 0 after losing Home (Pop: 0, civ.end logged: True)
+OK     civstats: Check 6: Replay determinism verified (h1=3F9B1A7B442A748D, h2=3F9B1A7B442A748D, total mass diff=0.00E+000)
+OK     civstats: Check 7: Conserve mass + momentum over 1e8 yr with colony - dm: 0.00E+000, dpx: 3.81E-017, dpy: 6.41E-018
+OK     civstats: MithrilWorld and NoMetalWorld created with valid mixes
+OK     civstats: Check 8: Custom 7th element integration without core edit - MithrilWorld has need: True (lvl 0.10), NoMetalWorld: False
+OK     civstats: Check 9: New Consts alter World.Hash() via SetConst - all return -2: True, hashes distinct: True
+OK     ships: Earth alone: over 559 years 280 ships sent, 0 lost (0.0%); arrived per goal: Sao Thủy 60/60, Sao Kim 68/68, Sao Hỏa 79/79, Mặt Trăng 73/73; a lost ship came within 0.00 Sun radii; any ship nearest 1.38 Sun radii, ship-steps inside 3 radii 9146, longest flight 1.1 yr; Sun R 8.25, g at 1.5R 0.33 vs thrust 2
+OK     ships: five worlds sending: over 559 years 280 ships sent, 0 lost (0.0%); arrived per goal: Sao Thủy 60/60, Sao Kim 68/68, Sao Hỏa 79/79, Mặt Trăng 73/73; a lost ship came within 0.00 Sun radii; any ship nearest 1.40 Sun radii, ship-steps inside 3 radii 7913, longest flight 1.1 yr; Sun R 8.25, g at 1.5R 0.33 vs thrust 2
+OK     conserve: keeps half a sun, fixed: the row fired — 25 of 50 left the star, 1 body(ies) still alive
+OK     conserve: keeps half a sun, fixed: mass flat — 50 → 50 (0.000E+000)
+OK     conserve: keeps half a sun, fixed: every element together flat — 0.000E+000 of 50
+OK     conserve: keeps half a sun, fixed: each element closes after subtracting signed nucleosynthesis delta
+OK     conserve: keeps half a sun, fixed: momentum flat — dP (0.000E+000, 0.000E+000) of (1, -1.5)
+OK     conserve: slope .2 of birth, never under half a sun: the row fired — 40 of 65 left the star, 1 body(ies) still alive
+OK     conserve: slope .2 of birth, never under half a sun: mass flat — 65 → 65 (0.000E+000)
+OK     conserve: slope .2 of birth, never under half a sun: every element together flat — 0.000E+000 of 65
+OK     conserve: slope .2 of birth, never under half a sun: each element closes after subtracting signed nucleosynthesis delta
+OK     conserve: slope .2 of birth, never under half a sun: momentum flat — dP (6.661E-016, 0.000E+000) of (1.3, 54.0997)
+OK     conserve: ejects half by fraction: the row fired — 25 of 50 left the star, 1 body(ies) still alive
+OK     conserve: ejects half by fraction: mass flat — 50 → 50 (0.000E+000)
+OK     conserve: ejects half by fraction: every element together flat — 0.000E+000 of 50
+OK     conserve: ejects half by fraction: each element closes after subtracting signed nucleosynthesis delta
+OK     conserve: ejects half by fraction: momentum flat — dP (0.000E+000, 0.000E+000) of (1, -1.5)
+OK     conserve: ejects everything by fraction: the row fired — 50 of 50 left the star, 0 body(ies) still alive
+OK     conserve: ejects everything by fraction: mass flat — 50 → 50 (0.000E+000)
+OK     conserve: ejects everything by fraction: every element together flat — 0.000E+000 of 50
+OK     conserve: ejects everything by fraction: each element closes after subtracting signed nucleosynthesis delta
+OK     conserve: ejects everything by fraction: momentum flat — dP (0.000E+000, 0.000E+000) of (1, -1.5)
+OK     conserve: ejects .03 suns fixed: the row fired — 1.5 of 50 left the star, 1 body(ies) still alive
+OK     conserve: ejects .03 suns fixed: mass flat — 50 → 50 (0.000E+000)
+OK     conserve: ejects .03 suns fixed: every element together flat — 0.000E+000 of 50
+OK     conserve: ejects .03 suns fixed: each element closes after subtracting signed nucleosynthesis delta
+OK     conserve: ejects .03 suns fixed: momentum flat — dP (0.000E+000, 2.220E-016) of (1, -1.5)
+OK     conserve: half out, split rock/metal: the row fired — 32.5 of 65 left the star, 1 body(ies) still alive
+OK     conserve: half out, split rock/metal: mass flat — 65 → 65 (0.000E+000)
+OK     conserve: half out, split rock/metal: every element together flat — 0.000E+000 of 65
+OK     conserve: half out, split rock/metal: each element closes after subtracting signed nucleosynthesis delta
+OK     conserve: half out, split rock/metal: momentum flat — dP (6.661E-016, 0.000E+000) of (1.3, 54.0997)
+OK     conserve: every shipped ejecta mix is a mix: 8 row(s), 4 carrying one
+OK     conserve: a mix summing to half is refused at construction, not absorbed as half the mass
+OK     conserve: the ledger has teeth: removing one body of 3 shows as exactly that — 14 → 11
+OK     conserve: sol, 0 rocks → giant: shared mass closes — 0.000E+000 of 50.06698844, tight band 5.01E-010 (ejecta 0, 0 ship(s) adding 0.00E+000, year 9.990000E+009)
+OK     conserve: sol, 0 rocks → giant: the elements follow the mass — 0.000E+000 against 0.00E+000 for ships
+OK     conserve: sol, 0 rocks → giant: momentum inside the same band — dP (4.331E-017, 1.030E-016), fastest body 1.415
+OK     conserve: sol, 0 rocks → past the death: shared mass closes — 2.842E-014 of 50.06698844, tight band 5.01E-010 (ejecta 24.85, 0 ship(s) adding 0.00E+000, year 1.060000E+010)
+OK     conserve: sol, 0 rocks → past the death: the elements follow the mass — -7.105E-015 against 0.00E+000 for ships
+OK     conserve: sol, 0 rocks → past the death: momentum inside the same band — dP (9.506E-017, 3.528E-017), fastest body 1.415
+OK     conserve: sol, 0 rocks → past the death: the scene reached the death and threw 24.85 out of the star
+OK     conserve: sol, 200 rocks → past the death: shared mass closes — -1.137E-013 of 50.06698945, tight band 5.01E-010 (ejecta 24.85, 0 ship(s) adding 0.00E+000, year 1.060000E+010)
+OK     conserve: sol, 200 rocks → past the death: the elements follow the mass — -3.055E-013 against 0.00E+000 for ships
+OK     conserve: sol, 200 rocks → past the death: momentum inside the same band — dP (-3.290E-008, -2.670E-009), fastest body 1.415
+OK     conserve: sol, 200 rocks → past the death: the scene reached the death and threw 24.85 out of the star
+OK     conserve: sol, 200 rocks, both volatile sinks at 0: the whole stock scene is closed — 50.0669894548 → 50.0669894548 (-9.948E-014) over 1.060000E+010 years, 309 body(ies)
+OK     conserve: sol, 200 rocks, both volatile sinks at 0: every element together closed — -1.066E-013
+OK     conserve: sol, 200 rocks, both volatile sinks at 0: momentum inside the same band — dP (-2.257E-008, -7.180E-009), fastest body 1.415, band 7.08E-005
+note: conserve: momentum is the one quantity the closed scene does not hold at rounding level: 2.368E-008 of 70.8401 (mass x fastest body) over 1.060000E+010 years, 1 merge(s), 309 body(ies) — momentum is conserved inside Merge itself (World.cs:188-190), so the path that drops this is not named here [chưa kiểm: chưa tách được Gone() khỏi sai số tích phân]
+note: conserve: sol, 200 rocks, gas loss off: -1.137E-013 of 50.06698945 left the ledger
+note: conserve: sol, 200 rocks, ice sublimation off: -9.948E-014 of 50.06698945 left the ledger
+OK     cosmic: ice multi-role loss: live+escaped mass closes, escaped=2.9883063257983696E-11
+OK     cosmic: every role cell and bulk momentum close independently
+OK     cosmic: post-trim M equals sum of cells
+OK     cosmic: volatile replay 29D51C4883ADB699/29D51C4883ADB699
+OK     cosmic: gas multi-role loss: live+escaped mass closes, escaped=7.585446705942695E-05
+OK     cosmic: every role cell and bulk momentum close independently
+OK     cosmic: post-trim M equals sum of cells
+OK     cosmic: volatile replay 808B04921620C633/808B04921620C633
+OK     cosmic: tiny ice residual: M-sum(Comp)=0.000E+000; erased residual enters escaped ledger
+OK     cosmic: death threshold 7.999 Suns: exclusive SN/HN, expected remnant and burst
+OK     cosmic: death 7.999: live+shared escaped closes M/every transformed cell/Px/Py
+OK     cosmic: death 7.999 replay 87CB83DA96BC4807
+OK     cosmic: death threshold 8 Suns: exclusive SN/HN, expected remnant and burst
+OK     cosmic: death 8: live+shared escaped closes M/every transformed cell/Px/Py
+OK     cosmic: death 8 replay AD37697F0436E677
+OK     cosmic: death threshold 24.999 Suns: exclusive SN/HN, expected remnant and burst
+OK     cosmic: death 24.999: live+shared escaped closes M/every transformed cell/Px/Py
+OK     cosmic: death 24.999 replay AF68D2EDCCAF4CCD
+OK     cosmic: death threshold 25 Suns: exclusive SN/HN, expected remnant and burst
+OK     cosmic: death 25: live+shared escaped closes M/every transformed cell/Px/Py
+OK     cosmic: death 25 replay 4DD96A5F07336597
+OK     cosmic: death threshold 30 Suns: exclusive SN/HN, expected remnant and burst
+OK     cosmic: death 30: live+shared escaped closes M/every transformed cell/Px/Py
+OK     cosmic: death 30 replay BB7DB137D9FB24F8
+OK     cosmic: failed spin draw falls through to normal SN/BH, no GRB
+OK     cosmic: two opposed unit-axis beams; inverse-square dose radius=2.0442 kpc
+OK     cosmic: Chronicle, repeatable seed and independent random directions
+OK     cosmic: recycled slot cannot rewrite persistent burst identity
+OK     cosmic: small Advance vs long jump: same spin outcome, axis, next RNG and ejected mass
+OK     cosmic: 1/200 samples: spin/axis/next RNG exact; boundary rounding dYear=-6.054E-009
+OK     cosmic: NSNS 1.1+1.1: eject .03 Suns, retained 2.1700000000000004, NeutronStar
+OK     cosmic: NSNS: live+shared escaped closes M/every transformed cell/Px/Py
+OK     cosmic: merger replay E07C23D097480DFB
+OK     cosmic: retired partner cannot fire merger again
+OK     cosmic: NSNS 1.1+1.13: eject .03 Suns, retained 2.2, NeutronStar
+OK     cosmic: NSNS: live+shared escaped closes M/every transformed cell/Px/Py
+OK     cosmic: merger replay 47017FDCCC6EAB43
+OK     cosmic: retired partner cannot fire merger again
+OK     cosmic: NSNS 1.2+1.2: eject .03 Suns, retained 2.37, BlackHole
+OK     cosmic: NSNS: live+shared escaped closes M/every transformed cell/Px/Py
+OK     cosmic: merger replay 6D5715993301C60B
+OK     cosmic: retired partner cannot fire merger again
+OK     cosmic: NSBH 1.4+3: Foucart C=0.1723, available=0.0039533145160558225, ejected=0.00395331451605557
+OK     cosmic: NSBH: live+shared escaped closes M/every transformed cell/Px/Py
+OK     cosmic: NSBH 1.4+5: Foucart C=0.1723, available=0, ejected=0
+OK     cosmic: NSBH: live+shared escaped closes M/every transformed cell/Px/Py
+OK     cosmic: WDWD/BHBH pairs have no hidden kilonova
+OK     cosmic: shell solid angle at100AU, full capacity: captured=1.133560E-012, expected=1.133560E-012, no packet slots
+OK     cosmic: analytic shell with radial momentum: live+shared escaped closes M/every transformed cell/Px/Py
+OK     cosmic: reordered six-group yields, signed delta mass-neutral, escaped transfer names original event
+OK     cosmic: one added arbitrary WD pair row dispatches without editing the core
+OK     roche: same density fluid/rigid ratio 2.44/1.26
+OK     roche: equal-density mixed matter interpolates rigid/fluid coefficients by mass
+OK     roche: small cohesive ice fragment survives outside host surface
+OK     roche: capacity128/budget10000: ring 1.0000E-006+bound reservoir 0.0000E+000=parent; no false escape
+OK     roche: mass, each material, both momentum components close
+OK     roche: COM/L close: dL=-3.469E-018; energy dissipated 3.5899E-013
+OK     roche: source retired, identity not inherited; no circularization energy creation
+OK     roche: journal+Advance replay FBD02AB8722D6931/FBD02AB8722D6931
+OK     roche: capacity2/budget10000: ring 0.0000E+000+bound reservoir 1.0000E-006=parent; no false escape
+OK     roche: mass, each material, both momentum components close
+OK     roche: COM/L close: dL=8.674E-019; energy dissipated 3.5899E-013
+OK     roche: source retired, identity not inherited; no circularization energy creation
+OK     roche: journal+Advance replay F6913778EE440C48/F6913778EE440C48
+OK     roche: capacity128/budget0: ring 0.0000E+000+bound reservoir 1.0000E-006=parent; no false escape
+OK     roche: mass, each material, both momentum components close
+OK     roche: COM/L close: dL=8.674E-019; energy dissipated 3.5899E-013
+OK     roche: source retired, identity not inherited; no circularization energy creation
+OK     roche: journal+Advance replay 9473757B1905B353/9473757B1905B353
+OK     roche: capacity4/budget10000: ring 8.0000E-008+bound reservoir 9.2000E-007=parent; no false escape
+OK     roche: mass, each material, both momentum components close
+OK     roche: COM/L close: dL=8.674E-019; energy dissipated 3.5899E-013
+OK     roche: source retired, identity not inherited; no circularization energy creation
+OK     roche: journal+Advance replay 183537C7A0C9C607/183537C7A0C9C607
+OK     roche: 1e6yr circular ring: live=65, breakups=1, mass=0.05000100000000014
+OK     roche: long-jump fragments remain outside surface and inside cohesionless Roche
+OK     roche: hyperbolic speed1.415: captured=4.436582191845403E-07, escaped=5.563417808154596E-07, stream
+OK     roche: hyperbolic transfer M/P/COM/L closes
+OK     roche: captured stream fragments are physically bound, not only labeled captured
+OK     roche: hyperbolic speed3: captured=0, escaped=1E-06, stream
+OK     roche: hyperbolic transfer M/P/COM/L closes
+OK     roche: captured stream fragments are physically bound, not only labeled captured
+OK     roche: first-entry 1/200 cuts: events=1/1
+OK     roche: jump replay 831022487CBF1028/831022487CBF1028
+OK     roche: positive-Gyr clock makes progress across rounded first-entry dates
+OK     roche: compact primary uses physical stellar density, not its gas composition density
+OK     roche: impact source retires even when tidal debris later reuses its slot
+OK     roche: invalid physical conversion and numerical budget dials are refused
+OK     roche: god rhythm dial changes actual housekeeping cadence
+OK     roche: leaving planet while star-bound retains material in root reservoir, not Escaped
+OK     roche: Roche material roles follow reordered element ids
+OK     roche: fast pass enters/exits inside one substep: swept chord catches it, date at substep boundary
+OK     ns-drop: zero-time events 5: original sources only, no same-time child cascade
+OK     ns-drop: every newborn debris object survives its own host's Roche limit
+OK     ns-drop: zero-time M/P/each Comp close with reservoirs and Escaped ledger
+OK     ns-drop: repeated zero-time step adds no breakup/reservoir work
+OK     ns-drop: cohesionless inner cloud stays bound/accounted, no unstable resolved fragments
+FAILED ns-drop: 200-step counts bounded/no late cap: live5387, disruptions1312, reservoirs855, hash3A398B489488C0F9
+OK     ns-drop: NS-drop with zero-time steps and 200 Advances replays 3A398B489488C0F9/3A398B489488C0F9
+ns-drop natural ledger deltas: 9.094947017729282E-13,1.1553129297681153E-07,-1.2655027619000969E-07,0,8.933825901280557E-17,0,0,0,0
+OK     ns-drop: natural NS/BH deaths +1e10yr: 163.306ms, phasesNeutronStar/BlackHole, ledgerClose=True, hashCA9F114DBA0C4C04
+OK     ns-drop: natural-death jump journal replay CA9F114DBA0C4C04/CA9F114DBA0C4C04
+ns-drop pair1 rocks5000: before3.602291/after9.065838ms ratio2.516687, hashA7CD37BE2B01CE25, live5511, disrupt72, reserve29
+ns-drop pair2 rocks5000: before3.572855/after8.838600ms ratio2.473820, hashA7CD37BE2B01CE25, live5511, disrupt72, reserve29
+ns-drop pair3 rocks5000: before3.528322/after9.154563ms ratio2.594594, hashA7CD37BE2B01CE25, live5511, disrupt72, reserve29
+ns-drop pair4 rocks5000: before3.740145/after7.366900ms ratio1.969683, hashA7CD37BE2B01CE25, live5511, disrupt72, reserve29
+ns-drop pair5 rocks5000: before3.698309/after9.906113ms ratio2.678552, hashA7CD37BE2B01CE25, live5511, disrupt72, reserve29
+ns-drop pair6 rocks5000: before3.717717/after8.648875ms ratio2.326394, hashA7CD37BE2B01CE25, live5511, disrupt72, reserve29
+ns-drop pair7 rocks5000: before3.697206/after7.564813ms ratio2.046089, hashA7CD37BE2B01CE25, live5511, disrupt72, reserve29
+FAILED ns-drop: rocks5000 median7 after8.838600ms (5k gate<=8ms), paired after/before2.473820 diagnostic
+roche admission vs a1c832f oracle Sol5000: misses0/0 (0.000000%), two-body approximation (third-body perturbations remain debt)
+roche admission vs a1c832f oracle NS-drop: misses0/1203 (0.000000%), two-body approximation (third-body perturbations remain debt)
+roche admission vs a1c832f oracle random: misses0/51675 (0.000000%), two-body approximation (third-body perturbations remain debt)
+roche admission after third-body integration Sol5000: 0/0 remaining inside pair-observations excluded (0.000000%), 200 Advances; cap-admitted pairs are not misses
+roche admission after third-body integration NS-drop: 0/14 remaining inside pair-observations excluded (0.000000%), 200 Advances; cap-admitted pairs are not misses
+OK     roche-query: 1421 legacy/new queries on SAME admitted candidates, 0 differences, exact time/source/host/generations
+OK     species-catalog-params: 8 params defined, covers all 8 required parameters
+OK     species-human-template: Habitat=Land, Manip=1.0, Energy=Chem, Senses=Vision, Lifespan=80yr, Social=Band, Temp=250..320K
+OK     species-free-composition: custom alien with ocean/sonar/hive/bioluminescence composed seamlessly
+OK     species-civinfo-default: unassigned CivInfo.Species defaults to SpeciesCatalog.Human
+OK     species-hash-invariant: hash deterministic and bit-equal (5FF370E32B8ADF5A)
+OK     species-hash-nondefault: nondefault species alters World.Hash() (63AEB615673BB652 -> FC1D4939D769CD43)
+OK     species-validate-nan: manipulation=NaN rejected with ArgumentOutOfRangeException
+OK     species-validate-bounds: lifespan=-1 rejected with ArgumentOutOfRangeException
+OK     species-defensive-extra: external mutation of caller dict does not alter Species.Extra
+OK     species-extra-readonly: ((IDictionary)species.Extra) mutation throws NotSupportedException
+OK     species-constructor-validate: constructor rejects NaN/out-of-range via ArgumentOutOfRangeException
+OK     species-string-boundary: string boundary separation (AE0EE625C6CE1525 != D0BC7210CB0DF4C5)
+OK     species-with-and-enum-validate: 'with' expression and constructor reject invalid values and enums
+OK     species-extra-with-freeze: 'with { Extra }' performs defensive copy and preserves read-only wrapper
+OK     species-withparam-extra-readonly: WithParam unknown key yields ReadOnlyDictionary
+OK     capnodes-catalog: 15 nodes defined, covers all 5 domains (Heat, Material, Knowledge, Power, Space)
+OK     capnodes-human-progression: start nodes unlock progressively matching traditional 10-era ladder
+OK     capnodes-era-labels: human era labels preserve 10-era names ('Thời kỳ Tiền sử', 'Kỷ nguyên Tiền Vũ trụ')
+OK     capnodes-habitat-filter: ocean species cannot ignite fire, but reaches smelting via geothermal heat
+OK     capnodes-manipulation-filter: low manipulation (0.1) prevents stonework, writing, and smelting
+OK     capnodes-escape-velocity: v_esc Earth=0.076, Jupiter=0.347 (4.56x); orbit tech threshold scales 3.0 -> 13.7
+OK     capnodes-lifespan-rate: knowledge multiplier lifespan 80yr=1.00x, 320yr=2.00x
+OK     capnodes-hash-invariant: simulation hash bit-equal (1422FEA191588A63)
+OK     capnodes-era-label-content: non-template human phenotype receives generic label 'Kỷ nguyên 4', not human ladder name
+OK     capnodes-lifespan-const-block: block hashing prevents crossed collision (RefOnly=17FC385726929209 != ExpOnly=7E7F17CAA133A4A0), validates Ref>0, restores baseline (0A5004AA42DB71B2)
+OK     capnodes-fire-oxidizer: airless cold world (gas=0, life=0) refuses fire despite ice presence
+OK     capnodes-geothermal-heat: airless world with Temp=NaN refuses geothermal without thermal source
+OK     prof: two pullers + one far rock: WorkCounters { Advances = 2, Substeps = 16, GravityPairs = 64, ContactSweeps = 16, RocheCollections = 0, RocheAdmissionPairs = 0, RocheCandidateChecks = 0, RuleApplications = 0, Merges = 0 }; expected WorkCounters { Advances = 2, Substeps = 16, GravityPairs = 64, ContactSweeps = 16, RocheCollections = 0, RocheAdmissionPairs = 0, RocheCandidateChecks = 0, RuleApplications = 0, Merges = 0 }
+OK     prof: read/reset leaves canonical hash unchanged and clears diagnostic counts
+OK     prof: rejected Advance does not count or change physics
+OK     prof: real swept contact and merge counted: WorkCounters { Advances = 1, Substeps = 8, GravityPairs = 2, ContactSweeps = 1, RocheCollections = 0, RocheAdmissionPairs = 0, RocheCandidateChecks = 0, RuleApplications = 0, Merges = 1 }
+OK     prof: merge reset is diagnostic delta, not a physics reset
+OK     prof: Threads1/4: hash ED98F16B92814608/ED98F16B92814608, exact work WorkCounters { Advances = 40, Substeps = 320, GravityPairs = 16796800, ContactSweeps = 14400, RocheCollections = 40, RocheAdmissionPairs = 2099600, RocheCandidateChecks = 504, RuleApplications = 7, Merges = 0 }
+OK     prof: Threads1/8: hash ED98F16B92814608/ED98F16B92814608, exact work WorkCounters { Advances = 40, Substeps = 320, GravityPairs = 16796800, ContactSweeps = 14400, RocheCollections = 40, RocheAdmissionPairs = 2099600, RocheCandidateChecks = 504, RuleApplications = 7, Merges = 0 }
+OK     prof: journal replay reproduces hash and all phase counts
+OK     prof: Roche collection count and actual due-rule calls are accounted
+OK     comet-scale: 9 stars: ice at LAST star decreases 8E-09->0; escaped=8E-09, temp=291.32310064689284
+OK     comet-scale: 9 stars: distant cold ice stays unchanged 8E-09
+OK     comet-scale: 9 stars: resolved+escaped+reservoir ice ledger closes 1.6E-08
+OK     comet-scale: 9 stars: exact command replay A9EBFDB238AA3DB4/A9EBFDB238AA3DB4
+OK     comet-scale: 200 stars: ice at LAST star decreases 8E-09->0; escaped=8E-09, temp=291.323259021844
+OK     comet-scale: 200 stars: distant cold ice stays unchanged 8E-09
+OK     comet-scale: 200 stars: resolved+escaped+reservoir ice ledger closes 1.6E-08
+OK     comet-scale: 200 stars: exact command replay 2263BE3DEE510254/2263BE3DEE510254
+-- audit P3: energy, momentum, swept collision, cost
+       sol 0 rocks, 20000 steps @h=0.5: E -1.20405360E-002 -> -1.20405438E-002 (rel 6.52E-007), L 5.75097209E+000 -> 5.75097209E+000 (rel -5.41E-015)
+       G 1->2 at step 10000: E -1.204054E-002 -> -1.204055E-002 (rel 8.56E-007), then -3.604880E-002 -> -Infinity (rel Infinity)
+         jump across the dial 199.40 % (PE is linear in G), L drift 0.00E+000 then -1.46E-005
+         Year 37.28, YearTime 268.23 (unchanged on purpose, Rules.cs:8-9)
+       swept: the core samples the pair once per small step, so at h=0.5 a straight meeting is missed from 2(Ri+Rj)/hs = 2(Ri+Rj)/0.0625 relative
+         target R 0.0483 + probe R 0.0010: the meeting is found below 1.58 relative — 0.7 -> merged, 5.0 -> merged
+         target R 0.1040 + probe R 0.0010: the meeting is found below 3.36 relative — 3.0 -> merged, 8.0 -> merged
+         same target, same relative speed 1.0: h=0.125 -> merged, h=0.5 -> merged
+         in the real system (the Sun bends the path, so the clean line above is only a floor):
+           Earth R 0.0518 straight on, relative speed: Earth is hit up to 0.00 and never from 0.20 (clean line 1.66); Earth's orbital speed is 1.05, so from 0.2x a planet at speed the probe crosses Earth untouched and flies on (probe still alive: False)
+-- cost of Advance: rocks vs pulling bodies
+   rocks   ms/step   marginal us/rock
+       0     0.013                  
+    2000     1.888             0.937
+    5000     3.634             0.582
+   20000    12.927             0.620
+   50000    30.554             0.588
+  bodies that all pull (star + n planets of 2e-4, kick loop is O(N * na)):
+      10     0.017
+      50     0.223
+     200     3.357
+    1000    82.401
+OK     attractmass-0 (Commands.cs:75 SetConst, Commands.cs:215-216 Validate): the value that makes every rock pull cannot be set — SetConst AttractMass 0 returns -1 and the dial stays 1.000E-007, so the 1.472 -> 1.477 ms/step (1.0x) is the same scene twice, not a slower one
+         after that dial: 0 event(s) in the log, 2250 object(s) left, AttractMass 1.000E-007
+-- audit P3: defect checks (core/World.cs, Commands.cs, Rules.cs, Rails.cs, Layers.cs, Civ.cs)
+OK     hash-velocity (World.cs:244 mixes Vx/Vy/Par, World.cs:245 Comp): two worlds alike in position and mass, Vx 0 vs 7, hash differ — the gap Celine found in review is closed
+OK     hash-momentum (World.cs:244): Push of (100, -50) moves the hash, so a lost Push that has not yet moved anything is now visible to the SPEC boundary 'scene + journal = same world'
+OK     hash-constants (World.cs:248-252 reflects over every Consts instance field, all of them double or double[]): Do(SetConst JumpSamples 7) moves the hash
+OK     hash-replay (Commands.cs:75, World.cs:248-252): a journal with its SetConst row removed replays to hash BA64B1C7167FAC7C vs live BE42EFA53F69806D (differs); 1 journal rows, 0 replayed
+OK     hash-step (World.cs:247 mixes Step, Commands.cs:45 Replay applies a row only when journal[next].Step == Step): A at Step 1 hashes 618D88E66080F7B9, B at Step 2 hashes FABA752E32682156, a control world also at Step 2 hashes FABA752E32682156 — a journal row A applies and B skips can no longer hide behind an equal hash
+OK     setconst-density-0 (Commands.cs:75 -> World.cs:79-84 SetRadius, vol = comp/density): Density[2] 1 -> 0 makes R infinite on every rock-bearing body, so the whole system merges into 10 of 10 objects in no steps, sun included, no undo
+OK     setconst-density-0-nan (World.cs:82 vol += Comp/C.Density[e], 0/0 = NaN): the Sun carries no rock, so its rock term is 0/0 and R[0] = 8.254818122236568; every touching test is then d2 < rr*rr with rr NaN, i.e. false, so the Sun can never be touched again while rock-bearing bodies get R = 0.05177227214667563 and merge with everything
+OK     setconst-yeartime-0 (Commands.cs:75 accepts any finite value, World.cs:192 throws): Do(SetConst YearTime 0) is applied and the next Advance throws  — the window dies and the world is not saved
+RISK   radius-dial-keeps-mass (Commands.cs:77 RecalcRadii): RadiusScale 1.5 -> 200 grows Earth R 0.0518 -> 6.90 and every pair that now overlaps merges: Live 1 of 10 after 3 steps; turning a draw-scale dial down again does not bring the object back
+OK     add-negative-mass (World.cs:108 takes any double): Add(m=-1e-4) returns slot -1 and stays alive, so G*M<0 repels every pulling body; Commands.cs:55 blocks it at the boundary, Add does not
+OK     addorbiting-bad-parent (World.cs:120 reads X[parent] with no check): AddOrbiting(parent=7) on a 2-slot world throws no; Commands.cs:57 is the only guard
+OK     add-nan (World.cs:108): one object added at x=NaN turns the other object's x into 0 in 20 steps (its gravity is NaN, d2=NaN, so it also never merges: Live 1); nothing in the core refuses a non-finite state, only Advance's h is checked (World.cs:192)
+OK     kindof-star-before-attract (World.cs:77 asks Attracts(i) first, World.cs:78 is the M >= StarMass test; Commands.cs:215-216 Validate("AttractMass") accepts any value above ShipMass, and Do r=-2 means applied without a slot, Commands.cs:34-39): the Sun (M 50.0 >= StarMass 4.0, KindOf Star, StarPhase MainSequence) reads Star after AttractMass 1.0E-007 -> 1.0E+002 (Do r=-2); line 78's own test still passes, so the classifier answers "not a star" for a body its own next line calls one, and KindOf is what Hill, the journal and every god tool read
+OK     jumpsamples-unbounded (Commands.cs:221-222 Validate("JumpSamples") asks only v >= 1 unless a ceiling was added; Rails.cs:44 chunks = Clamp(ceil(years/fastest), 1, C.JumpSamples), cost chunks * objects per Rails.cs:33-35): the dial is refused (Do r=-1, -1 is a refusal) and one 1e6-year jump over 5000 rocks costs 105 ms at cap 200 and 1018 ms at cap 2000 (0.51 ms per chunk), so cap 1e7 is about 5092 s of wall clock inside a single FastForward
+OK     add-mix-silent-normalise (World.cs:145-146 used to store m * mix[e] / sumMix whenever the mix did not sum to 1): Add(m=1.0, 0.25 in a mix summing to 0.25) is refused (r=-1) while the mix that does sum to 1 still lands (slot 0, its share at position 3 stored 1.0000, mass M 1.0000) — a mix that does not sum to 1 is the caller's error, and saying so is the one answer that keeps the body's mass in step with its own matter table
+DEFECT slot-identity (World.cs:111 reuses a freed slot, Commands.cs:136 pushes it): B died in a merge, the next Add returned slot 1 = B's slot and it is now 'C'; a slot index held by the window or a tool silently denotes a different object — the core has no generation counter to detect it
+OK     slot-reuse-clean (World.cs:112-115): the reused slot 1 starts with Water -1, Life 0.00, Temp NaN, Par -1, Grp 0 — nothing leaks from the dead object
+OK     do-return (Commands.cs:38 Math.Max(r, 0)): on a fresh world SetConst returns -2, and a Create that landed in slot 0 also returns 0; -2 means 'applied, no object' and is reported as 0, so a caller cannot tell the two apart
+DEFECT hill-orphan (master World.cs:97-103 falls back to Heaviest(); r6 calls Heaviest() from nowhere in the core and the ladder root Rails.cs:267 answers instead): Remove(Earth) moves the Moon's zone 0.0192 -> 0.1036 (5.4x) and Kind 2 -> 1 with no signal that the parent is gone; Hill() answers about the Sun while looking like the same call
+OK     merge-reparents-moon (World.cs:139): a body heavier than the host merged into it, so the moon's Par is now 2 = slot 2 (host slot 0, host alive False), Kind 2, live 2 of 3; Kill instead clears children to -1 (Commands.cs:137), so the same event answers two ways
+OK     rails-offrails (Rails.cs:28-30 dedupes by Gen, Rails.cs:38-39 clears the seen-set once per jump; master Rails.cs:118 reset the counter inside Ride): a 1e6-year jump ran 200 chunk(s) and the one escapee was off rails in every one of them, so OffRails reports 1 — 1 is the per-jump union of distinct objects, 200 a per-chunk count, 0 a dead field. No scene can tell the union from the last-chunk count while an escapee stays out; the two differ only when a later chunk is short of one, which is why this line is a contract, not a hunt for a number
+OK     rails-bound: one-year jump keeps 10/10 objects and Earth's distance 45.000 -> 44.999 (0.00%)
+OK     rails-coorbital: a twin on Earth's orbit, opposite side, after a 5-year jump sits 89.8 from Earth (orbit radius 45.0, start 90.0) and is alive
+OK     rails-jump-vs-steps (Rails.cs:106-182 Ride runs no pair test, so a jump cannot produce a collision): five years over an 11-body Sol with one retrograde twin added — 2682 steps at h=0.5 end with Live 9/11 and the Sun at 50.0003 (the twin is retrograde, so it meets Earth and the merged body falls in), one 5-year jump ends with Live 9/11 and the Sun at 50.0003
+OK     jump-no-contact (Rails.cs:106-182 Ride has no pair test, Rails.cs:168 solves each lump with Kepler, which sends an unbound object down a straight line at Rails.cs:193): the same scene, a 1.5e-4 body 3 units from a 1e-3 body closing at relative speed 1, ends with 1 object(s) under 40 steps but 1 object(s) after a 1-year jump — the shot is now at x -2.4, 1 merge(s) during the jump; a jump is also a wall that nothing can hit
+OK     swept-phase (World.cs:212 tests d2 < (ri+Rj)^2 once per small step, hs = h/Sub at World.cs:195): one probe, one target of R 0.0104, relative speed 1.0, fired dead centre 40 times from 40 start offsets spread across a single sampling cell (0.0625 apart) — every one of them a hit in geometry. At the SPEC step h=0.5 only 40 of 40 ended in a merge; at h=0.125, a step World.cs:192 accepts just as readily, 40 of 40 did. The other 0 passed through and flew on, no error raised: the outcome is set by where the sampling happens to land, not by the scene
+DEFECT swept-small-body (World.cs:212, SPEC step h=0.5 Sub=8 -> hs=0.0625): the same dead-centre probe at the same relative speed 1.0, changing only the target, merges 40 of 40 times against a planet-scale target (R 0.1040, probe R 0.0010), 40 of 40 against a Moon-scale one (R 0.0104) and 0 of 40 against a belt-rock one (R 0.0022); the meeting is only ever found when 2(Ri+Rj)/hs = 0.38 exceeds the closing speed, i.e. 0.44 for the Moon, 0.60 for Mercury, 0.85 for Mars, 1.70 for Earth, while crossing orbits close at 1.0-1.7 — so accretion onto anything small is a lottery on the sampling phase (the sol run's 4 merges of 5000 rocks is that lottery)
+OK     layers-water-start: Earth after 200 steps: Water Liquid, WaterYears 0.00, Life 0.0000, Temp 288.2
+OK     layers-water-bank (Layers.cs:87 WaterYears += RuleYears, Rules.cs:121 RuleYears = Year - LastYear): with the water rule off for 5e5 years WaterYears stayed 0 -> 0, then the first run after switching it back credited 0 years in one step; one more 1e4-year jump and Life is 0.00000, started on years nobody measured
+OK     layers-dt: 2e6 years in one jump vs twenty 1e5-year jumps: Life 0.0000 vs 0.0000, Pop 0.0000 vs 0.0000, Tech 0.0000 vs 0.0000
+         gear: big Year 2000000 vs many 2000000; events 0 vs 0
+OK     layers-impact (Layers.cs:179-186): a rock of 0.67 Earth hit Earth of 1.00 Earth at orbital speed, share 0.667 against the log threshold ImpactScale/10 = 1.00E-004, life 0.5000 -> 0.0000, 3 event(s); only the mass share counts, the relative speed plays no part
+OK     defer-cost (Rails.cs:39-44 decides deferral, Rules.cs:27 is the declaration a rule can make, Rails.cs:122/164/181 leave rocks out of the chunks): one 1e6-year jump over 5000 rocks costs 109 ms on the builtin rule table, 103 ms with one extra no-op rule added (0.9x) and 1243 ms with one rule that declares Rule.NeedsRockPositions (11.4x); on a tree that decides deferral by whether the rule table is still the builtin one (this tree can declare: True), any added rule pays the slow path whatever it reads
+OK     defer-rock-temp (Rules.cs:88 skips rocks while _deferRocks; Rails.cs:60 clears the flag before the RunRules that see them): after a 1e4-year jump rock 10 reads 215.1 K on the builtin table against 215.1 K with one extra rule in it — placement once at the end against placement after every chunk (0.00 % apart; 215.8 K before the jump) — the belt is not left frozen at its pre-jump temperature
+         control: 50 ordinary steps with and without the no-op rule: furthest position difference 0.00E+000
+OK     defer-divergence (Rails.cs:39-44 decides deferral from the rule table alone, Rails.cs:45-49 keeps each rock's jump-start orbit, Rails.cs:70-90 PlaceRocks replays that one arc — one formula for either placement since master 4718358): the same scene jumped 1e4 years with the builtin table and with one extra no-op rule ends with rocks 0.00E+000 units apart at the default chunk cap and 0.00E+000 at cap 4000, 0 of 2000 further apart than their own radius, bodies 0.0000 radii, rocks-touching-a-body 0, merges over the next 20 steps 0; refining the reference 20x does not shrink the gap (0.00E+000 -> 0.00E+000) and the rule that moves placement to every chunk is inert over 50 ordinary steps (0.00E+000) — placing the belt once at the end or after every chunk now agrees to the last bit, so the trim costs time and no longer physics
+OK     primary-of-unified (World.cs:111-120 PrimaryOf against Rails.cs:270-275 RailsPrimary): over 2250 alive objects of SolSystem(2000) the two answers differ 0 time(s); a puller reads its stored parent, a rock asks the ladder, and both use one hierarchy; 3 named group(s) are in the scene
+OK     merge-log-threshold (World.cs:182 logs contact/merge only when the eaten body has M >= AttractMass or Life or Pop): a 1e-9 body eaten by Earth adds 0 event(s) to the log, a 1e-6 body adds 1 — AttractMass 1E-007, so a belt grain is silent and a world is not
+OK     ring-move-index1 (Commands.cs:113 zone = Attracts(t) && c.Index != 1 ? Hill(t) : 0): the same 30-unit drag of the body that holds the 240 ring object(s) moves it 30.000 units with Index 1 and its shard 2010 0.000 units, against 30.000 units for Index 0 — the index alone decides whether the ring is left standing 0.761 units behind (Hill 9.0168)
+OK     touched-in-hash (Layers.cs:194 mixes Touched for every alive slot): Touched[Earth] 0.0000 -> 1.0000 leaves the hash changed, so two worlds that disagree about when the last touch happened cannot pass for the same world
+OK     touched-seed-after-gap (Layers.cs:101 dt = Min(RuleYears, Year - Touched), Layers.cs:183 sets it on Impact too): life was off for 1e6 years, a seed of 0.5 landed 0.00E+000 year(s) before the rule's own last run, and the first tick moved it to 0.5000 — the million years nobody measured are not credited to the seed
+OK     touched-impact-split (Layers.cs:183 Touched = Year on Impact, Layers.cs:101 uses it): after a real hit on Earth, 2e6 years in one jump vs twenty 1e5-year jumps: Life 0.0000 vs 0.0000, Pop 0.0000 vs 0.0000, Tech 0.0000 vs 0.0000
+OK     move-force-replay (Commands.cs:43-46 keys Replay on Step, World.cs:244 mixes Vx/Vy): a journal of 3 rows holding Push, Move and Force replays to hash 983F1420EF301573 against the live 983F1420EF301573 (the same), 3 rows consumed
+OK     force-centre-hole (Commands.cs:120 keeps d2 == 0 a no-op, Commands.cs:121 k = Amount*(1-d/rad)/d): one Force of radius 0.5 and Amount 1 at (0, 0) leaves the body exactly at the centre at 0.00E+000, moves one 0.001 away by 0.9980 and one at 0.4 by 0.2000 — the (1 - d/rad) falloff holds everywhere except on the tile the hand is aimed at
+RISK   force-centre-hole: the body the hand is pointed at is the only one it cannot move, and its neighbour 0.001 off-centre is thrown 5.0x harder than one at 0.4 — a hole in the tool's meaning the moment a Force centre lands exactly on a body, by design until then (Commands.cs:120)
+OK     move-par-stale (Commands.cs:95-111 carries the lighter bodies the moved object holds, Commands.cs:137 clears children only on Kill, World.cs:76 decides Kind from Par): Move(Earth) 30 units away leaves the Moon 0.1200 units from it against 0.1200 before and a Hill zone of 0.4500 (World.cs:97-102), Par answers 3 and KindOf 2 (2 = Moon) — the moon rides along at its own offset and the panel stays right
+DEFECT move-child-par-stale (Commands.cs:95-111 carries the children of the moved object, so a drag on the child itself re-derives nothing; Commands.cs:137 clears Par only on Kill, World.cs:76 reads Kind from Par): Move(Moon) 30 units out leaves it 30.12 units from Earth, 67x outside the parent's Hill zone (0.4500, World.cs:97-102), while Par still answers 3 = Earth and KindOf still answers 1 (2 = Moon) — the rails drop it (primaryOf wants it inside the zone) and the panel keeps calling it a moon
+-- audit P3 round 3: core/Civ.cs — ship goals, colonies, the mass dial, the Chronicle
+OK     ship-goal-slot-reuse (Commands.cs:48 Ok = 0 <= i < N && Alive, Civ.cs:124 LandShips calls Land(ShipTo[i])): the ship's goal was slot 0, Remove then Create reused it (fresh slot 0, reused True) for a different body 85.0 units away, and one jump lands the colony on that stranger (Pop 0.00E+000, Civ -1, Chronicle 1) — the target is an index, so a recycled slot silently redirects a ship and its people to an object they were never sent to
+OK     ship-two-civs-one-goal (Civ.cs:135-145 Land: an empty world is claimed, a world of the same people is supplied, a world of another people answers `civ.ship.turned` and nobody steps out; Civ.cs:148-152 ShipArrives kills the ship on arrival either way): two ships of civ 0 and civ 1 sent to the same empty world, one jump — the world belongs to civ 0 (Pop 1.00E-004) and the Chronicle holds 1 colony line(s) (0 of them for the second people), 1 turned-away line(s) and 0 lost line(s); the second ship is alive False. The loss is no longer silent — but the record says a ship was turned away, never that a colony failed, and the people, their tech and their ship are still gone
+OK     ship-mass-world (Civ.cs:18 ShipMass is a Const with no range, Layers.cs:70 IsWorld = AttractMass <= M < StarMass, Civ.cs:59 IsSolid = rock+metal share — neither asks IsShip): ShipMass 1e-12 -> 1e-5 (AttractMass is 1e-7) and the hull answers IsWorld False, IsSolid False, Attracts False, so the whole layer stack runs on a ship (Layers.cs:139 gates the civ rule on IsWorld alone, Civ.cs:135 lets ShipGoal pick any IsSolid body) and a second ship sent to it founds a colony on the hull (0 colony line(s) naming slot 2)
+OK     ship-mass-star (Civ.cs:18, World.cs:73 KindOf answers Star for M >= StarMass, Civ.cs:199 fills _starSlots with every M >= StarMass): ShipMass 4.0 = StarMass makes the ship itself a star — KindOf Rock (World.cs:22 Kind is { Star, Planet, Moon, Rock }), radius 0.0001 — so SteerShips now dodges any ship as if it were a sun (Civ.cs:205-215 keeps 0.0001 units clear) and the temperature rules treat it as a light source
+OK     ship-jump-lands (Civ.cs:30 LandShips is the first statement of Jump, Civ.cs:119-127 lands then kills): a ship in flight when a jump starts never survives it — a live ship after the jump: False; the people are on the goal (Pop 1.00E-004, Civ 0, Chronicle 1)
+OK     ship-star-goal (Civ.cs:208 skips the star it targets, Civ.cs:113-117 ShipArrives -> Land -> Civ.cs:103 IsSolid refuses a star): a ship sent into the star it aims at — exception none, star Pop 0, ship alive False after 0.0 years; the ship is simply lost, which is the answer the code intends
+OK     ship-replay (World.cs:239-246 mixes X/Y/Vx/Vy/M/Par per slot, Civ.cs:229-230 adds Civ/ShipCiv/ShipTo/ShipFrom/ShipTech/ShipBorn when ShipCiv >= 0, Commands.cs:43-46 Replay keys on Step): a journal of 3 rows holding Move, Force and Push on a ship replays to hash C1A08A23A501F67E against the live C1A08A23A501F67E, 3 rows consumed — a ship's own cells are inside the hash
+OK     ship-lost-logged (Civ.cs:160 LandShips, Civ.cs:191-194 UpdateShips and Civ.cs:246-249 SteerShips all write `civ.ship.lost` before Civ.cs:151/161/194/249 Kill, and Civ.cs:137 writes it when Land finds nothing solid): after 2.05 years both ships are gone — the one sent to a removed world False, the one outliving its 30 years False — and the Chronicle holds 2 lost line(s) for them
+RISK   ship-lost-silent (a hand Remove or a zeroing AddMatter — Commands.cs:144 and Commands.cs:69 call Kill, Civ.cs:69-74 CivEvent is the only writer to the Chronicle and no command path calls it): one command takes the ship out of the world (alive False) with 0 Chronicle line(s) about it and 1 journal row(s) — a god command deletes a ship, or any body, and the story never hears of it, while every rule-driven loss now writes its line
+OK     civ-launch-index (Civ.cs:168 _civLaunches[civ]++ walks a private list only NewCiv grows (Civ.cs:83), while Civ[]/ShipCiv[] are public cells (Civ.cs:38-41) that no path validates): a world where Pop[0] = 1, Tech[0] = 3, Civ[0] = 0 but Civs is empty throws none straight out of Advance on the first rule run — input is a hand-written civ cell (a tool or a loaded save), not a command, and the whole window dies with it
+       [chưa kiểm: dàn dựng] Civ.cs:168 writes the civ.ship.first line and bumps _civLaunches BEFORE Civ.cs:180 Add and Civ.cs:181 `if (ship < 0) continue`, and World.cs:111 returns -1 only when _free is empty and N == X.Length — so at full capacity the Chronicle records a first ship that was never built. Staging needs a real civ (NewCiv is private, CivRiseYears = 3500000000 years, Layers.cs:144), which this audit did not reach headless.
+OK     ship-thrust-negative (Civ.cs:22 ShipThrust, Civ.cs:203 closing = Math.Clamp(Math.Sqrt(0.5 * C.ShipThrust * d), 0.02, Math.Max(0.02, C.ShipSpeed)), Civ.cs:219 Vx[i] += wx, Commands.cs:154-156 Consts.Set rejects only a non-finite INPUT): SetConst ShipThrust -1 is accepted, 0.5 * thrust * d is negative, Math.Sqrt turns it into NaN and Math.Clamp passes NaN through (every comparison with NaN is false), so Civ.cs:204/216/219 write NaN into the ship's own cells — Vx -0.500000176645023, X 28.99999980671871, Y 0 after 4 steps while the goal keeps Vx 0; the ship is then skipped by Civ.cs:201 (!(d > 0) is true for NaN) and can never touch, land or die again — thrust 0 with speed -5 leaves the ship finite (True, Vx -2.00E-001, X 29.60), so only the negative branch escapes
+OK     ship-life-clock (Civ.cs:23 ShipLifeYears, Civ.cs:153 kills a ship older than it, Civ.cs:203 caps the closing speed at ShipSpeed = 0.50): a ship sent to a goal 3.0E+007 units away is dead at 31.0 years with the goal Pop 0 (16631 steps at h = 0.5) — at that cap a ship covers at most 4.0E+003 units in its whole 30-year life, so any order further than that is a guaranteed loss of the ship and its people, and no line is written to say so
+-- audit P3: table-driven checks (Claire VÒNG 7) — lines outside the table that must change, expected 0
+       static scans of /home/hatch/workspace/soak/repo/core: a line that names the table itself (ElemName, Density =, Elements, Elem(, Stages, StarEvents) is the table and is not counted, and neither is a Consts field declaration
+OK     table-rule-boundary: RunRules has 0 string literals; 4 flagged table rows (expected zero literals and nonempty policy rows)
+OK     table-group7 (the contract: with the groups in a table, core reads a material by id/role, so a 7th group is one more row): 0 core line(s) still name a group by a literal number, or spell out a six-cell mix — ; the group set is a table read by id/role — 6 line(s) of `new Element(` and Density/ElemName/NElem are built from it (World.cs:20-22, :30-31)
+         (group7: 2 comment line(s) name it too and would need rewording — Commands.cs:16 Commands.cs:178)
+OK     table-stage (the contract: the stages live in a table, so inserting one is one more row, and a threshold is read from a table rather than written where it is used): 0 core line(s) pin the stage count to a literal — ; 0 core line(s) compare a biosphere fraction to a literal instead of reading the life scale — ; the stage set is a table that is read as one — 10 row(s) of `new Stage(` and 39 read site(s) of `Stages[`/`.Count`/`.Add*`; the life axis is read at 2 site(s) (Layers.cs:69 `LifeStages = { 0.01, 0.1, 0.5 }` — a fixed scale this row used to call a violation by name, kept separate from Stage.TechThreshold on purpose)
+         (stage: no comment line names it)
+         (starevent: no comment line names it)
+         (starevent: 8 StarEvents.Add row(s) in core; the list declaration and a Consts field declaration are not rows and are not counted)
+OK     table-starevent (the contract: a star event is a row in a table, applied by one Eject(i, mass, mix)): 0 core line(s) still carry a star event id, its trigger or its effect inline — ; the star events are rows — 8 Add() row(s) applied through one payload reader, so a new event is one more row
+AUDIT: 4 defect line(s), 3 risk line(s); core not touched (P3)
+AUDIT: not strict -> run stays green; set COSMOS_AUDIT_STRICT=1 to fail on these
