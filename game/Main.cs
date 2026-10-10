@@ -54,7 +54,11 @@ public partial class Main : Node2D
 
     double _stepMs, _fillMs;
     int _bench; double _benchT; int _benchFrames;
-    bool _selftest, _uitest;
+    bool _selftest, _uitest, _discProbe;
+    bool _probeLogged04, _probeLogged10;
+    static readonly Color DiscHotCol = new(1f, 0.96f, 0.75f);
+    static readonly Color DiscCoolCol = new(0.95f, 0.28f, 0.1f);
+    int _discsDrawn, _drawArcsFrame;
     int _rocks;
     const int Stride = 12;
 
@@ -70,11 +74,12 @@ public partial class Main : Node2D
         {
             if (a == "--selftest") _selftest = true;
             if (a == "--uitest") _uitest = true;
+            if (a == "--disc-probe") _discProbe = true;
             if (a.StartsWith("--rocks=")) rocks = int.Parse(a[8..]);
             if (a.StartsWith("--bench=")) _bench = int.Parse(a[8..]);
         }
 
-        if (_uitest)
+        if (_uitest || _discProbe)
         {
             GetTree().Root.Size = new Vector2I(1280, 800);
         }
@@ -86,7 +91,21 @@ public partial class Main : Node2D
             return;
         }
 
-        _w = World.SolSystem(rocks, 1234); _rocks = rocks;
+        if (_discProbe)
+        {
+            _w = World.SolSystem(rocks, 1234);
+            _w.C.DiscOn = 1.0;
+            for (int k = 0; k < 96; k++) _w.Advance(0.5);
+            int ns = _w.Do(new Command(CmdKind.Create, X: 100, Amount: 466700 * World.EarthMass, Mix: _w.Mix(("gas", 1))));
+            double birth = 10 * _w.C.StarSolarMass, end = 1 + _w.C.StarGiantFraction;
+            _w.Do(new Command(CmdKind.SetStarState, Target: ns, StarState: new StellarState(_w.StarLifetime(birth) * end, end, birth)));
+            _cx = _w.X[ns]; _cy = _w.Y[ns];
+        }
+        else
+        {
+            _w = World.SolSystem(rocks, 1234);
+        }
+        _rocks = rocks;
 
         int cap = _w.X.Length;
         _mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform2D, UseColors = true, Mesh = new QuadMesh { Size = new Vector2(2.5f, 2.5f) }, InstanceCount = cap };
@@ -334,6 +353,76 @@ public partial class Main : Node2D
         if (phase == StarPhase.NeutronStar) DrawArc(p, r + 3, 0, MathF.Tau, 24, new Color(0.7f, 0.85f, 1f, 0.8f), 1f);
     }
 
+    void DrawDiscs()
+    {
+        _discsDrawn = 0;
+        _drawArcsFrame = 0;
+        if (_w == null || _w.Discs.Count == 0) return;
+
+        Vector2 vpSize = GetViewportRect().Size;
+        for (int di = 0; di < _w.Discs.Count; di++)
+        {
+            var d = _w.Discs[di];
+            int host = d.Host;
+            if (host < 0 || host >= _w.N || !_w.Alive[host] || !(d.Total > 0) || d.Cells <= 0) continue;
+
+            float maxRad = (float)(_w.DiscCellRadius(d, d.Cells - 1) * _zoom);
+            Vector2 p = Screen(host);
+
+            // Cull đĩa ngoài màn hình
+            if (p.X + maxRad < 0 || p.X - maxRad > vpSize.X || p.Y + maxRad < 0 || p.Y - maxRad > vpSize.Y)
+                continue;
+
+            _discsDrawn++;
+
+            // Bán kính màn hình < ~1.5px -> gộp thành 1 quầng sáng quanh host, không vẽ từng vành
+            if (maxRad < 1.5f)
+            {
+                float haloR = MathF.Max(Px(host) + 2f, 3f);
+                float tTotal = (float)Math.Clamp((Math.Log10(Math.Max(d.Total / World.EarthMass, 1e-8)) + 8.0) / 10.0, 0.0, 1.0);
+                float haloAlpha = MathF.Max(0.3f, 0.25f + 0.55f * tTotal);
+                DrawSetTransform(p, 0, new Vector2(1, _tilt));
+                DrawArc(Vector2.Zero, haloR, 0, MathF.Tau, 24, new Color(1f, 0.92f, 0.65f, haloAlpha), 1.5f);
+                DrawSetTransform(Vector2.Zero);
+                _drawArcsFrame++;
+                continue;
+            }
+
+            int cells = d.Cells;
+            DrawSetTransform(p, 0, new Vector2(1, _tilt));
+            bool subpixelHaloDrawn = false;
+            for (int k = 0; k < cells; k++)
+            {
+                double mass = _w.DiscCellMass(d, k);
+                if (!(mass > 0)) continue; // Vành rỗng không vẽ
+
+                float rad = (float)(_w.DiscCellRadius(d, k) * _zoom);
+                if (rad < 1.5f)
+                {
+                    if (!subpixelHaloDrawn)
+                    {
+                        float haloR = MathF.Max(Px(host) + 1.5f, 2.5f);
+                        DrawArc(Vector2.Zero, haloR, 0, MathF.Tau, 24, new Color(1f, 0.95f, 0.7f, 0.5f), 1.5f);
+                        _drawArcsFrame++;
+                        subpixelHaloDrawn = true;
+                    }
+                    continue;
+                }
+
+                float t = cells > 1 ? (float)k / (cells - 1) : 0f;
+                Color col = DiscHotCol.Lerp(DiscCoolCol, t);
+                double mEarth = mass / World.EarthMass;
+                float tMass = (float)Math.Clamp((Math.Log10(Math.Max(mEarth, 1e-8)) + 8.0) / 10.0, 0.0, 1.0);
+                col.A = 0.25f + 0.60f * tMass;
+                float width = 1.0f + 2.0f * tMass;
+
+                DrawArc(Vector2.Zero, rad, 0, MathF.Tau, 32, col, width);
+                _drawArcsFrame++;
+            }
+            DrawSetTransform(Vector2.Zero);
+        }
+    }
+
     Color MixCol(int i)
     {
         Color col = new(0, 0, 0);
@@ -374,6 +463,12 @@ public partial class Main : Node2D
     {
         if (_w == null) return;
         if (_uitest && _frame == 3) { _frame++; RunUiTest(); return; }
+        if (_discProbe)
+        {
+            for (int s = 0; s < 5; s++) _w.Advance(0.5);
+            QueueRedraw();
+            return;
+        }
         long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
         if (_drag == Drag.Hand) UseHand(delta);
         if (!_paused)
@@ -465,6 +560,8 @@ public partial class Main : Node2D
         int i = _sel; double m = _w.M[i];
         sb.Append($"[b]{NameOf(i)}[/b]   {(_w.IsShip(i) ? "Tàu vũ trụ" : GodUi.KindName(_w, i))}{(_follow == i ? "   [color=#9aa4c0](đang bám theo)[/color]" : "")}\n");
         sb.Append($"khối lượng {m / World.EarthMass:G4} Trái Đất   bán kính {_w.R[i]:G3}\n");
+        double discMass = _w.DiscMassOn(i);
+        if (discMass > 0) sb.Append($"Đĩa khí: {discMass / World.EarthMass:G4} Trái Đất\n");
         if (_w.IsShip(i))
         {
             int to = _w.ShipTo[i], from = _w.ShipFrom[i];
@@ -626,6 +723,22 @@ public partial class Main : Node2D
         DrawSetTransform(Vector2.Zero);
 
         CountRings();
+        DrawDiscs();
+
+        if (_discProbe)
+        {
+            if (!_probeLogged04 && _w.Year >= 0.40)
+            {
+                GD.Print($"DISC-PROBE year={_w.Year:F2}: discs_drawn={_discsDrawn} draw_arcs={_drawArcsFrame}");
+                _probeLogged04 = true;
+            }
+            if (!_probeLogged10 && _w.Year >= 1.00)
+            {
+                GD.Print($"DISC-PROBE year={_w.Year:F2}: discs_drawn={_discsDrawn} draw_arcs={_drawArcsFrame}");
+                _probeLogged10 = true;
+                GetTree().Quit(0);
+            }
+        }
 
         // a moon's labels are dropped while it sits on top of its planet on screen
         bool far(int i, Vector2 p) => !(_w.Par[i] >= 0 && _w.Par[i] < _w.N && _w.Alive[_w.Par[i]]) || Screen(_w.Par[i]).DistanceTo(p) > 30;
