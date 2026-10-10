@@ -321,6 +321,7 @@ public sealed partial class World
         _rocheAdvanceRules = true;
         try { RunRules(); }
         finally { _rocheAdvanceRules = false; }
+        EvolveDiscs();
     }
 
     void AdvanceSlice(double hs, double g)
@@ -332,7 +333,7 @@ public sealed partial class World
         _na = 0;
         for (int i = 0; i < N; i++) if (Alive[i] && M[i] >= C.AttractMass)
         {
-            _att[_na] = i; _attX[_na] = X[i]; _attY[_na] = Y[i]; _attR[_na] = R[i]; _attGM[_na] = g * M[i]; _na++;
+            _att[_na] = i; _attX[_na] = X[i]; _attY[_na] = Y[i]; _attR[_na] = R[i]; _attGM[_na] = g * (M[i] + DiscMassOn(i)); _na++; // a disc pulls as part of its host
         }
 
         // Outside a surface each acceleration is bounded by G*M/R². A candidate can be rejected using
@@ -341,7 +342,7 @@ public sealed partial class World
         for (int k = 0; k < _na; k++)
         {
             int j = _att[k];
-            maxKickDrift += Math.Abs(g) * M[j] / (R[j] * R[j]) * hs * hs;
+            maxKickDrift += Math.Abs(g) * (M[j] + DiscMassOn(j)) / (R[j] * R[j]) * hs * hs;
         }
         // Pulling objects kick first; gravity only reads positions. A rock's sweep then has both final velocities.
         // P*(P-1) body pairs + P*(Live-P) rock pairs, with frozen membership throughout this slice.
@@ -481,6 +482,7 @@ public sealed partial class World
         foreach (var f in typeof(Consts).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
         {
             if (f.Name == "CivLifespanRef" || f.Name == "CivLifespanExp") continue;
+            if (f.Name.StartsWith("Disc", StringComparison.Ordinal)) continue; // HashDiscs: only once the law has acted
             if (f.GetValue(C) is double d) mix(BitConverter.DoubleToUInt64Bits(d));
             else if (f.GetValue(C) is double[] a) foreach (double x in a) mix(BitConverter.DoubleToUInt64Bits(x));
         }
@@ -490,7 +492,7 @@ public sealed partial class World
             mix(BitConverter.DoubleToUInt64Bits(C.CivLifespanRef));
             mix(BitConverter.DoubleToUInt64Bits(C.CivLifespanExp));
         }
-        HashRules(mix); HashLayers(mix); HashStars(mix); HashElements(mix); HashStarEvents(mix); HashEscape(mix); HashBursts(mix); HashRoche(mix);
+        HashRules(mix); HashLayers(mix); HashStars(mix); HashElements(mix); HashStarEvents(mix); HashEscape(mix); HashBursts(mix); HashRoche(mix); HashDiscs(mix);
         return h;
     }
 }

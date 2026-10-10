@@ -378,6 +378,9 @@ public sealed partial class World
         double centerVx = ring ? (pm * Vx[p] + captured * vx) / (pm + captured) : vx;
         double centerVy = ring ? (pm * Vy[p] + captured * vy) / (pm + captured) : vy;
         double dissipated = ring ? beforeEnergy - circularEnergy : 0;
+        // Heat Law: a ring heated past vapour is not a set of fragments. All of it joins the host's disc (Disc.cs).
+        bool toDisc = ring && C.DiscOn != 0 && dissipated >= C.DiscVaporEnergy * captured;
+        if (toDisc) { count = 0; unresolved = captured; }
         if (ring) { X[p] = centerX; Y[p] = centerY; Vx[p] = centerVx; Vy[p] = centerVy; }
         if (Life[i] > 0) LogEvent(i, "life", "life.end", Temp[i], Water[i], LifeStage(i));
         if (Pop[i] > 0) CivEvent(i, Civ[i], "civ.end", 0, Temp[i], TechStage(i));
@@ -405,7 +408,8 @@ public sealed partial class World
             AppendRocheCandidates(slot);
             for (int e = 0; e < ElementCount; e++) remaining[e] -= Comp[slot * ElementCount + e];
         }
-        Reservoir(p, centerX, centerY, unresolved, centerVx, centerVy, ring ? angular * (unresolved / captured) : 0, remaining);
+        if (toDisc) DepositDisc(p, remaining, angular / captured);
+        else Reservoir(p, centerX, centerY, unresolved, centerVx, centerVy, ring ? angular * (unresolved / captured) : 0, remaining);
         RocheDissipatedEnergy += dissipated;
         _rocheDisruptions.Add(new(Year, i, generation, p, Gen[p], group, ring ? "ring" : "stream", mass, captured, leavesSystem ? unbound : 0, dissipated));
         LogEvent(p, "roche", ring ? "roche.ring" : "roche.stream", mass, captured, count);

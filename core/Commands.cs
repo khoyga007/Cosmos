@@ -170,6 +170,7 @@ public sealed partial class World
             if (ShipFrom[i] == d) ShipFrom[i] = heir;
         }
         for (int k = 0; k < Civs.Count; k++) if (Civs[k].Home == d) Civs[k] = Civs[k] with { Home = -1 };
+        DiscsGone(d, heir);
     }
 }
 
