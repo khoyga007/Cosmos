@@ -205,6 +205,8 @@ public sealed partial class World
         return Add(x, y, Vx[parent] - dy / r * v, Vy[parent] + dx / r * v, m, mix, name, col, parent, grp);
     }
 
+    const double HandGrip = 0.02; // [P] share of the hand's ring, at its centre, where gathered small matter sticks
+
     // the heavier one keeps its identity; mass, momentum and matter are summed
     void Merge(int a, int b)
     {

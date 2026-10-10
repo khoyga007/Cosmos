@@ -285,7 +285,7 @@ public partial class GodUi : CanvasLayer
         _handOptions.AddChild(new Label { Text = "  Tầm" });
         _handRadius = new HSlider { MinValue = 20, MaxValue = 400, Step = 5, Value = 90, FocusMode = Control.FocusModeEnum.None, CustomMinimumSize = new Vector2(110, 0), SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
         _handOptions.AddChild(_handRadius);
-        _handOptions.AddChild(new Label { Text = "  Lực" });
+        _handOptions.AddChild(new Label { Text = "  Nhanh" });
         _handStrength = new HSlider { MinValue = 0.05, MaxValue = 5, Step = 0.05, Value = 0.5, FocusMode = Control.FocusModeEnum.None, CustomMinimumSize = new Vector2(110, 0), SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
         _handOptions.AddChild(_handStrength);
         toolRow.AddChild(_handOptions);

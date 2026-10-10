@@ -134,6 +134,35 @@ public sealed partial class World
             {
                 double rad = c.Vx;
                 if (!double.IsFinite(c.X + c.Y + c.Amount) || !(rad > 0) || !double.IsFinite(rad)) return -1;
+                if (c.Index == 1)
+                {
+                    // The hand as a displacement, not a kick: it outranks every force in the world, so what it moves
+                    // is moved now, paused or not. Amount is the share of the way covered by this call: +f gathers
+                    // toward the centre, -f clears out to the edge of the ring. Velocities are left alone.
+                    double f = Math.Abs(c.Amount);
+                    if (f > 1) return -1;
+                    // Small matter does not collide with small matter in Advance (too many pairs), so a gathered
+                    // handful would only overlap and drift apart again. Pressed into the grip at the centre it
+                    // sticks: every small object there joins the heaviest object there by the ordinary Merge, which
+                    // sums mass, matter and momentum. Past AttractMass the lump is a world and contact takes over.
+                    double grip = rad * HandGrip; int seed = -1;
+                    for (int i = 0; i < N; i++)
+                    {
+                        if (!Alive[i]) continue;
+                        double dx = X[i] - c.X, dy = Y[i] - c.Y, d2 = dx * dx + dy * dy;
+                        if (d2 >= rad * rad) continue;
+                        double d = Math.Sqrt(d2), to = c.Amount > 0 ? d * (1 - f) : d + (rad - d) * f;
+                        if (d > 0) { X[i] = c.X + dx / d * to; Y[i] = c.Y + dy / d * to; } // dead on the centre: no side to clear it to
+                        if (c.Amount > 0 && to <= grip && !IsShip(i) && (seed < 0 || M[i] > M[seed])) seed = i;
+                    }
+                    for (int i = 0; seed >= 0 && i < N; i++)
+                    {
+                        if (!Alive[i] || i == seed || Attracts(i) || IsShip(i)) continue;
+                        double dx = X[i] - c.X, dy = Y[i] - c.Y;
+                        if (dx * dx + dy * dy <= grip * grip) Merge(seed, i);
+                    }
+                    return -2;
+                }
                 for (int i = 0; i < N; i++)
                 {
                     if (!Alive[i]) continue;

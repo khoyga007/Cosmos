@@ -664,14 +664,15 @@ public partial class Main : Node2D
         return sb.ToString();
     }
 
-    // Pull / push away: once a frame while the button is down. Strength is counted in orbit speeds per second of
-    // holding, at the pointer; the ring is a size on screen, so the hand is as big as it looks at any zoom.
+    // Pull / push away: once a frame while the button is down. The hand outranks the world's forces, so it moves
+    // things on the screen's clock, not the simulation's: the same at any speed and while paused. The slider sets how
+    // fast the ring empties or gathers (HandRate per second at strength 1); the ring is a size on screen.
+    const double HandRate = 30;
     void UseHand(double seconds)
     {
         ToWorld(_mouse, out double x, out double y);
-        int p = GodTools.PrimaryAt(_w, x, y, 0);
-        double amount = _ui.HandStrength * GodTools.OrbitSpeed(_w, p, x, y) * Math.Min(seconds, 0.1);
-        GodTools.Force(_w, x, y, _ui.HandRadiusPx / _zoom, _tool == Tool.Shove ? -amount : amount);
+        double f = 1 - Math.Exp(-HandRate * _ui.HandStrength * Math.Min(seconds, 0.1));
+        _w.Do(new Command(CmdKind.Force, X: x, Y: y, Vx: _ui.HandRadiusPx / _zoom, Amount: _tool == Tool.Shove ? -f : f, Index: 1));
     }
 
     // velocity of object i as its primary sees it, and that primary
@@ -871,7 +872,6 @@ public partial class Main : Node2D
             Color ring = _tool == Tool.Pull ? new Color(0.4f, 0.8f, 1f, on ? 0.9f : 0.45f) : new Color(1f, 0.5f, 0.3f, on ? 0.9f : 0.45f);
             DrawArc(_mouse, _ui.HandRadiusPx, 0, MathF.Tau, 64, ring, on ? 2.5f : 1.5f);
             if (on) DrawCircle(_mouse, _ui.HandRadiusPx, new Color(ring.R, ring.G, ring.B, 0.08f));
-            if (on && _paused) DrawString(font, _mouse + new Vector2(_ui.HandRadiusPx + 8, 4), "đang tạm dừng: vận tốc đã đổi, chạy tiếp mới thấy", HorizontalAlignment.Left, -1, 13, AimCol);
         }
 
         // Create: the pointer carries the new object and shows what it will do
@@ -1184,22 +1184,6 @@ public partial class Main : Node2D
         DragTo(Screen(shot), Screen(shot) + new Vector2(30, 0), MouseButton.Left);
         Say(_w.Vx[shot] == keepVx, "move with 'keep velocity': velocity untouched");
 
-        // pull and push away: a rock inside the ring gains speed toward / away from the pointer, one outside does not
-        Home();
-        int rockIn = -1, rockOut = -1; Vector2 hand = Vector2.Zero;
-        for (int i = 0; i < _w.N && rockIn < 0; i++) if (_w.Alive[i] && !_w.Attracts(i)) { rockIn = i; hand = Screen(i) + new Vector2(20, 0); }
-        for (int i = 0; i < _w.N; i++) if (_w.Alive[i] && !_w.Attracts(i) && Screen(i).DistanceTo(hand) > _ui.HandRadiusPx * 2) { rockOut = i; break; }
-        if (rockIn >= 0 && rockOut >= 0)
-        {
-            double ivx = _w.Vx[rockIn], ovx = _w.Vx[rockOut];
-            Key(Godot.Key.A);
-            Button(hand, MouseButton.Left, true); UseHand(0.1); UseHand(0.1); Button(hand, MouseButton.Left, false);
-            double pulled = _w.Vx[rockIn] - ivx;
-            Key(Godot.Key.R);
-            Button(hand, MouseButton.Left, true); UseHand(0.1); UseHand(0.1); UseHand(0.1); UseHand(0.1); Button(hand, MouseButton.Left, false);
-            Say(pulled > 0 && _w.Vx[rockIn] < ivx && _w.Vx[rockOut] == ovx && _drag == Drag.None, $"hand: pull gave the rock {pulled:E2} toward the pointer, push away took {ivx + pulled - _w.Vx[rockIn]:E2}; rock outside the ring untouched");
-        }
-        else Say(false, "hand: no rocks to try on (run with --rocks)");
         Key(Godot.Key.Escape);
         Say(_tool == Tool.Select, "Esc drops the tool");
 
@@ -1290,6 +1274,31 @@ public partial class Main : Node2D
             Say(shipPanel.Contains("Tàu của văn minh") && shipPanel.Contains("đang tới") && _w.Live == n0 - 1, $"ship: click took it ({shipPanel.Split((char)10)[0]}), Delete removed it");
         }
         else Say(false, "ship: none seen in 6000 steps");
+        // pull and push away, last: the hand gathers and clears whole regions at once, so nothing after it may need the scene
+        Home();
+        int rockIn = -1, rockOut = -1; Vector2 hand = Vector2.Zero;
+        for (int i = 0; i < _w.N && rockIn < 0; i++) if (_w.Alive[i] && !_w.Attracts(i)) { rockIn = i; hand = Screen(i) + new Vector2(20, 0); }
+        for (int i = 0; i < _w.N; i++) if (_w.Alive[i] && !_w.Attracts(i) && Screen(i).DistanceTo(hand) > _ui.HandRadiusPx * 2) { rockOut = i; break; }
+        if (rockIn >= 0 && rockOut >= 0)
+        {
+            ToWorld(hand, out double hx, out double hy);
+            double Far(int i) => Math.Sqrt((_w.X[i] - hx) * (_w.X[i] - hx) + (_w.Y[i] - hy) * (_w.Y[i] - hy));
+            double d0 = Far(rockIn), ox = _w.X[rockOut], edge = _ui.HandRadiusPx / _zoom, massIn = 0;
+            int liveBefore = _w.Live, inRing = 0;
+            for (int i = 0; i < _w.N; i++) if (_w.Alive[i] && Far(i) < edge) { inRing++; massIn += _w.M[i]; }
+            Key(Godot.Key.A);
+            Button(hand, MouseButton.Left, true); UseHand(0.1); UseHand(0.1); Button(hand, MouseButton.Left, false);
+            // gathered small matter sticks: the rock is either still itself, close in, or part of the lump at the centre
+            int lump = rockIn; double massAfter = 0;
+            for (int i = 0; i < _w.N; i++) if (_w.Alive[i] && Far(i) < edge) { massAfter += _w.M[i]; if (!_w.Alive[lump] || Far(i) < Far(lump)) lump = i; }
+            double d1 = Far(lump);
+            Key(Godot.Key.R);
+            Button(hand, MouseButton.Left, true); UseHand(0.1); UseHand(0.1); UseHand(0.1); UseHand(0.1); Button(hand, MouseButton.Left, false);
+            double d2 = Far(lump);
+            Say(d1 < d0 * 0.5 && (inRing < 2 || _w.Live < liveBefore) && Math.Abs(massAfter - massIn) <= 1e-12 * massIn && d2 > edge * 0.9 && d2 <= edge * (1 + 1e-9) && _w.X[rockOut] == ox && _drag == Drag.None, $"hand: pull gathered {inRing} objects into {inRing - (liveBefore - _w.Live)} at {d1:E2} off the pointer (was {d0:E2}), mass kept; push away cleared the lump to {d2 / edge:F2} of the ring; rock outside untouched");
+        }
+        else Say(false, "hand: no rocks to try on (run with --rocks)");
+        Key(Godot.Key.Escape);
 
         // everything above went through the journal
         var fresh = World.SolSystem(_rocks, 1234); int next = 0;
