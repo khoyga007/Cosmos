@@ -61,6 +61,7 @@ public partial class Main : Node2D
     int _discsDrawn, _drawArcsFrame;
     int _rocks;
     const int Stride = 12;
+    const double CosmicK = 10000; // [P] Yang trial 10/10: years shown per Earth orbit; 1 = real
 
     static readonly Color[] ElemCol = Array.ConvertAll(ElementCatalog.Colours, c => new Color(((c >> 16) & 255) / 255f, ((c >> 8) & 255) / 255f, (c & 255) / 255f));
     static readonly Color AimCol = new(1f, 0.9f, 0.2f, 0.95f);
@@ -104,6 +105,8 @@ public partial class Main : Node2D
         else
         {
             _w = World.SolSystem(rocks, 1234);
+            // trial: one Earth orbit counts as CosmicK years, so stars age and life moves while you watch
+            if (!_uitest) _w.Do(new Command(CmdKind.SetConst, Name: "YearTime", Amount: _w.C.YearTime / CosmicK));
         }
         _rocks = rocks;
 
@@ -937,7 +940,7 @@ public partial class Main : Node2D
         bool stillBurning = slot >= 0 && birthSuns > 0 && GodTools.MakeRemnant(_w, slot, birthSuns) < 0;
         if (stillBurning) { Select(slot); Toast($"Đã tạo {name} nhưng nó vẫn là sao thường: khối lượng không hợp với xác của sao {birthSuns:0.#} Mặt Trời"); }
         else if (slot >= 0) { Select(slot); Toast($"Đã tạo {name}: {did}"); }
-        else { _createdCount--; Toast("Không tạo được: hết chỗ hoặc thông số sai"); }
+        else { _createdCount--; Toast(_w.Live >= _w.X.Length ? $"Không tạo được: vũ trụ đã đầy ({_w.Live} vật thể)" : "Không tạo được: thông số sai"); }
     }
 
     public override void _UnhandledInput(InputEvent e)
