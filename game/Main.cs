@@ -568,7 +568,8 @@ public partial class Main : Node2D
                 if (cellDots <= 0) break;
 
                 double rIn = _w.DiscCellRadius(d, k);
-                double rOut = (k + 1 < cells) ? _w.DiscCellRadius(d, k + 1) : rIn * Math.Sqrt(2.0);
+                // the last ring has no neighbour to read: it is as wide, in proportion, as the one before it
+                double rOut = (k + 1 < cells) ? _w.DiscCellRadius(d, k + 1) : k > 0 ? rIn * rIn / _w.DiscCellRadius(d, k - 1) : rIn;
 
                 Color cellCol = new Color(0, 0, 0, 1);
                 for (int e = 0; e < _w.ElementCount && e < World.NElem; e++)

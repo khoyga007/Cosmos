@@ -49,6 +49,9 @@ public sealed class Disc
     public double Fed { get; internal set; }   // mass ever put in
     public bool Cold { get; internal set; }    // a belt: rock and ice, no gas friction, rings stay where they are
     public double Heat { get; internal set; }  // cold only: orbital energy its members had above circular orbits
+    // Rings per DiscStep. A hot disc spreads by itself, so coarse rings cost it nothing; a belt keeps the shape it
+    // was given, and a ring sqrt(2) wide would smear the asteroid belt over the inner planets.
+    public int Sub { get; internal set; } = 1;
     internal double[] Matter = Array.Empty<double>(); // Cells x element groups
 }
 
@@ -70,11 +73,17 @@ public sealed partial class World
     double[] _discIn = Array.Empty<double>(), _discDen = Array.Empty<double>(), _discCp = Array.Empty<double>(),
         _discX = Array.Empty<double>(), _discGain = Array.Empty<double>();
 
-    static double DiscSpin(int index) => Math.Pow(DiscStep, index);
+    const int DiscColdSub = 16; // [P] a belt's ring is 2^(1/32) wide: 2.2% of its radius
 
+    static double DiscSpin(int index) => Math.Pow(DiscStep, index);
+    // Sub == 1 divides exactly, so a hot disc reads the same numbers as before belts had finer rings
+    static double DiscSpin(Disc d, int index) => Math.Pow(DiscStep, (double)index / d.Sub);
+
+    /// Ring k is a line, not a band: all its matter has the angular momentum of this radius. A deposit between two
+    /// rings is shared by them, so for drawing ring k stands for the span from this radius to ring k+1's.
     public double DiscCellRadius(Disc d, int k)
     {
-        double j = DiscSpin(d.Base + k), gm = d.Host >= 0 ? C.G * M[d.Host] : 0;
+        double j = DiscSpin(d, d.Base + k), gm = d.Host >= 0 ? C.G * M[d.Host] : 0;
         return gm > 0 ? j * j / gm : 0;
     }
 
@@ -100,7 +109,7 @@ public sealed partial class World
     public double DiscAngular(Disc d)
     {
         double sum = 0;
-        for (int k = 0; k < d.Cells; k++) sum += DiscCellMass(d, k) * DiscSpin(d.Base + k);
+        for (int k = 0; k < d.Cells; k++) sum += DiscCellMass(d, k) * DiscSpin(d, d.Base + k);
         return d.Sense * sum;
     }
 
@@ -109,7 +118,7 @@ public sealed partial class World
     {
         double gm = d.Host >= 0 ? C.G * M[d.Host] : 0, sum = 0;
         if (!(gm > 0)) return 0;
-        for (int k = 0; k < d.Cells; k++) { double j = DiscSpin(d.Base + k); sum -= gm * gm * DiscCellMass(d, k) / (2 * j * j); }
+        for (int k = 0; k < d.Cells; k++) { double j = DiscSpin(d, d.Base + k); sum -= gm * gm * DiscCellMass(d, k) / (2 * j * j); }
         return sum;
     }
 
@@ -152,17 +161,18 @@ public sealed partial class World
         }
         Disc? disc = null;
         foreach (var d in _discs) if (d.Host == host && d.Sense == sense && d.Cold == cold) { disc = d; break; }
-        int low = (int)Math.Floor(Math.Log(j) / DiscLnStep);
+        int sub = disc?.Sub ?? (cold ? DiscColdSub : 1);
+        int low = (int)Math.Floor(Math.Log(j) / DiscLnStep * sub);
         if (disc == null)
         {
             int edge = (int)Math.Floor(Math.Log(Math.Sqrt(gm * sink)) / DiscLnStep);
-            disc = new Disc { Host = host, HostGen = Gen[host], Sense = sense, Base = cold ? low : Math.Min(edge, low), Year = Year, Cold = cold };
+            disc = new Disc { Host = host, HostGen = Gen[host], Sense = sense, Base = cold ? low : Math.Min(edge, low), Year = Year, Cold = cold, Sub = sub };
             _discs.Add(disc);
             if (!cold) LogEvent(host, "disc", "disc.form", mass, j * j / gm);
         }
         CoverDisc(disc, low, low + 1 + (cold ? 0 : DiscHeadroom));
         int k = Math.Clamp(low - disc.Base, 0, disc.Cells - 2);
-        double j0 = DiscSpin(disc.Base + k), j1 = DiscSpin(disc.Base + k + 1), share = Math.Clamp((j - j0) / (j1 - j0), 0, 1);
+        double j0 = DiscSpin(disc, disc.Base + k), j1 = DiscSpin(disc, disc.Base + k + 1), share = Math.Clamp((j - j0) / (j1 - j0), 0, 1);
         for (int e = 0; e < ElementCount; e++)
         {
             disc.Matter[k * ElementCount + e] += matter[e] * (1 - share);
@@ -321,7 +331,7 @@ public sealed partial class World
         {
             mix((ulong)d.Host); mix((ulong)d.HostGen); mix((ulong)d.Sense); mix((ulong)d.Base); mix((ulong)d.Cells);
             number(d.Year); number(d.Fed);
-            if (d.Cold) { mix(0x434F4C44UL); number(d.Heat); } // "COLD"; hot discs hash as before
+            if (d.Cold) { mix(0x434F4C44UL); number(d.Heat); mix((ulong)d.Sub); } // "COLD"; hot discs hash as before
             foreach (double c in d.Matter) number(c);
         }
     }
