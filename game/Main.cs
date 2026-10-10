@@ -982,8 +982,17 @@ public partial class Main : Node2D
     {
         ToWorld(_mouse, out double x, out double y);
         double f = 1 - Math.Exp(-HandRate * _ui.HandStrength * Math.Min(seconds, 0.1));
-        _w.Do(new Command(CmdKind.Force, X: x, Y: y, Vx: _ui.HandRadiusPx / _zoom, Amount: _tool == Tool.Shove ? -f : f, Index: 1));
+        // A reach into a belt lifts its matter out as objects once, not every frame: again only after the hand has
+        // rested half a second or moved half its own radius.
+        double rad = _ui.HandRadiusPx / _zoom, hx = x - _handReachX, hy = y - _handReachY;
+        ulong now = Time.GetTicksMsec();
+        bool reach = now - _handUsedMs > 500 || hx * hx + hy * hy > rad * rad / 4;
+        if (reach) { _handReachX = x; _handReachY = y; }
+        _handUsedMs = now;
+        _w.Do(new Command(CmdKind.Force, X: x, Y: y, Vx: rad, Vy: reach ? 1 : 0, Amount: _tool == Tool.Shove ? -f : f, Index: 1));
     }
+    double _handReachX, _handReachY;
+    ulong _handUsedMs;
 
     // velocity of object i as its primary sees it, and that primary
     int RelVelocity(int i, out double ux, out double uy)

@@ -222,6 +222,73 @@ public sealed partial class World
         return folded;
     }
 
+    const int DiscParcels = 256;   // [P] most objects one reach lifts out of the belts
+    const int DiscParcelsPerRing = 8;
+
+    // Half the angle, seen from the host, of the part of a ring of radius r that lies within `rad` of a point `dist`
+    // from the host. Pi = the whole ring.
+    static double DiscArc(double dist, double r, double rad)
+    {
+        if (!(r > 0)) return 0;
+        if (dist + r <= rad) return Math.PI;
+        if (Math.Abs(dist - r) >= rad) return 0;
+        return Math.Acos(Math.Clamp((dist * dist + r * r - rad * rad) / (2 * dist * r), -1, 1));
+    }
+
+    /// Heat Law, the way back (SPEC §15.12): the part of every cold belt within `rad` of (cx, cy) becomes objects
+    /// again, each on its ring, spread along the arc, moving as the ring did. Mass, matter and angular momentum about
+    /// the host leave the ring exactly; the host gives back the momentum FoldBelt gave it. Returns objects made.
+    /// A ring has no memory of where it was emptied: what is left closes the gap at once, so the caller decides how
+    /// often to reach. The belt's Heat stays with the belt: the objects start on circles.
+    public int WithdrawDiscs(double cx, double cy, double rad)
+    {
+        if (_discs.Count == 0 || !double.IsFinite(cx + cy) || !(rad > 0)) return 0;
+        int ne = ElementCount, made = 0;
+        var take = new double[ne]; var mix = new double[ne];
+        for (int n = _discs.Count - 1; n >= 0; n--)
+        {
+            Disc d = _discs[n]; int host = d.Host;
+            if (!d.Cold || host < 0 || !Alive[host]) continue;
+            double gm = C.G * M[host], ox = cx - X[host], oy = cy - Y[host], dist = Math.Sqrt(ox * ox + oy * oy), toward = Math.Atan2(oy, ox);
+            if (!(gm > 0)) continue;
+            int rings = 0;
+            for (int k = 0; k < d.Cells; k++) if (DiscCellMass(d, k) > 0 && DiscArc(dist, DiscCellRadius(d, k), rad) > 0) rings++;
+            int room = Math.Min(DiscParcels - made, X.Length - Live);
+            if (rings == 0 || room <= 0) continue;
+            int per = Math.Clamp(room / rings, 1, DiscParcelsPerRing);
+            double px = 0, py = 0;
+            for (int k = 0; k < d.Cells && room > 0; k++)
+            {
+                double r = DiscCellRadius(d, k), half = DiscArc(dist, r, rad), mass = 0;
+                if (!(half > 0)) continue;
+                for (int e = 0; e < ne; e++) { take[e] = half >= Math.PI ? d.Matter[k * ne + e] : d.Matter[k * ne + e] * (half / Math.PI); mass += take[e]; }
+                if (!(mass > 0)) continue;
+                int count = Math.Min(per, room), placed = 0;
+                double speed = DiscSpin(d, d.Base + k) / r, m = mass / count;
+                for (int e = 0; e < ne; e++) mix[e] = take[e] / mass;
+                for (int p = 0; p < count; p++)
+                {
+                    double a = toward + half * (2 * (p + 0.5) / count - 1), ux = -d.Sense * Math.Sin(a) * speed, uy = d.Sense * Math.Cos(a) * speed;
+                    int i = Add(X[host] + r * Math.Cos(a), Y[host] + r * Math.Sin(a), Vx[host] + ux, Vy[host] + uy, m, mix, par: host);
+                    if (i < 0) break;
+                    for (int e = 0; e < ne; e++) Comp[i * ne + e] = take[e] / count; // the ring's own numbers, not m * mix
+                    px += m * ux; py += m * uy; placed++;
+                }
+                for (int e = 0; e < ne; e++)
+                    d.Matter[k * ne + e] = placed == count && half >= Math.PI ? 0 : d.Matter[k * ne + e] - take[e] * placed / count;
+                made += placed; room -= placed;
+                if (placed < count) break; // the world is full: the rest stays in the ring
+            }
+            double left = 0;
+            for (int i = 0; i < d.Matter.Length; i++) left += d.Matter[i];
+            d.Total = left;
+            double carried = M[host] + DiscMassOn(host);
+            if (carried > 0) { Vx[host] -= px / carried; Vy[host] -= py / carried; }
+            if (!(left > 0)) _discs.RemoveAt(n);
+        }
+        return made;
+    }
+
     void EvolveDiscs() { for (int n = _discs.Count - 1; n >= 0; n--) EvolveDisc(_discs[n]); }
 
     void EvolveDisc(Disc disc)

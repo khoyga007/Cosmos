@@ -141,6 +141,9 @@ public sealed partial class World
                     // toward the centre, -f clears out to the edge of the ring. Velocities are left alone.
                     double f = Math.Abs(c.Amount);
                     if (f > 1) return -1;
+                    // Vy > 0: a new reach. Belt matter under the hand becomes objects first, so the hand moves it
+                    // like anything else. Not on every call: a ring refills its gap at once and would drain whole.
+                    if (c.Vy > 0) WithdrawDiscs(c.X, c.Y, rad);
                     // Small matter does not collide with small matter in Advance (too many pairs), so a gathered
                     // handful would only overlap and drift apart again. Pressed into the grip at the centre it
                     // sticks: every small object there joins the heaviest object there by the ordinary Merge, which
