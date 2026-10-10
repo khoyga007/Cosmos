@@ -60,6 +60,11 @@ if (args.Length > 0 && args[0] == "civtable") return CivTableChecks.Run() ? 0 : 
 if (args.Length > 0 && args[0] == "civstats") return CivStatsChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "ships") return ShipChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "disc-p0") { DiscChecks.P0(args.Length > 1 ? int.Parse(args[1]) : 2000); return 0; }
+if (args.Length > 0 && args[0] == "jump-anomaly") return JumpAnomaly.Run() ? 0 : 1;
+if (args.Length > 0 && args[0] == "jump-anomaly2") return JumpAnomaly2.Run() ? 0 : 1;
+if (args.Length > 0 && args[0] == "diag-jump") return Diag.Run() ? 0 : 1;
+if (args.Length > 0 && args[0] == "belt-long") return BeltLong.Run(args.Length > 1 ? args[1] : "evidence/belt-long") ? 0 : 1;
+if (args.Length > 0 && args[0] == "belt-long-bn") return BeltLong.RunBnOnly(args.Length > 1 ? args[1] : "evidence/belt-long-bn") ? 0 : 1;
 if (args.Length > 0 && args[0] == "disc") return DiscChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "conserve") return ConserveChecks.Run() ? 0 : 1;
 if (args.Length > 0 && args[0] == "cosmic") return CosmicChecks.Run() ? 0 : 1;
