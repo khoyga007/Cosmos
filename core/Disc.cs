@@ -47,6 +47,8 @@ public sealed class Disc
     public double Year { get; internal set; }  // evolved up to here
     public double Total { get; internal set; } // mass in the disc now
     public double Fed { get; internal set; }   // mass ever put in
+    public bool Cold { get; internal set; }    // a belt: rock and ice, no gas friction, rings stay where they are
+    public double Heat { get; internal set; }  // cold only: orbital energy its members had above circular orbits
     internal double[] Matter = Array.Empty<double>(); // Cells x element groups
 }
 
@@ -134,11 +136,11 @@ public sealed partial class World
 
     // Hot bound debris joins the host's disc on the circular orbit that has its angular momentum `spin` (per mass,
     // signed). The caller has already taken the energy above that orbit out as heat.
-    void DepositDisc(int host, double[] matter, double spin)
+    Disc? DepositDisc(int host, double[] matter, double spin, bool cold = false)
     {
         double mass = 0;
         for (int e = 0; e < ElementCount; e++) mass += matter[e];
-        if (!(mass > 0)) return;
+        if (!(mass > 0)) return null;
         for (int n = _discs.Count - 1; n >= 0; n--) if (_discs[n].Host == host) EvolveDisc(_discs[n]);
         int sense = spin < 0 ? -1 : 1;
         double j = Math.Abs(spin), gm = C.G * M[host], sink = DiscSink(host);
@@ -146,19 +148,19 @@ public sealed partial class World
         {
             // its orbit lies inside the host: it falls straight in
             AccreteDisc(host, matter, sense * j * mass, gm > 0 && j > 0 ? -gm * gm * mass / (2 * j * j) : 0);
-            return;
+            return null;
         }
         Disc? disc = null;
-        foreach (var d in _discs) if (d.Host == host && d.Sense == sense) { disc = d; break; }
+        foreach (var d in _discs) if (d.Host == host && d.Sense == sense && d.Cold == cold) { disc = d; break; }
         int low = (int)Math.Floor(Math.Log(j) / DiscLnStep);
         if (disc == null)
         {
             int edge = (int)Math.Floor(Math.Log(Math.Sqrt(gm * sink)) / DiscLnStep);
-            disc = new Disc { Host = host, HostGen = Gen[host], Sense = sense, Base = Math.Min(edge, low), Year = Year };
+            disc = new Disc { Host = host, HostGen = Gen[host], Sense = sense, Base = cold ? low : Math.Min(edge, low), Year = Year, Cold = cold };
             _discs.Add(disc);
-            LogEvent(host, "disc", "disc.form", mass, j * j / gm);
+            if (!cold) LogEvent(host, "disc", "disc.form", mass, j * j / gm);
         }
-        CoverDisc(disc, low, low + 1 + DiscHeadroom);
+        CoverDisc(disc, low, low + 1 + (cold ? 0 : DiscHeadroom));
         int k = Math.Clamp(low - disc.Base, 0, disc.Cells - 2);
         double j0 = DiscSpin(disc.Base + k), j1 = DiscSpin(disc.Base + k + 1), share = Math.Clamp((j - j0) / (j1 - j0), 0, 1);
         for (int e = 0; e < ElementCount; e++)
@@ -171,6 +173,43 @@ public sealed partial class World
         // orbit's. That is the grid, not heat, and it is kept apart.
         DiscResidualAngular += sense * mass * ((1 - share) * j0 + share * j1 - j);
         DiscResidualEnergy += gm * gm * mass * (1 / (2 * j * j) - (1 - share) / (2 * j0 * j0) - share / (2 * j1 * j1));
+        return disc;
+    }
+
+    /// Heat Law, second representation for cold matter (SPEC §15.12). In belt `group` of `host` the `keep` heaviest
+    /// nameless members stay objects; the small tail becomes one cold disc of the host. Each member's mass, matter and
+    /// angular momentum about the host carry over exactly; the energy its orbit had above a circle is kept as the
+    /// belt's heat; the host takes the tail's momentum, so the world's total does not move. Returns members folded.
+    /// Not built yet: a folded belt does not hit planets, is not stirred by a passer-by, gives no parcel back.
+    public int FoldBelt(int host, int group, int keep)
+    {
+        if (host < 0 || host >= N || !Alive[host] || group <= 0 || keep < 0) return 0;
+        var members = new List<int>();
+        for (int i = 0; i < N; i++)
+            if (Alive[i] && i != host && Grp[i] == group && Name[i] == null && !Attracts(i)) members.Add(i);
+        members.Sort((a, b) => M[a] != M[b] ? M[b].CompareTo(M[a]) : a.CompareTo(b));
+        int ne = ElementCount, folded = 0;
+        double gm = C.G * M[host], px = 0, py = 0, gone = 0;
+        var matter = new double[ne];
+        for (int n = keep; n < members.Count; n++)
+        {
+            int i = members[n];
+            double dx = X[i] - X[host], dy = Y[i] - Y[host], vx = Vx[i] - Vx[host], vy = Vy[i] - Vy[host];
+            double r = Math.Sqrt(dx * dx + dy * dy), m = M[i], spin = dx * vy - dy * vx;
+            double energy = m * ((vx * vx + vy * vy) / 2 - (r > 0 ? gm / r : 0));
+            if (!(r > 0) || !(energy < 0)) continue; // not held by this host: it stays an object
+            for (int e = 0; e < ne; e++) matter[e] = Comp[i * ne + e];
+            var disc = DepositDisc(host, matter, spin, cold: true);
+            if (disc != null) disc.Heat += Math.Max(0, energy + gm * gm * m / (2 * spin * spin));
+            px += m * vx; py += m * vy; gone += m;
+            Kill(i); folded++;
+        }
+        if (gone > 0)
+        {
+            double carried = M[host] + DiscMassOn(host);
+            Vx[host] += px / carried; Vy[host] += py / carried;
+        }
+        return folded;
     }
 
     void EvolveDiscs() { for (int n = _discs.Count - 1; n >= 0; n--) EvolveDisc(_discs[n]); }
@@ -180,6 +219,7 @@ public sealed partial class World
         double seconds = (Year - disc.Year) * C.YearTime;
         if (!(seconds > 0)) return;
         disc.Year = Year;
+        if (disc.Cold) return; // no gas, no friction: grinding and stirring of a belt are not built
         int host = disc.Host, ne = ElementCount;
         if (host < 0) return;
         double gm = C.G * M[host];
@@ -281,6 +321,7 @@ public sealed partial class World
         {
             mix((ulong)d.Host); mix((ulong)d.HostGen); mix((ulong)d.Sense); mix((ulong)d.Base); mix((ulong)d.Cells);
             number(d.Year); number(d.Fed);
+            if (d.Cold) { mix(0x434F4C44UL); number(d.Heat); } // "COLD"; hot discs hash as before
             foreach (double c in d.Matter) number(c);
         }
     }

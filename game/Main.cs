@@ -70,7 +70,7 @@ public partial class Main : Node2D
     {
         // numbers are typed and shown with a dot whatever the machine's language (vi-VN reads "1.5" as 15)
         System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
-        int rocks = 5000;
+        int rocks = 5000, beltBodies = -1;
         foreach (string a in OS.GetCmdlineUserArgs())
         {
             if (a == "--selftest") _selftest = true;
@@ -78,6 +78,7 @@ public partial class Main : Node2D
             if (a == "--disc-probe") _discProbe = true;
             if (a.StartsWith("--rocks=")) rocks = int.Parse(a[8..]);
             if (a.StartsWith("--bench=")) _bench = int.Parse(a[8..]);
+            if (a.StartsWith("--belt-bodies=")) beltBodies = int.Parse(a[14..]);
         }
 
         if (_uitest || _discProbe)
@@ -107,6 +108,13 @@ public partial class Main : Node2D
             _w = World.SolSystem(rocks, 1234);
             // trial: one Earth orbit counts as CosmicK years, so stars age and life moves while you watch
             if (!_uitest) _w.Do(new Command(CmdKind.SetConst, Name: "YearTime", Amount: _w.C.YearTime / CosmicK));
+            // trial: the small tail of both belts becomes one cold disc of the Sun; not drawn as rocks yet
+            if (beltBodies >= 0)
+            {
+                int sun = 0;
+                for (int i = 1; i < _w.N; i++) if (_w.M[i] > _w.M[sun]) sun = i;
+                _w.FoldBelt(sun, 1, beltBodies); _w.FoldBelt(sun, 2, beltBodies);
+            }
         }
         _rocks = rocks;
 
