@@ -4,7 +4,9 @@ rem A first argument that starts with -- is a game flag instead: every argument 
 set N=5000
 set EXTRA=
 set A1=%~1
-if not "%A1%"=="" if "%A1:~0,2%"=="--" (set EXTRA=%*) else (set N=%A1%)
+if not defined A1 goto run
+if "%A1:~0,2%"=="--" (set EXTRA=%*) else (set N=%A1%)
+:run
 rem -c Release makes the CORE build in Release, which is ~3x cheaper per Advance step.
 rem The game assembly itself still builds Debug on purpose: Cosmos.Game.sln maps the game
 rem project Release|Any CPU -> Debug|Any CPU while the core maps Release -> Release.
