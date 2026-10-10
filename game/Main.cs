@@ -394,7 +394,8 @@ public partial class Main : Node2D
             for (int k = 0; k < cells; k++)
             {
                 double mass = _w.DiscCellMass(d, k);
-                if (!(mass > 0)) continue; // Vành rỗng không vẽ
+                // rings holding under a thousandth of the disc are the solver's thin tail, not something to show
+                if (!(mass > 1e-3 * d.Total)) continue;
 
                 float rad = (float)(_w.DiscCellRadius(d, k) * _zoom);
                 if (rad < 1.5f)
@@ -411,12 +412,16 @@ public partial class Main : Node2D
 
                 float t = cells > 1 ? (float)k / (cells - 1) : 0f;
                 Color col = DiscHotCol.Lerp(DiscCoolCol, t);
-                double mEarth = mass / World.EarthMass;
-                float tMass = (float)Math.Clamp((Math.Log10(Math.Max(mEarth, 1e-8)) + 8.0) / 10.0, 0.0, 1.0);
-                col.A = 0.25f + 0.60f * tMass;
+                // brightness follows how thick the gas lies (mass over ring area, rings widen with radius),
+                // so a spent disc spread thin across a whole system fades out instead of drawing bold rings
+                double ringR = _w.DiscCellRadius(d, k);
+                double sigma = mass / World.EarthMass / (ringR * ringR);
+                float tMass = (float)Math.Clamp((Math.Log10(Math.Max(sigma, 1e-12)) + 3.0) / 6.0, 0.0, 1.0);
+                if (tMass <= 0) continue;
+                col.A = 0.85f * tMass;
                 float width = 1.0f + 2.0f * tMass;
 
-                DrawArc(Vector2.Zero, rad, 0, MathF.Tau, 32, col, width);
+                DrawArc(Vector2.Zero, rad, 0, MathF.Tau, Math.Clamp((int)(rad * 0.5f), 32, 128), col, width);
                 _drawArcsFrame++;
             }
             DrawSetTransform(Vector2.Zero);
