@@ -1,0 +1,1 @@
+control seed 1002 steps 2000 hash CE811311636659E0 wall 10.0s threads 1

@@ -1,0 +1,1242 @@
+{
+ "off1234": {
+  "sun_into_compact_step_closure": [
+   201,
+   333333.3344551856
+  ],
+  "300": {
+   "live": 5512,
+   "merges": 454,
+   "disc": 0,
+   "ring": 614,
+   "stream": 869,
+   "disc_mass_E": 0.0,
+   "disc_on_compact_E": 0.0,
+   "accreted_E": 0.0,
+   "compact_phase": "BlackHole",
+   "compact_mass_E": 800033.3344567805,
+   "compact_merges_closure": 155,
+   "compact_merges_events": 1,
+   "ambiguous": 1,
+   "compact_victim_E": 333333.33445678046,
+   "reservoir_E": 317.8195024349818,
+   "escaped_E": 1.0691610910292768,
+   "to_disc_by_origin": {},
+   "straight_fall_E": 0.0,
+   "near": {
+    "total": 634,
+    "unbound": 0,
+    "out_hot": 612,
+    "out_cold": 22,
+    "in_hot": 0,
+    "in_cold": 0,
+    "rmax": "41.8234",
+    "rmax_body": "6:planet"
+   },
+   "mass_resid_rel": -3.78729e-15,
+   "px": 0.000102516,
+   "py": 3.10137e-05,
+   "elem_resid_max_abs": 1.64443e-14,
+   "elem": {
+    "elem_Khí nhẹ_resid_rel": "-1.18364E-15",
+    "elem_Băng_resid_rel": "1.64443E-14",
+    "elem_Đá_resid_rel": "-8.78022E-15",
+    "elem_Kim loại_resid_rel": "7.91259E-15",
+    "elem_Carbon_resid_rel": "2.39681E-15",
+    "elem_Phóng xạ_resid_rel": "5.10877E-15"
+   }
+  },
+  "1000": {
+   "live": 5512,
+   "merges": 460,
+   "disc": 0,
+   "ring": 614,
+   "stream": 897,
+   "disc_mass_E": 0.0,
+   "disc_on_compact_E": 0.0,
+   "accreted_E": 0.0,
+   "compact_phase": "BlackHole",
+   "compact_mass_E": 800033.3344567805,
+   "compact_merges_closure": 155,
+   "compact_merges_events": 1,
+   "ambiguous": 1,
+   "compact_victim_E": 333333.33445678046,
+   "reservoir_E": 413.01927288593305,
+   "escaped_E": 1.0691610910292768,
+   "to_disc_by_origin": {},
+   "straight_fall_E": 0.0,
+   "near": {
+    "total": 480,
+    "unbound": 0,
+    "out_hot": 464,
+    "out_cold": 16,
+    "in_hot": 0,
+    "in_cold": 0,
+    "rmax": "36.5699",
+    "rmax_body": "4569:kuiper_ice"
+   },
+   "mass_resid_rel": -3.66894e-15,
+   "px": 4.3415e-05,
+   "py": 1.88452e-05,
+   "elem_resid_max_abs": 1.05713e-14,
+   "elem": {
+    "elem_Khí nhẹ_resid_rel": "-1.06528E-15",
+    "elem_Băng_resid_rel": "1.05713E-14",
+    "elem_Đá_resid_rel": "-2.87876E-16",
+    "elem_Kim loại_resid_rel": "2.14299E-15",
+    "elem_Carbon_resid_rel": "1.64781E-15",
+    "elem_Phóng xạ_resid_rel": "5.48719E-15"
+   }
+  },
+  "2000": {
+   "live": 5506,
+   "merges": 471,
+   "disc": 0,
+   "ring": 615,
+   "stream": 905,
+   "disc_mass_E": 0.0,
+   "disc_on_compact_E": 0.0,
+   "accreted_E": 0.0,
+   "compact_phase": "BlackHole",
+   "compact_mass_E": 800033.3344567805,
+   "compact_merges_closure": 155,
+   "compact_merges_events": 1,
+   "ambiguous": 1,
+   "compact_victim_E": 333333.33445678046,
+   "reservoir_E": 413.01946720381596,
+   "escaped_E": 1.0691610910292768,
+   "to_disc_by_origin": {},
+   "straight_fall_E": 0.0,
+   "near": {
+    "total": 468,
+    "unbound": 0,
+    "out_hot": 386,
+    "out_cold": 82,
+    "in_hot": 0,
+    "in_cold": 0,
+    "rmax": "36.5699",
+    "rmax_body": "4569:kuiper_ice"
+   },
+   "mass_resid_rel": -3.90564e-15,
+   "px": 6.1154e-05,
+   "py": 6.61272e-06,
+   "elem_resid_max_abs": 1.05713e-14,
+   "elem": {
+    "elem_Khí nhẹ_resid_rel": "-1.18364E-15",
+    "elem_Băng_resid_rel": "1.05713E-14",
+    "elem_Đá_resid_rel": "-2.87876E-16",
+    "elem_Kim loại_resid_rel": "2.30784E-15",
+    "elem_Carbon_resid_rel": "1.64781E-15",
+    "elem_Phóng xạ_resid_rel": "5.67641E-15"
+   }
+  },
+  "mass_resid_rel_maxabs_sampled": 5.44423e-15,
+  "elem_resid_rel_maxabs_sampled": 1.74884e-14,
+  "breaks_by_form_origin_host": {
+   "ring/belt_rock/compact": [
+    598,
+    0.018494117354420442
+   ],
+   "ring/planet/compact": [
+    9,
+    317.800000007346
+   ],
+   "ring/unknown/compact": [
+    8,
+    1.217983328135665e-09
+   ],
+   "stream/belt_rock/compact": [
+    730,
+    0.0032174941834479413
+   ],
+   "stream/belt_rock/puller": [
+    2,
+    0.0
+   ],
+   "stream/belt_rock/sun": [
+    1,
+    0.0
+   ],
+   "stream/kuiper_ice/puller": [
+    1,
+    0.0
+   ],
+   "stream/moon/compact": [
+    1,
+    0.0
+   ],
+   "stream/planet/compact": [
+    22,
+    95.20056678851745
+   ],
+   "stream/saturn_ring_ice/puller": [
+    1,
+    0.0
+   ],
+   "stream/unknown/compact": [
+    147,
+    0.00011808346960069699
+   ]
+  }
+ },
+ "off1002": {
+  "sun_into_compact_step_closure": [
+   201,
+   333333.3339789389
+  ],
+  "300": {
+   "live": 5511,
+   "merges": 405,
+   "disc": 0,
+   "ring": 575,
+   "stream": 942,
+   "disc_mass_E": 0.0,
+   "disc_on_compact_E": 0.0,
+   "accreted_E": 0.0,
+   "compact_phase": "BlackHole",
+   "compact_mass_E": 800033.333978939,
+   "compact_merges_closure": 143,
+   "compact_merges_events": 1,
+   "ambiguous": 0,
+   "compact_victim_E": 333333.3339789389,
+   "reservoir_E": 0.03263812058462048,
+   "escaped_E": 0.05727868387611352,
+   "to_disc_by_origin": {},
+   "straight_fall_E": 0.0,
+   "near": {
+    "total": 564,
+    "unbound": 0,
+    "out_hot": 553,
+    "out_cold": 11,
+    "in_hot": 0,
+    "in_cold": 0,
+    "rmax": "42.8454",
+    "rmax_body": "5:planet"
+   },
+   "mass_resid_rel": -7.81128e-15,
+   "px": 0.000102777,
+   "py": 4.6604e-05,
+   "elem_resid_max_abs": 1.6961e-14,
+   "elem": {
+    "elem_Khí nhẹ_resid_rel": "-1.18364E-16",
+    "elem_Băng_resid_rel": "1.26601E-14",
+    "elem_Đá_resid_rel": "7.62782E-15",
+    "elem_Kim loại_resid_rel": "-8.40661E-15",
+    "elem_Carbon_resid_rel": "4.94327E-15",
+    "elem_Phóng xạ_resid_rel": "1.6961E-14"
+   }
+  },
+  "1000": {
+   "live": 5509,
+   "merges": 405,
+   "disc": 0,
+   "ring": 576,
+   "stream": 955,
+   "disc_mass_E": 0.0,
+   "disc_on_compact_E": 0.0,
+   "accreted_E": 0.0,
+   "compact_phase": "BlackHole",
+   "compact_mass_E": 800033.333978939,
+   "compact_merges_closure": 143,
+   "compact_merges_events": 1,
+   "ambiguous": 0,
+   "compact_victim_E": 333333.3339789389,
+   "reservoir_E": 0.03268090090126717,
+   "escaped_E": 0.0572786839622325,
+   "to_disc_by_origin": {},
+   "straight_fall_E": 0.0,
+   "near": {
+    "total": 457,
+    "unbound": 0,
+    "out_hot": 443,
+    "out_cold": 14,
+    "in_hot": 0,
+    "in_cold": 0,
+    "rmax": "42.8454",
+    "rmax_body": "5:planet"
+   },
+   "mass_resid_rel": -7.81128e-15,
+   "px": 5.17149e-05,
+   "py": 3.79493e-05,
+   "elem_resid_max_abs": 1.73464e-14,
+   "elem": {
+    "elem_Khí nhẹ_resid_rel": "-1.18364E-16",
+    "elem_Băng_resid_rel": "1.27906E-14",
+    "elem_Đá_resid_rel": "8.2035E-15",
+    "elem_Kim loại_resid_rel": "-8.57144E-15",
+    "elem_Carbon_resid_rel": "4.94327E-15",
+    "elem_Phóng xạ_resid_rel": "1.73464E-14"
+   }
+  },
+  "2000": {
+   "live": 5319,
+   "merges": 595,
+   "disc": 0,
+   "ring": 576,
+   "stream": 959,
+   "disc_mass_E": 0.0,
+   "disc_on_compact_E": 0.0,
+   "accreted_E": 0.0,
+   "compact_phase": "BlackHole",
+   "compact_mass_E": 800033.333978939,
+   "compact_merges_closure": 143,
+   "compact_merges_events": 1,
+   "ambiguous": 0,
+   "compact_victim_E": 333333.3339789389,
+   "reservoir_E": 95.23268090090127,
+   "escaped_E": 0.05727868399334361,
+   "to_disc_by_origin": {},
+   "straight_fall_E": 0.0,
+   "near": {
+    "total": 469,
+    "unbound": 0,
+    "out_hot": 459,
+    "out_cold": 10,
+    "in_hot": 0,
+    "in_cold": 0,
+    "rmax": "42.8454",
+    "rmax_body": "5:planet"
+   },
+   "mass_resid_rel": -7.81128e-15,
+   "px": 6.61929e-05,
+   "py": 3.09534e-05,
+   "elem_resid_max_abs": 1.75392e-14,
+   "elem": {
+    "elem_Khí nhẹ_resid_rel": "-2.36728E-16",
+    "elem_Băng_resid_rel": "1.35737E-14",
+    "elem_Đá_resid_rel": "8.05958E-15",
+    "elem_Kim loại_resid_rel": "-8.90111E-15",
+    "elem_Carbon_resid_rel": "5.09307E-15",
+    "elem_Phóng xạ_resid_rel": "1.75392E-14"
+   }
+  },
+  "mass_resid_rel_maxabs_sampled": 9.23152e-15,
+  "elem_resid_rel_maxabs_sampled": 1.75392e-14,
+  "breaks_by_form_origin_host": {
+   "ring/belt_rock/compact": [
+    571,
+    0.019403104655728077
+   ],
+   "ring/unknown/compact": [
+    5,
+    4.110617127814988e-10
+   ],
+   "stream/belt_rock/compact": [
+    765,
+    0.0029425404794994874
+   ],
+   "stream/belt_rock/puller": [
+    1,
+    0.0
+   ],
+   "stream/belt_rock/sun": [
+    1,
+    0.0
+   ],
+   "stream/moon/puller": [
+    1,
+    0.0123
+   ],
+   "stream/planet/compact": [
+    1,
+    0.0
+   ],
+   "stream/planet/puller": [
+    1,
+    0.0
+   ],
+   "stream/unknown/compact": [
+    189,
+    0.0003169319122426621
+   ]
+  }
+ },
+ "off1011": {
+  "sun_into_compact_step_closure": [
+   201,
+   333333.33400181046
+  ],
+  "300": {
+   "live": 5511,
+   "merges": 371,
+   "disc": 0,
+   "ring": 589,
+   "stream": 978,
+   "disc_mass_E": 0.0,
+   "disc_on_compact_E": 0.0,
+   "accreted_E": 0.0,
+   "compact_phase": "BlackHole",
+   "compact_mass_E": 800033.3340018104,
+   "compact_merges_closure": 92,
+   "compact_merges_events": 1,
+   "ambiguous": 0,
+   "compact_victim_E": 333333.33400181046,
+   "reservoir_E": 0.019306405866328008,
+   "escaped_E": 0.05686394717734538,
+   "to_disc_by_origin": {},
+   "straight_fall_E": 0.0,
+   "near": {
+    "total": 606,
+    "unbound": 0,
+    "out_hot": 592,
+    "out_cold": 14,
+    "in_hot": 0,
+    "in_cold": 0,
+    "rmax": "42.8454",
+    "rmax_body": "5:planet"
+   },
+   "mass_resid_rel": -4.2607e-15,
+   "px": 9.37595e-05,
+   "py": 5.87336e-05,
+   "elem_resid_max_abs": 2.27456e-14,
+   "elem": {
+    "elem_Khí nhẹ_resid_rel": "-1.302E-15",
+    "elem_Băng_resid_rel": "1.72276E-14",
+    "elem_Đá_resid_rel": "1.56901E-14",
+    "elem_Kim loại_resid_rel": "2.27456E-14",
+    "elem_Carbon_resid_rel": "-4.79442E-15",
+    "elem_Phóng xạ_resid_rel": "8.79711E-15"
+   }
+  },
+  "1000": {
+   "live": 5510,
+   "merges": 377,
+   "disc": 0,
+   "ring": 589,
+   "stream": 981,
+   "disc_mass_E": 0.0,
+   "disc_on_compact_E": 0.0,
+   "accreted_E": 0.0,
+   "compact_phase": "BlackHole",
+   "compact_mass_E": 800033.3340018104,
+   "compact_merges_closure": 92,
+   "compact_merges_events": 1,
+   "ambiguous": 0,
+   "compact_victim_E": 333333.33400181046,
+   "reservoir_E": 0.019334477688917363,
+   "escaped_E": 0.05686394717734538,
+   "to_disc_by_origin": {},
+   "straight_fall_E": 0.0,
+   "near": {
+    "total": 465,
+    "unbound": 0,
+    "out_hot": 445,
+    "out_cold": 20,
+    "in_hot": 0,
+    "in_cold": 0,
+    "rmax": "42.8454",
+    "rmax_body": "5:planet"
+   },
+   "mass_resid_rel": -4.2607e-15,
+   "px": 3.35699e-05,
+   "py": 4.33193e-05,
+   "elem_resid_max_abs": 2.29105e-14,
+   "elem": {
+    "elem_Khí nhẹ_resid_rel": "-1.302E-15",
+    "elem_Băng_resid_rel": "1.73581E-14",
+    "elem_Đá_resid_rel": "1.59779E-14",
+    "elem_Kim loại_resid_rel": "2.29105E-14",
+    "elem_Carbon_resid_rel": "-4.49477E-15",
+    "elem_Phóng xạ_resid_rel": "8.42277E-15"
+   }
+  },
+  "2000": {
+   "live": 5506,
+   "merges": 382,
+   "disc": 0,
+   "ring": 589,
+   "stream": 984,
+   "disc_mass_E": 0.0,
+   "disc_on_compact_E": 0.0,
+   "accreted_E": 0.0,
+   "compact_phase": "BlackHole",
+   "compact_mass_E": 800033.3340018104,
+   "compact_merges_closure": 92,
+   "compact_merges_events": 1,
+   "ambiguous": 0,
+   "compact_victim_E": 333333.33400181046,
+   "reservoir_E": 0.019446810946973793,
+   "escaped_E": 0.05686394717734538,
+   "to_disc_by_origin": {},
+   "straight_fall_E": 0.0,
+   "near": {
+    "total": 463,
+    "unbound": 0,
+    "out_hot": 451,
+    "out_cold": 12,
+    "in_hot": 0,
+    "in_cold": 0,
+    "rmax": "42.8454",
+    "rmax_body": "5:planet"
+   },
+   "mass_resid_rel": -4.37905e-15,
+   "px": 5.28712e-05,
+   "py": 2.80371e-05,
+   "elem_resid_max_abs": 2.29105e-14,
+   "elem": {
+    "elem_Khí nhẹ_resid_rel": "-1.302E-15",
+    "elem_Băng_resid_rel": "1.73581E-14",
+    "elem_Đá_resid_rel": "1.59779E-14",
+    "elem_Kim loại_resid_rel": "2.29105E-14",
+    "elem_Carbon_resid_rel": "-4.94425E-15",
+    "elem_Phóng xạ_resid_rel": "8.23559E-15"
+   }
+  },
+  "mass_resid_rel_maxabs_sampled": 7.69293e-15,
+  "elem_resid_rel_maxabs_sampled": 2.30753e-14,
+  "breaks_by_form_origin_host": {
+   "ring/belt_rock/compact": [
+    583,
+    0.017644785048245668
+   ],
+   "ring/unknown/compact": [
+    6,
+    3.77427458310133e-07
+   ],
+   "stream/belt_rock/compact": [
+    722,
+    0.0037774094309719294
+   ],
+   "stream/belt_rock/puller": [
+    1,
+    0.0
+   ],
+   "stream/belt_rock/sun": [
+    1,
+    0.0
+   ],
+   "stream/kuiper_ice/puller": [
+    1,
+    0.0
+   ],
+   "stream/planet/compact": [
+    1,
+    0.0
+   ],
+   "stream/unknown/compact": [
+    258,
+    0.0007591865913596028
+   ]
+  }
+ },
+ "on1234": {
+  "sun_into_compact_step_closure": [
+   201,
+   333333.3342316848
+  ],
+  "300": {
+   "live": 4611,
+   "merges": 28,
+   "disc": 579,
+   "ring": 0,
+   "stream": 33,
+   "disc_mass_E": 290.09416901915,
+   "disc_on_compact_E": 290.09416901915,
+   "accreted_E": 27.726250577701045,
+   "compact_phase": "BlackHole",
+   "compact_mass_E": 800061.0604822622,
+   "compact_merges_closure": 1,
+   "compact_merges_events": 1,
+   "ambiguous": 0,
+   "compact_victim_E": 333333.3342316846,
+   "reservoir_E": 0.0,
+   "escaped_E": 1.0691564719031956,
+   "to_disc_by_origin": {
+    "belt_rock": 0.020419596851380648,
+    "planet": 317.8
+   },
+   "straight_fall_E": 0.00012686361388811795,
+   "near": {
+    "total": 241,
+    "unbound": 0,
+    "out_hot": 241,
+    "out_cold": 0,
+    "in_hot": 0,
+    "in_cold": 0,
+    "rmax": "41.8239",
+    "rmax_body": "6:planet"
+   },
+   "mass_resid_rel": -3.07717e-15,
+   "px": 0.000106798,
+   "py": 3.35245e-05,
+   "elem_resid_max_abs": 1.55307e-14,
+   "elem": {
+    "elem_Khí nhẹ_resid_rel": "0",
+    "elem_Băng_resid_rel": "1.55307E-14",
+    "elem_Đá_resid_rel": "-1.1515E-15",
+    "elem_Kim loại_resid_rel": "5.11021E-15",
+    "elem_Carbon_resid_rel": "2.99601E-15",
+    "elem_Phóng xạ_resid_rel": "0"
+   }
+  },
+  "1000": {
+   "live": 4604,
+   "merges": 33,
+   "disc": 581,
+   "ring": 0,
+   "stream": 33,
+   "disc_mass_E": 294.99146363693944,
+   "disc_on_compact_E": 294.99146363693944,
+   "accreted_E": 118.02904256931052,
+   "compact_phase": "BlackHole",
+   "compact_mass_E": 800151.3632742541,
+   "compact_merges_closure": 1,
+   "compact_merges_events": 1,
+   "ambiguous": 0,
+   "compact_victim_E": 333333.33423168474,
+   "reservoir_E": 0.0,
+   "escaped_E": 1.0691564719031956,
+   "to_disc_by_origin": {
+    "belt_rock": 0.02047276113204563,
+    "planet": 413.00003344511896
+   },
+   "straight_fall_E": 0.00012686361389009355,
+   "near": {
+    "total": 83,
+    "unbound": 0,
+    "out_hot": 83,
+    "out_cold": 0,
+    "in_hot": 0,
+    "in_cold": 0,
+    "rmax": "36.5717",
+    "rmax_body": "4569:kuiper_ice"
+   },
+   "mass_resid_rel": -2.48541e-15,
+   "px": 4.86566e-05,
+   "py": 2.00998e-05,
+   "elem_resid_max_abs": 1.2529e-14,
+   "elem": {
+    "elem_Khí nhẹ_resid_rel": "-5.9182E-16",
+    "elem_Băng_resid_rel": "1.2529E-14",
+    "elem_Đá_resid_rel": "-2.01513E-15",
+    "elem_Kim loại_resid_rel": "2.30784E-15",
+    "elem_Carbon_resid_rel": "1.94741E-15",
+    "elem_Phóng xạ_resid_rel": "1.32449E-15"
+   }
+  },
+  "2000": {
+   "live": 4594,
+   "merges": 39,
+   "disc": 581,
+   "ring": 0,
+   "stream": 37,
+   "disc_mass_E": 253.91045232247882,
+   "disc_on_compact_E": 253.91045232247882,
+   "accreted_E": 159.11005388377114,
+   "compact_phase": "BlackHole",
+   "compact_mass_E": 800192.4442855695,
+   "compact_merges_closure": 1,
+   "compact_merges_events": 1,
+   "ambiguous": 0,
+   "compact_victim_E": 333333.3342316853,
+   "reservoir_E": 8.938181516332188e-05,
+   "escaped_E": 1.0691564719031956,
+   "to_disc_by_origin": {
+    "belt_rock": 0.02047276113204563,
+    "planet": 413.00003344511896
+   },
+   "straight_fall_E": 0.00012686361389009355,
+   "near": {
+    "total": 67,
+    "unbound": 0,
+    "out_hot": 67,
+    "out_cold": 0,
+    "in_hot": 0,
+    "in_cold": 0,
+    "rmax": "36.5723",
+    "rmax_body": "4569:kuiper_ice"
+   },
+   "mass_resid_rel": -1.53859e-15,
+   "px": 6.51012e-05,
+   "py": 8.30317e-06,
+   "elem_resid_max_abs": 1.2268e-14,
+   "elem": {
+    "elem_Khí nhẹ_resid_rel": "-5.9182E-16",
+    "elem_Băng_resid_rel": "1.2268E-14",
+    "elem_Đá_resid_rel": "-2.87876E-16",
+    "elem_Kim loại_resid_rel": "3.29691E-15",
+    "elem_Carbon_resid_rel": "1.64781E-15",
+    "elem_Phóng xạ_resid_rel": "1.70292E-15"
+   }
+  },
+  "mass_resid_rel_maxabs_sampled": 4.85246e-15,
+  "elem_resid_rel_maxabs_sampled": 1.57917e-14,
+  "breaks_by_form_origin_host": {
+   "disc/belt_rock/compact": [
+    579,
+    0.020472761132045617
+   ],
+   "disc/planet/compact": [
+    2,
+    413.00003344511896
+   ],
+   "stream/belt_rock/compact": [
+    29,
+    0.0
+   ],
+   "stream/belt_rock/puller": [
+    2,
+    0.0
+   ],
+   "stream/belt_rock/sun": [
+    1,
+    0.0
+   ],
+   "stream/kuiper_ice/puller": [
+    1,
+    0.0
+   ],
+   "stream/moon/compact": [
+    1,
+    0.0
+   ],
+   "stream/planet/compact": [
+    2,
+    0.0
+   ],
+   "stream/saturn_ring_ice/puller": [
+    1,
+    0.0
+   ]
+  }
+ },
+ "on1002": {
+  "sun_into_compact_step_closure": [
+   201,
+   333333.3337952912
+  ],
+  "300": {
+   "live": 4687,
+   "merges": 23,
+   "disc": 570,
+   "ring": 0,
+   "stream": 35,
+   "disc_mass_E": 0.013002375206611993,
+   "disc_on_compact_E": 0.013002375206611993,
+   "accreted_E": 0.008047965653781665,
+   "compact_phase": "BlackHole",
+   "compact_mass_E": 800033.3418432571,
+   "compact_merges_closure": 1,
+   "compact_merges_events": 1,
+   "ambiguous": 0,
+   "compact_victim_E": 333333.33379529114,
+   "reservoir_E": 0.0,
+   "escaped_E": 0.05726962000253878,
+   "to_disc_by_origin": {
+    "belt_rock": 0.021050340860393653
+   },
+   "straight_fall_E": 6.703729009149854e-05,
+   "near": {
+    "total": 230,
+    "unbound": 0,
+    "out_hot": 230,
+    "out_cold": 0,
+    "in_hot": 0,
+    "in_cold": 0,
+    "rmax": "42.8454",
+    "rmax_body": "5:planet"
+   },
+   "mass_resid_rel": -6.2727e-15,
+   "px": 6.54661e-05,
+   "py": -5.6001e-05,
+   "elem_resid_max_abs": 1.01803e-14,
+   "elem": {
+    "elem_Khí nhẹ_resid_rel": "-1.18364E-16",
+    "elem_Băng_resid_rel": "1.01803E-14",
+    "elem_Đá_resid_rel": "1.00745E-15",
+    "elem_Kim loại_resid_rel": "9.89013E-16",
+    "elem_Carbon_resid_rel": "2.99592E-16",
+    "elem_Phóng xạ_resid_rel": "-2.31286E-15"
+   }
+  },
+  "1000": {
+   "live": 4685,
+   "merges": 23,
+   "disc": 571,
+   "ring": 0,
+   "stream": 36,
+   "disc_mass_E": 0.00895760116672514,
+   "disc_on_compact_E": 0.00895760116672514,
+   "accreted_E": 0.012139693975372422,
+   "compact_phase": "BlackHole",
+   "compact_mass_E": 800033.3459349861,
+   "compact_merges_closure": 1,
+   "compact_merges_events": 1,
+   "ambiguous": 0,
+   "compact_victim_E": 333333.3337952918,
+   "reservoir_E": 2.022377040552625e-06,
+   "escaped_E": 0.05726962000253878,
+   "to_disc_by_origin": {
+    "belt_rock": 0.021097295142097565
+   },
+   "straight_fall_E": 6.70372900914989e-05,
+   "near": {
+    "total": 175,
+    "unbound": 0,
+    "out_hot": 175,
+    "out_cold": 0,
+    "in_hot": 0,
+    "in_cold": 0,
+    "rmax": "42.8454",
+    "rmax_body": "5:planet"
+   },
+   "mass_resid_rel": -5.32587e-15,
+   "px": 7.19452e-05,
+   "py": -2.54318e-05,
+   "elem_resid_max_abs": 1.01803e-14,
+   "elem": {
+    "elem_Khí nhẹ_resid_rel": "-1.18364E-16",
+    "elem_Băng_resid_rel": "1.01803E-14",
+    "elem_Đá_resid_rel": "8.63527E-16",
+    "elem_Kim loại_resid_rel": "8.24177E-16",
+    "elem_Carbon_resid_rel": "5.99185E-16",
+    "elem_Phóng xạ_resid_rel": "-1.92738E-15"
+   }
+  },
+  "2000": {
+   "live": 4496,
+   "merges": 211,
+   "disc": 571,
+   "ring": 0,
+   "stream": 37,
+   "disc_mass_E": 0.007308098019763155,
+   "disc_on_compact_E": 0.007308098019763155,
+   "accreted_E": 0.013789197122334392,
+   "compact_phase": "BlackHole",
+   "compact_mass_E": 800033.3475844912,
+   "compact_merges_closure": 1,
+   "compact_merges_events": 1,
+   "ambiguous": 0,
+   "compact_victim_E": 333333.33379529376,
+   "reservoir_E": 95.20000202237705,
+   "escaped_E": 0.05726962000253878,
+   "to_disc_by_origin": {
+    "belt_rock": 0.021097295142097565
+   },
+   "straight_fall_E": 6.70372900914989e-05,
+   "near": {
+    "total": 110,
+    "unbound": 0,
+    "out_hot": 110,
+    "out_cold": 0,
+    "in_hot": 0,
+    "in_cold": 0,
+    "rmax": "42.8454",
+    "rmax_body": "5:planet"
+   },
+   "mass_resid_rel": -2.84047e-15,
+   "px": 5.7284e-05,
+   "py": -6.5163e-05,
+   "elem_resid_max_abs": 1.10939e-14,
+   "elem": {
+    "elem_Khí nhẹ_resid_rel": "-2.36728E-16",
+    "elem_Băng_resid_rel": "1.10939E-14",
+    "elem_Đá_resid_rel": "8.63527E-16",
+    "elem_Kim loại_resid_rel": "4.94506E-16",
+    "elem_Carbon_resid_rel": "1.04857E-15",
+    "elem_Phóng xạ_resid_rel": "-2.89107E-15"
+   }
+  },
+  "mass_resid_rel_maxabs_sampled": 7.92964e-15,
+  "elem_resid_rel_maxabs_sampled": 1.43568e-14,
+  "breaks_by_form_origin_host": {
+   "disc/belt_rock/compact": [
+    571,
+    0.021097295142097558
+   ],
+   "stream/belt_rock/compact": [
+    33,
+    0.0
+   ],
+   "stream/belt_rock/puller": [
+    1,
+    0.0
+   ],
+   "stream/moon/puller": [
+    1,
+    0.0123
+   ],
+   "stream/planet/compact": [
+    1,
+    0.0
+   ],
+   "stream/planet/puller": [
+    1,
+    0.0
+   ]
+  }
+ },
+ "on1011": {
+  "sun_into_compact_step_closure": [
+   201,
+   333333.33387505147
+  ],
+  "300": {
+   "live": 4618,
+   "merges": 16,
+   "disc": 585,
+   "ring": 0,
+   "stream": 32,
+   "disc_mass_E": 0.012676263130981007,
+   "disc_on_compact_E": 0.012676263130981007,
+   "accreted_E": 0.007111891538653934,
+   "compact_phase": "BlackHole",
+   "compact_mass_E": 800033.3409869423,
+   "compact_merges_closure": 1,
+   "compact_merges_events": 1,
+   "ambiguous": 0,
+   "compact_victim_E": 333333.33387505077,
+   "reservoir_E": 0.0,
+   "escaped_E": 0.056851125687653305,
+   "to_disc_by_origin": {
+    "belt_rock": 0.019788154669634957
+   },
+   "straight_fall_E": -8.2078719573517e-18,
+   "near": {
+    "total": 253,
+    "unbound": 0,
+    "out_hot": 253,
+    "out_cold": 0,
+    "in_hot": 0,
+    "in_cold": 0,
+    "rmax": "42.8454",
+    "rmax_body": "5:planet"
+   },
+   "mass_resid_rel": -4.73411e-15,
+   "px": 9.81805e-05,
+   "py": 5.76261e-05,
+   "elem_resid_max_abs": 2.15344e-14,
+   "elem": {
+    "elem_Khí nhẹ_resid_rel": "-1.302E-15",
+    "elem_Băng_resid_rel": "2.15344E-14",
+    "elem_Đá_resid_rel": "1.15156E-15",
+    "elem_Kim loại_resid_rel": "-6.59294E-16",
+    "elem_Carbon_resid_rel": "4.49477E-16",
+    "elem_Phóng xạ_resid_rel": "-1.87173E-16"
+   }
+  },
+  "1000": {
+   "live": 4611,
+   "merges": 22,
+   "disc": 585,
+   "ring": 0,
+   "stream": 33,
+   "disc_mass_E": 0.008792661310249627,
+   "disc_on_compact_E": 0.008792661310249627,
+   "accreted_E": 0.010995493359385294,
+   "compact_phase": "BlackHole",
+   "compact_mass_E": 800033.344870545,
+   "compact_merges_closure": 1,
+   "compact_merges_events": 1,
+   "ambiguous": 0,
+   "compact_victim_E": 333333.333875052,
+   "reservoir_E": 2.8053834642212776e-05,
+   "escaped_E": 0.056851125687653305,
+   "to_disc_by_origin": {
+    "belt_rock": 0.019788154669634957
+   },
+   "straight_fall_E": -8.2078719573517e-18,
+   "near": {
+    "total": 103,
+    "unbound": 0,
+    "out_hot": 103,
+    "out_cold": 0,
+    "in_hot": 0,
+    "in_cold": 0,
+    "rmax": "42.8454",
+    "rmax_body": "5:planet"
+   },
+   "mass_resid_rel": -3.55058e-15,
+   "px": 3.80091e-05,
+   "py": 4.31031e-05,
+   "elem_resid_max_abs": 2.15344e-14,
+   "elem": {
+    "elem_Khí nhẹ_resid_rel": "-1.302E-15",
+    "elem_Băng_resid_rel": "2.15344E-14",
+    "elem_Đá_resid_rel": "8.63673E-16",
+    "elem_Kim loại_resid_rel": "-6.59294E-16",
+    "elem_Carbon_resid_rel": "-2.99652E-16",
+    "elem_Phóng xạ_resid_rel": "3.74345E-16"
+   }
+  },
+  "2000": {
+   "live": 4605,
+   "merges": 27,
+   "disc": 585,
+   "ring": 0,
+   "stream": 34,
+   "disc_mass_E": 0.00719514892461421,
+   "disc_on_compact_E": 0.00719514892461421,
+   "accreted_E": 0.012593005745020718,
+   "compact_phase": "BlackHole",
+   "compact_mass_E": 800033.3464680581,
+   "compact_merges_closure": 1,
+   "compact_merges_events": 1,
+   "ambiguous": 0,
+   "compact_victim_E": 333333.3338750523,
+   "reservoir_E": 0.00013328589038157044,
+   "escaped_E": 0.056851125687653305,
+   "to_disc_by_origin": {
+    "belt_rock": 0.019788154669634957
+   },
+   "straight_fall_E": -8.2078719573517e-18,
+   "near": {
+    "total": 100,
+    "unbound": 0,
+    "out_hot": 100,
+    "out_cold": 0,
+    "in_hot": 0,
+    "in_cold": 0,
+    "rmax": "42.8454",
+    "rmax_body": "5:planet"
+   },
+   "mass_resid_rel": -2.84047e-15,
+   "px": 5.71987e-05,
+   "py": 2.71489e-05,
+   "elem_resid_max_abs": 2.15344e-14,
+   "elem": {
+    "elem_Khí nhẹ_resid_rel": "-1.302E-15",
+    "elem_Băng_resid_rel": "2.15344E-14",
+    "elem_Đá_resid_rel": "1.43945E-16",
+    "elem_Kim loại_resid_rel": "4.94471E-16",
+    "elem_Carbon_resid_rel": "-8.98955E-16",
+    "elem_Phóng xạ_resid_rel": "1.12304E-15"
+   }
+  },
+  "mass_resid_rel_maxabs_sampled": 6.2727e-15,
+  "elem_resid_rel_maxabs_sampled": 2.25785e-14,
+  "breaks_by_form_origin_host": {
+   "disc/belt_rock/compact": [
+    585,
+    0.019788154669634957
+   ],
+   "stream/belt_rock/compact": [
+    30,
+    0.0
+   ],
+   "stream/belt_rock/puller": [
+    1,
+    0.0
+   ],
+   "stream/belt_rock/sun": [
+    1,
+    0.0
+   ],
+   "stream/kuiper_ice/puller": [
+    1,
+    0.0
+   ],
+   "stream/planet/compact": [
+    1,
+    0.0
+   ]
+  }
+ },
+ "item6_seed1234_on": {
+  "count_total": 37,
+  "count_le1000": 33,
+  "steps": [
+   [
+    151,
+    2
+   ],
+   [
+    152,
+    1
+   ],
+   [
+    154,
+    2
+   ],
+   [
+    155,
+    1
+   ],
+   [
+    156,
+    2
+   ],
+   [
+    159,
+    1
+   ],
+   [
+    161,
+    1
+   ],
+   [
+    164,
+    1
+   ],
+   [
+    165,
+    1
+   ],
+   [
+    167,
+    3
+   ],
+   [
+    171,
+    2
+   ],
+   [
+    172,
+    2
+   ],
+   [
+    173,
+    3
+   ],
+   [
+    178,
+    3
+   ],
+   [
+    179,
+    1
+   ],
+   [
+    181,
+    1
+   ],
+   [
+    182,
+    1
+   ],
+   [
+    183,
+    2
+   ],
+   [
+    184,
+    1
+   ],
+   [
+    186,
+    1
+   ],
+   [
+    187,
+    1
+   ],
+   [
+    1210,
+    1
+   ],
+   [
+    1321,
+    1
+   ],
+   [
+    1480,
+    1
+   ],
+   [
+    1946,
+    1
+   ]
+  ],
+  "origin": {
+   "belt_rock": 32,
+   "planet": 2,
+   "moon": 1,
+   "saturn_ring_ice": 1,
+   "kuiper_ice": 1
+  },
+  "host": {
+   "compact": 32,
+   "sun": 1,
+   "puller": 4
+  },
+  "origin_class": {
+   "direct": 37
+  },
+  "fully_unbound": 37,
+  "partly_bound": 0,
+  "fully_bound": 0,
+  "source_mass_E_sum": 1.0691234994365888,
+  "captured_E_sum": 0.0,
+  "escaped_E_sum": 1.0690341176214255,
+  "source_mass_E_min": 6.034941933529422e-07,
+  "source_mass_E_max": 1.0,
+  "est_excess_over_vapor": [
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN",
+   "NaN"
+  ],
+  "est_spec": [
+   "0.0235498",
+   "0.0642871",
+   "0.0304678",
+   "0.0973517",
+   "0.0689234",
+   "0.0527571",
+   "0.132174",
+   "0.0230491",
+   "0.123452",
+   "0.229379",
+   "0.231224",
+   "0.19924",
+   "0.185336",
+   "0.260949",
+   "0.252424",
+   "0.32133",
+   "0.34679",
+   "0.535674",
+   "0.40144",
+   "0.40721",
+   "0.396426",
+   "0.379278",
+   "0.605143",
+   "0.501694",
+   "0.560279",
+   "0.649313",
+   "0.657236",
+   "0.7266",
+   "0.800337",
+   "0.654588",
+   "0.762348",
+   "1.13071",
+   "0.394557",
+   "4.98241",
+   "14.297",
+   "5.27103",
+   "0.517307"
+  ]
+ }
+}

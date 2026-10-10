@@ -1,0 +1,1 @@
+control seed 1011 steps 2000 hash B3F1FCEAF8CF946E wall 10.9s threads 1

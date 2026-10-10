@@ -1,0 +1,7 @@
+seed 1234 (p0-disc-v3) DiscOn 1 steps 2000 threads 1 hash E61F2D098E77ECFB wall 9.7s
+start live 5251, end live 4594, capacity 5512
+breaks cumulative (direct): disc 581 ring 0 stream 37
+disc mass end (direct) 253.91 E; accreted (direct) 159.11 E; to-disc on compact (direct) 413.021 E; straight fall (closure) 0.000126864 E
+to-disc by source origin (direct, E): belt_rock=0.0204728 kuiper_ice=0 saturn_ring_ice=0 moon=0 planet=413 sun=0 compact=0 other=0 unknown=0
+compact merges: events(direct, victims>=AttractMass) 1; closure 1; ambiguous steps 0; victim mass (closure) 333333 E
+streams: 37

@@ -1,0 +1,21 @@
+seed 1002 (p0-probe-v2) steps after NS drop 2000, threads 1, hash 62E6E99BD58D1D3B, wall 14.1s
+belt initial (direct): objects 5240, mass 2.5479027122861975E-05
+global conservation per step (direct): max |dM_alive + dEscaped + dReservoir| = 9.57611658132205E-13, sum = -9.010650262438684E-13
+roche events 1535 (direct), zero-fragment-alive-at-step-end events 1067, in-step-born sources 514, reservoir mapping failures 0
+in-step lost fragment mass (closure, destination per compact closure below): total 2.5055992632964306E-11, steps with loss 83
+rock deaths (direct) 513; belt rock deaths into compact by closure 4; belt rock deaths unresolved 0; puller deaths 1
+compact closure steps: resolved into compact 1, no compact gain 54, unresolved (ambiguous/no-subset/too-many/closure-fail/compact-changed) 1; steps where all puller gains != all deaths (closure fail) 1; max |step closure| 2.1945716408700067E-11
+compact dM direct 50.000000096840836 = puller merges (Events, direct) 50.000000093585705 + rocks (closure) 2.6817578399601224E-09 + in-step lost (closure) 0 + unexplained 0; remainder 5.73373435676691E-10
+belt -> compact: closure 2.6817578399601224E-09 (rocks) + 0 (in-step lost) + 9.302292507594716E-08 (carried by a puller that later merged into compact) vs round-1 heuristic est 3.3293794429934495E-09
+belt deaths below rounding (unknown destination): 311 occupants, mass 1.1392855131946602E-09; belt to other pullers with unknown split 0; tiny deaths in steps where only the compact gained mass (compact or Kill, unresolvable): belt 5.734054358871733E-10, all 5.734054358871733E-10
+observed approach (direct, at step boundaries, all non-pulling objects): min r 1.33081 Rc at step 146; distinct occupants ever < 1000 Rc: 22, < 100 Rc: 2, < 10 Rc: 2
+periapsis passed between boundaries (est, two-body q at step start): count 51199, min 296.533 Rc at step 202, with q < 1000 Rc: 8
+belt rocks merged into compact by closure: start-of-step distance 19608.5..24942.3 Rc
+hooks missing (unknown until added; not added in this round):
+  - merge target per rock: Merge(a,b) (core/World.cs:209-232) increments Merges but logs only victims >= AttractMass (core/World.cs:225); a hook (victim slot, gen, survivor slot, gen, mass, substep) is needed to replace mass-closure attribution
+  - substep positions: Advance runs Sub=8 slices (core/World.cs:30, :307); no per-substep callback, so closest approach inside a step is unobserved
+  - fragments born and dead in one step: BreakRoche Add (core/Roche.cs:401) and a later Merge/Kill in the same Advance leave no record; the RocheDisruption record has no fragment count/mass (core/Roche.cs:33-34)
+  - Kill vs merge for rocks: Kill (core/Commands.cs:155-159) after EscapeRole (core/Escape.cs:45) does not record source/cause in EscapedTransfers (core/Escape.cs:30-46)
+  - Roche reservoir entries carry no event id (core/Roche.cs:31-32, :296-300); mapping to RocheDisruption is by append order
+puller log:
+step 201: puller slot 0 gen 1 m_at_merge=333333 Earth (pre-step 333333) -> compact slot 5250 (Events, direct); belt mass it carried by closure 9.302292507594716E-08; gained in-step before merging 3.2551312756368134E-09
