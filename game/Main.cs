@@ -603,14 +603,19 @@ public partial class Main : Node2D
         if (_zones) DrawZones();
 
         // Orbit lines
+        Vector2 view = GetViewportRect().Size;
         for (int i = 0; i < _w.N; i++)
         {
             int par = _w.Par[i];
             if (!_w.Alive[i] || par < 0 || par >= _w.N || !_w.Alive[par]) continue;
+            // rocks and debris get no orbit line of their own (thousands of 128-point arcs once zoomed in)
+            if (!_w.Attracts(i) && i != _sel) continue;
             double dx = _w.X[i] - _w.X[par], dy = _w.Y[i] - _w.Y[par];
             float rad = (float)(Math.Sqrt(dx * dx + dy * dy) * _zoom);
             if (rad < 6) continue;
-            DrawSetTransform(Screen(par), 0, new Vector2(1, _tilt));
+            Vector2 c = Screen(par);
+            if (c.X + rad < 0 || c.X - rad > view.X || c.Y + rad < 0 || c.Y - rad > view.Y) continue;
+            DrawSetTransform(c, 0, new Vector2(1, _tilt));
             DrawArc(Vector2.Zero, rad, 0, MathF.Tau, 128, new Color(1, 1, 1, 0.10f), 1);
         }
         if (Live(_sel) && _w.Attracts(_sel) && _w.KindOf(_sel) != Kind.Star)
