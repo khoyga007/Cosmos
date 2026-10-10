@@ -54,7 +54,7 @@ public partial class Main : Node2D
 
     double _stepMs, _fillMs;
     int _bench; double _benchT; int _benchFrames;
-    bool _selftest, _uitest, _discProbe;
+    bool _selftest, _uitest, _discProbe, _beltProbe;
     bool _probeLogged04, _probeLogged10;
     static readonly Color DiscHotCol = new(1f, 0.96f, 0.75f);
     static readonly Color DiscCoolCol = new(0.95f, 0.28f, 0.1f);
@@ -62,6 +62,33 @@ public partial class Main : Node2D
     int _rocks;
     const int Stride = 12;
     const double CosmicK = 10000; // [P] Yang trial 10/10: years shown per Earth orbit; 1 = real
+
+    const int BeltDots = 5000;
+    const int BeltMaxDots = 10000;
+    MultiMesh _beltMm = null!;
+    float[] _beltBuf = null!;
+    struct BeltDot
+    {
+        public int Host;
+        public double Radius;
+        public double Phase0;
+        public double Omega;
+        public Color Col;
+    }
+    readonly BeltDot[] _beltDots = new BeltDot[BeltMaxDots];
+    int _beltDotCount;
+    struct BeltDiscRange
+    {
+        public int Host;
+        public double MaxRadius;
+        public int StartDot;
+        public int DotCount;
+    }
+    readonly BeltDiscRange[] _beltRanges = new BeltDiscRange[16];
+    int _beltRangeCount;
+    int _cachedBeltDiscCount = -1;
+    double _cachedBeltTotal;
+    int _cachedBeltCells;
 
     static readonly Color[] ElemCol = Array.ConvertAll(ElementCatalog.Colours, c => new Color(((c >> 16) & 255) / 255f, ((c >> 8) & 255) / 255f, (c & 255) / 255f));
     static readonly Color AimCol = new(1f, 0.9f, 0.2f, 0.95f);
@@ -76,12 +103,13 @@ public partial class Main : Node2D
             if (a == "--selftest") _selftest = true;
             if (a == "--uitest") _uitest = true;
             if (a == "--disc-probe") _discProbe = true;
+            if (a == "--belt-probe") _beltProbe = true;
             if (a.StartsWith("--rocks=")) rocks = int.Parse(a[8..]);
             if (a.StartsWith("--bench=")) _bench = int.Parse(a[8..]);
             if (a.StartsWith("--belt-bodies=")) beltBodies = int.Parse(a[14..]);
         }
 
-        if (_uitest || _discProbe)
+        if (_uitest || _discProbe || _beltProbe || _bench > 0)
         {
             GetTree().Root.Size = new Vector2I(1280, 800);
         }
@@ -109,6 +137,7 @@ public partial class Main : Node2D
             // trial: one Earth orbit counts as CosmicK years, so stars age and life moves while you watch
             if (!_uitest) _w.Do(new Command(CmdKind.SetConst, Name: "YearTime", Amount: _w.C.YearTime / CosmicK));
             // trial: the small tail of both belts becomes one cold disc of the Sun; not drawn as rocks yet
+            if (_beltProbe && beltBodies < 0) beltBodies = 40;
             if (beltBodies >= 0)
             {
                 int sun = 0;
@@ -123,6 +152,15 @@ public partial class Main : Node2D
         _buf = new float[cap * Stride];
         for (int i = 0; i < cap; i++) { _buf[i * Stride] = 1; _buf[i * Stride + 5] = 1; _buf[i * Stride + 11] = 1; }
         AddChild(new MultiMeshInstance2D { Multimesh = _mm, Modulate = new Color(1, 1, 1, 0.8f), Material = new CanvasItemMaterial { BlendMode = CanvasItemMaterial.BlendModeEnum.Add } });
+
+        InitBeltMultiMesh();
+
+        if (_beltProbe)
+        {
+            SetProcess(false);
+            RunBeltProbe();
+            return;
+        }
 
         var layer = new CanvasLayer(); AddChild(layer);
         _hud = new Label { Position = new Vector2(12, 8), MouseFilter = Control.MouseFilterEnum.Ignore }; layer.AddChild(_hud);
@@ -374,6 +412,7 @@ public partial class Main : Node2D
         for (int di = 0; di < _w.Discs.Count; di++)
         {
             var d = _w.Discs[di];
+            if (d.Cold) continue;
             int host = d.Host;
             if (host < 0 || host >= _w.N || !_w.Alive[host] || !(d.Total > 0) || d.Cells <= 0) continue;
 
@@ -437,6 +476,265 @@ public partial class Main : Node2D
             }
             DrawSetTransform(Vector2.Zero);
         }
+    }
+
+    static ulong HashDot(int host, int cell, int dotIdx)
+    {
+        ulong h = 0x9E3779B97F4A7C15UL;
+        h ^= (ulong)(host + 1) * 0x517cc1b727220a95UL;
+        h ^= (ulong)(cell + 1) * 0x9e3779b97f4a7c15UL;
+        h ^= (ulong)(dotIdx + 1) * 0x3141592653589793UL;
+        h = (h ^ (h >> 30)) * 0xbf58476d1ce4e5b9UL;
+        h = (h ^ (h >> 27)) * 0x94d049bb133111ebUL;
+        return h ^ (h >> 31);
+    }
+
+    void InitBeltMultiMesh()
+    {
+        _beltMm = new MultiMesh
+        {
+            TransformFormat = MultiMesh.TransformFormatEnum.Transform2D,
+            UseColors = true,
+            Mesh = new QuadMesh { Size = new Vector2(2.5f, 2.5f) },
+            InstanceCount = BeltMaxDots
+        };
+        _beltBuf = new float[BeltMaxDots * Stride];
+        for (int i = 0; i < BeltMaxDots; i++)
+        {
+            int o = i * Stride;
+            _beltBuf[o] = 1f;
+            _beltBuf[o + 5] = 1f;
+            _beltBuf[o + 11] = 1f;
+        }
+        AddChild(new MultiMeshInstance2D
+        {
+            Multimesh = _beltMm,
+            Modulate = new Color(1, 1, 1, 0.8f),
+            Material = new CanvasItemMaterial { BlendMode = CanvasItemMaterial.BlendModeEnum.Add }
+        });
+    }
+
+    void UpdateBeltDotsIfNeeded()
+    {
+        if (_w == null) return;
+        int coldDiscs = 0;
+        int totalCells = 0;
+        double totalColdMass = 0;
+        for (int di = 0; di < _w.Discs.Count; di++)
+        {
+            var d = _w.Discs[di];
+            if (!d.Cold || d.Host < 0 || d.Host >= _w.N || !_w.Alive[d.Host] || !(d.Total > 0)) continue;
+            coldDiscs++;
+            totalCells += d.Cells;
+            totalColdMass += d.Total;
+        }
+
+        if (_cachedBeltDiscCount == coldDiscs &&
+            _cachedBeltCells == totalCells &&
+            Math.Abs(totalColdMass - _cachedBeltTotal) <= 0.01 * Math.Max(_cachedBeltTotal, 1e-12))
+        {
+            return;
+        }
+
+        _cachedBeltDiscCount = coldDiscs;
+        _cachedBeltCells = totalCells;
+        _cachedBeltTotal = totalColdMass;
+        _beltDotCount = 0;
+        _beltRangeCount = 0;
+
+        if (coldDiscs == 0 || totalColdMass <= 0) return;
+
+        double g = _w.C.G;
+        for (int di = 0; di < _w.Discs.Count; di++)
+        {
+            var d = _w.Discs[di];
+            if (!d.Cold || d.Host < 0 || d.Host >= _w.N || !_w.Alive[d.Host] || !(d.Total > 0) || d.Cells <= 0) continue;
+
+            int host = d.Host;
+            double discTotal = d.Total;
+            int cells = d.Cells;
+            double hostMass = _w.M[host];
+            int startDot = _beltDotCount;
+
+            for (int k = 0; k < cells; k++)
+            {
+                double cellMass = _w.DiscCellMass(d, k);
+                if (cellMass <= 0) continue;
+
+                int cellDots = (int)Math.Round(BeltDots * (cellMass / discTotal));
+                if (cellDots <= 0) continue;
+                if (_beltDotCount + cellDots > BeltMaxDots)
+                    cellDots = BeltMaxDots - _beltDotCount;
+                if (cellDots <= 0) break;
+
+                double rIn = _w.DiscCellRadius(d, k);
+                double rOut = (k + 1 < cells) ? _w.DiscCellRadius(d, k + 1) : rIn * Math.Sqrt(2.0);
+
+                Color cellCol = new Color(0, 0, 0, 1);
+                for (int e = 0; e < _w.ElementCount && e < World.NElem; e++)
+                {
+                    double matter = _w.DiscCellMatter(d, k, e);
+                    cellCol += ElemCol[e] * (float)(matter / cellMass);
+                }
+
+                for (int j = 0; j < cellDots; j++)
+                {
+                    ulong h = HashDot(host, k, j);
+                    uint u1 = (uint)h;
+                    uint u2 = (uint)(h >> 32);
+                    double fracR = (u1 + 0.5) / 4294967296.0;
+                    double fracPhi = (u2 + 0.5) / 4294967296.0;
+
+                    double r = rIn + fracR * (rOut - rIn);
+                    double pha0 = fracPhi * Math.Tau;
+                    double omega = d.Sense * Math.Sqrt(g * hostMass / (r * r * r));
+
+                    float jitter = (((int)(h >> 16) & 255) - 128) / 128.0f * 0.08f;
+                    Color col = new Color(
+                        Math.Clamp(cellCol.R + jitter, 0f, 1f),
+                        Math.Clamp(cellCol.G + jitter, 0f, 1f),
+                        Math.Clamp(cellCol.B + jitter, 0f, 1f),
+                        1f
+                    );
+
+                    _beltDots[_beltDotCount++] = new BeltDot
+                    {
+                        Host = host,
+                        Radius = r,
+                        Phase0 = pha0,
+                        Omega = omega,
+                        Col = col
+                    };
+                }
+            }
+
+            int count = _beltDotCount - startDot;
+            if (count > 0 && _beltRangeCount < _beltRanges.Length)
+            {
+                _beltRanges[_beltRangeCount++] = new BeltDiscRange
+                {
+                    Host = host,
+                    MaxRadius = _w.DiscCellRadius(d, cells - 1) * Math.Sqrt(2.0),
+                    StartDot = startDot,
+                    DotCount = count
+                };
+            }
+        }
+    }
+
+    void UpdateBeltMultiMesh()
+    {
+        if (_w == null || _beltMm == null) return;
+        UpdateBeltDotsIfNeeded();
+
+        if (_beltDotCount == 0 || _beltRangeCount == 0)
+        {
+            _beltMm.VisibleInstanceCount = 0;
+            return;
+        }
+
+        Vector2 vpSize = GetViewportRect().Size;
+        double t = _w.Year * _w.C.YearTime;
+        int visibleCount = 0;
+
+        for (int ri = 0; ri < _beltRangeCount; ri++)
+        {
+            ref readonly var range = ref _beltRanges[ri];
+            int host = range.Host;
+            if (host < 0 || host >= _w.N || !_w.Alive[host]) continue;
+
+            Vector2 hostScreen = Screen(host);
+            float screenMaxR = (float)(range.MaxRadius * _zoom);
+
+            if (hostScreen.X + screenMaxR < 0 || hostScreen.X - screenMaxR > vpSize.X ||
+                hostScreen.Y + screenMaxR < 0 || hostScreen.Y - screenMaxR > vpSize.Y ||
+                screenMaxR < 4f)
+            {
+                continue;
+            }
+
+            int end = range.StartDot + range.DotCount;
+            for (int j = range.StartDot; j < end; j++)
+            {
+                ref readonly BeltDot dot = ref _beltDots[j];
+                double theta = dot.Phase0 + dot.Omega * t;
+                var (sinT, cosT) = Math.SinCos(theta);
+                float sx = hostScreen.X + (float)(dot.Radius * cosT * _zoom);
+                float sy = hostScreen.Y + (float)(dot.Radius * sinT * _zoom * _tilt);
+
+                int o = visibleCount++ * Stride;
+                _beltBuf[o + 3] = sx;
+                _beltBuf[o + 7] = sy;
+                _beltBuf[o + 8] = dot.Col.R;
+                _beltBuf[o + 9] = dot.Col.G;
+                _beltBuf[o + 10] = dot.Col.B;
+            }
+        }
+
+        _beltMm.VisibleInstanceCount = visibleCount;
+        RenderingServer.MultimeshSetBuffer(_beltMm.GetRid(), _beltBuf);
+    }
+
+    void RunBeltProbe()
+    {
+        for (int k = 0; k < 100; k++) _w.Advance(0.5);
+
+        int coldDiscs = 0;
+        for (int di = 0; di < _w.Discs.Count; di++)
+        {
+            if (_w.Discs[di].Cold) coldDiscs++;
+        }
+
+        UpdateBeltDotsIfNeeded();
+        int dotsBuilt = _beltDotCount;
+
+        // Measure zoom 1: toàn hệ (0.75f)
+        _zoom = 0.75f;
+        int sun = _w.Heaviest();
+        if (sun >= 0) { _cx = _w.X[sun]; _cy = _w.Y[sun]; }
+
+        UpdateBeltMultiMesh();
+
+        int iters = 200;
+        long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+        for (int i = 0; i < iters; i++)
+        {
+            UpdateBeltMultiMesh();
+        }
+        long t1 = System.Diagnostics.Stopwatch.GetTimestamp();
+        double ms075 = (t1 - t0) * (1000.0 / System.Diagnostics.Stopwatch.Frequency) / iters;
+
+        // Measure zoom 2: sát vành tiểu hành tinh (15.0f)
+        _zoom = 15.0f;
+        if (sun >= 0) { _cx = _w.X[sun] + 2.8; _cy = _w.Y[sun]; }
+        UpdateBeltMultiMesh();
+
+        long t2 = System.Diagnostics.Stopwatch.GetTimestamp();
+        for (int i = 0; i < iters; i++)
+        {
+            UpdateBeltMultiMesh();
+        }
+        long t3 = System.Diagnostics.Stopwatch.GetTimestamp();
+        double ms15 = (t3 - t2) * (1000.0 / System.Diagnostics.Stopwatch.Frequency) / iters;
+
+        // Checksum first 100 dots at zoom 0.75, cx=X[sun], cy=Y[sun]
+        _zoom = 0.75f;
+        if (sun >= 0) { _cx = _w.X[sun]; _cy = _w.Y[sun]; }
+        UpdateBeltMultiMesh();
+
+        ulong checksum = 14695981039346656037UL;
+        int checkN = Math.Min(100, _beltDotCount);
+        for (int i = 0; i < checkN; i++)
+        {
+            int o = i * Stride;
+            uint bx = BitConverter.SingleToUInt32Bits(_beltBuf[o + 3]);
+            uint by = BitConverter.SingleToUInt32Bits(_beltBuf[o + 7]);
+            checksum = (checksum ^ bx) * 1099511628211UL;
+            checksum = (checksum ^ by) * 1099511628211UL;
+        }
+
+        GD.Print($"BELT-PROBE cold_discs={coldDiscs} dots_built={dotsBuilt} ms_zoom_0.75={ms075:F4} ms_zoom_15.0={ms15:F4} checksum_100={checksum:X16}");
+        GetTree().Quit(0);
     }
 
     Color MixCol(int i)
@@ -526,7 +824,8 @@ public partial class Main : Node2D
         long t2 = System.Diagnostics.Stopwatch.GetTimestamp();
 
         _fillMs += ((t2 - t1) * f - _fillMs) * 0.05;
-        _hud.Text = $"Năm {_w.Year:N1}   {(_paused ? "TẠM DỪNG" : $"tốc độ {_timeWarp}×")}   {_w.Live} vật thể ({attract} có lực hút)   va chạm {_w.Merges}   {Engine.GetFramesPerSecond():F0} fps";
+        UpdateBeltMultiMesh();
+        _hud.Text = $"Năm {_w.Year:N1}   {(_paused ? "TẠM DỪNG" : $"tốc độ {_timeWarp}×")}   {_w.Live} vật thể ({attract} có lực hút)   va chạm {_w.Merges}{(_beltDotCount > 0 ? $"   + {_beltDotCount} chấm vành đai" : "")}   {Engine.GetFramesPerSecond():F0} fps";
         if (_frame++ % 15 == 0)
         {
             _panel.Text = PanelText();
@@ -576,8 +875,18 @@ public partial class Main : Node2D
         int i = _sel; double m = _w.M[i];
         sb.Append($"[b]{NameOf(i)}[/b]   {(_w.IsShip(i) ? "Tàu vũ trụ" : GodUi.KindName(_w, i))}{(_follow == i ? "   [color=#9aa4c0](đang bám theo)[/color]" : "")}\n");
         sb.Append($"khối lượng {m / World.EarthMass:G4} Trái Đất   bán kính {_w.R[i]:G3}\n");
-        double discMass = _w.DiscMassOn(i);
-        if (discMass > 0) sb.Append($"Đĩa khí: {discMass / World.EarthMass:G4} Trái Đất\n");
+        double gasDiscMass = 0, coldBeltMass = 0;
+        for (int di = 0; di < _w.Discs.Count; di++)
+        {
+            var d = _w.Discs[di];
+            if (d.Host == i)
+            {
+                if (d.Cold) coldBeltMass += d.Total;
+                else gasDiscMass += d.Total;
+            }
+        }
+        if (gasDiscMass > 0) sb.Append($"Đĩa khí: {gasDiscMass / World.EarthMass:G4} Trái Đất\n");
+        if (coldBeltMass > 0) sb.Append($"Vành đai: {coldBeltMass / World.EarthMass:G4} Trái Đất\n");
         if (_w.IsShip(i))
         {
             int to = _w.ShipTo[i], from = _w.ShipFrom[i];

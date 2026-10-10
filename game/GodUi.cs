@@ -666,8 +666,19 @@ public partial class GodUi : CanvasLayer
         }
         _objBody.Visible = true;
         double m = _w.M[i];
-        double discMass = _w.DiscMassOn(i);
-        _lblTarget.Text = $"{_w.Name[i] ?? $"Vật thể #{i}"} — {KindVi[(int)_w.KindOf(i)]}, {m / World.EarthMass:G4} Trái Đất{(discMass > 0 ? $"\nĐĩa khí: {discMass / World.EarthMass:G4} Trái Đất" : "")}";
+        double gasDiscMass = 0, coldBeltMass = 0;
+        for (int di = 0; di < _w.Discs.Count; di++)
+        {
+            var d = _w.Discs[di];
+            if (d.Host == i)
+            {
+                if (d.Cold) coldBeltMass += d.Total;
+                else gasDiscMass += d.Total;
+            }
+        }
+        string discLines = (gasDiscMass > 0 ? $"\nĐĩa khí: {gasDiscMass / World.EarthMass:G4} Trái Đất" : "") +
+                           (coldBeltMass > 0 ? $"\nVành đai: {coldBeltMass / World.EarthMass:G4} Trái Đất" : "");
+        _lblTarget.Text = $"{_w.Name[i] ?? $"Vật thể #{i}"} — {KindVi[(int)_w.KindOf(i)]}, {m / World.EarthMass:G4} Trái Đất{discLines}";
         for (int e = 0; e < World.NElem; e++) _elemLabels[e].Text = $"{100 * _w.Comp[i * World.NElem + e] / m:F1}%";
         bool world = _w.IsWorld(i);
         _sliderSeed.Editable = world; _btnSeed.Disabled = !world; _btnWipe.Disabled = !world || _w.Life[i] <= 0;
