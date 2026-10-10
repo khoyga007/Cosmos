@@ -215,8 +215,18 @@ public sealed partial class World
         double firstMass = M[k], secondMass = M[d];
         MergeStars(k, d);
         double m = M[k] + M[d];
-        X[k] = (X[k] * M[k] + X[d] * M[d]) / m; Y[k] = (Y[k] * M[k] + Y[d] * M[d]) / m;
-        Vx[k] = (Vx[k] * M[k] + Vx[d] * M[d]) / m; Vy[k] = (Vy[k] * M[k] + Vy[d] * M[d]) / m;
+        if (_discs.Count == 0)
+        {
+            X[k] = (X[k] * M[k] + X[d] * M[d]) / m; Y[k] = (Y[k] * M[k] + Y[d] * M[d]) / m;
+            Vx[k] = (Vx[k] * M[k] + Vx[d] * M[d]) / m; Vy[k] = (Vy[k] * M[k] + Vy[d] * M[d]) / m;
+        }
+        else
+        {
+            // a disc rides on its host and passes to the survivor: it weighs in the shared motion
+            double wk = M[k] + DiscMassOn(k), wd = M[d] + DiscMassOn(d), sum = wk + wd;
+            X[k] = (X[k] * wk + X[d] * wd) / sum; Y[k] = (Y[k] * wk + Y[d] * wd) / sum;
+            Vx[k] = (Vx[k] * wk + Vx[d] * wd) / sum; Vy[k] = (Vy[k] * wk + Vy[d] * wd) / sum;
+        }
         for (int e = 0; e < ElementCount; e++) Comp[k * ElementCount + e] += Comp[d * ElementCount + e];
         Impact(k, M[d] / M[k]);
         M[k] = m; SetRadius(k);

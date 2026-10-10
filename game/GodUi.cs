@@ -836,8 +836,16 @@ public partial class GodUi : CanvasLayer
         {
             if (e.Change == "roche.ring")
                 return $"{yr}[color=#ffaa44]lực thuỷ triều xé vật thể ({e.A / World.EarthMass:G3} Trái Đất), bắt giữ {e.B / World.EarthMass:G3} Trái Đất thành vành đai[/color] (sinh {e.C:N0} mảnh).";
+            if (e.Change == "roche.disc")
+                return $"{yr}[color=#ffaa44]lực thuỷ triều xé vật thể ({e.A / World.EarthMass:G3} Trái Đất), {e.B / World.EarthMass:G3} Trái Đất bốc hơi thành đĩa khí nóng quanh nó[/color].";
             if (e.Change == "roche.stream")
                 return $"{yr}[color=#ffaa44]lực thuỷ triều xé vật thể ({e.A / World.EarthMass:G3} Trái Đất) thành dòng mảnh vụn[/color] (sinh {e.C:N0} mảnh).";
+        }
+
+        if (e.RuleId == "disc")
+        {
+            if (e.Change == "disc.form") return $"{yr}[color=#ffcc66]đĩa khí nóng hình thành quanh nó[/color] ({e.A / World.EarthMass:G3} Trái Đất).";
+            if (e.Change == "disc.spent") return $"{yr}[color=#ffcc66]đã nuốt hết đĩa khí[/color] ({e.A / World.EarthMass:G3} Trái Đất).";
         }
 
         return $"{yr}[{e.RuleId}] {e.Change}";

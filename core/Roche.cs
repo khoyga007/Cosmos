@@ -327,7 +327,8 @@ public sealed partial class World
     void BreakRoche(int i, int p)
     {
         if (!Alive[i] || !Alive[p]) return;
-        double mass = M[i], pm = M[p], x = X[i], y = Y[i], vx = Vx[i], vy = Vy[i]; int generation = Gen[i];
+        // the host's disc pulls and moves with it, so it counts in the host's mass here
+        double mass = M[i], pm = M[p] + DiscMassOn(p), x = X[i], y = Y[i], vx = Vx[i], vy = Vy[i]; int generation = Gen[i];
         double dx = x - X[p], dy = y - Y[p], r = Math.Sqrt(dx * dx + dy * dy), ux = vx - Vx[p], uy = vy - Vy[p];
         // Individual debris binds to the host, without counting the destroyed body's mass as a central attractor.
         double mu = C.G * pm, kinetic = (ux * ux + uy * uy) / 2, specific = kinetic - mu / r, h = dx * uy - dy * ux;
@@ -368,6 +369,10 @@ public sealed partial class World
         double beforeEnergy = reduced * (ux * ux + uy * uy) / 2 - C.G * pm * captured / capturedRadius;
         double circularEnergy = circular > 0 ? -C.G * pm * captured / (2 * circular) : double.PositiveInfinity;
         bool ring = captured > 0 && circular > R[p] && circular < roche && circularEnergy <= beforeEnergy;
+        // Heat Law: bound debris that must shed more than the vapour energy to settle on its circular orbit is hot gas
+        // wherever that orbit lies (inside the host = straight in; outside the Roche limit = a wide disc). A returning
+        // stream crosses itself at its closest point and settles there; the settling itself is not followed.
+        if (C.DiscOn != 0 && captured > 0 && circular > 0 && beforeEnergy - circularEnergy >= C.DiscVaporEnergy * captured) ring = true;
         double fragmentMass = StableRocheFragmentMass(i, p, ring ? circular : capturedRadius,
             Math.Min(C.RocheFragmentMass, C.AttractMass * .5));
         double represented = Math.Min(captured, count * fragmentMass);
@@ -411,8 +416,8 @@ public sealed partial class World
         if (toDisc) DepositDisc(p, remaining, angular / captured);
         else Reservoir(p, centerX, centerY, unresolved, centerVx, centerVy, ring ? angular * (unresolved / captured) : 0, remaining);
         RocheDissipatedEnergy += dissipated;
-        _rocheDisruptions.Add(new(Year, i, generation, p, Gen[p], group, ring ? "ring" : "stream", mass, captured, leavesSystem ? unbound : 0, dissipated));
-        LogEvent(p, "roche", ring ? "roche.ring" : "roche.stream", mass, captured, count);
+        _rocheDisruptions.Add(new(Year, i, generation, p, Gen[p], group, toDisc ? "disc" : ring ? "ring" : "stream", mass, captured, leavesSystem ? unbound : 0, dissipated));
+        LogEvent(p, "roche", toDisc ? "roche.disc" : ring ? "roche.ring" : "roche.stream", mass, captured, count);
     }
 
     void HashRoche(Action<ulong> mix)

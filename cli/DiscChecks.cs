@@ -48,6 +48,42 @@ static class DiscChecks
 
     static bool Close(double a, double b, double tolerance) => Math.Abs(a - b) <= tolerance * Math.Max(Math.Abs(a), Math.Abs(b));
 
+    // Yang's playtest scene (2026-10-08): stock Sol, a neutron star dropped beside it. Same run with the law on and
+    // off; numbers only, no verdict. `cli -- disc-p0 [steps]`.
+    public static void P0(int steps)
+    {
+        foreach (double on in new[] { 1.0, 0.0 })
+        {
+            var w = World.SolSystem(5000, 1234);
+            w.C.DiscOn = on;
+            for (int k = 0; k < 96; k++) w.Advance(.5);
+            int ns = w.Do(new Command(CmdKind.Create, X: 100, Amount: 466700 * World.EarthMass, Mix: w.Mix(("gas", 1))));
+            double birth = 10 * w.C.StarSolarMass, end = 1 + w.C.StarGiantFraction;
+            w.Do(new Command(CmdKind.SetStarState, Target: ns, StarState: new StellarState(w.StarLifetime(birth) * end, end, birth)));
+            double startMass = 0; for (int i = 0; i < w.N; i++) if (w.Alive[i]) startMass += w.M[i];
+            startMass += w.EscapedMass;
+            Console.WriteLine($"disc-p0 law {(on != 0 ? "ON" : "OFF")}: start live {w.Live}, capacity {w.X.Length}");
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            int mark = Math.Max(1, steps / 10);
+            for (int step = 1; step <= steps; step++)
+            {
+                w.Advance(.5);
+                if (step % mark != 0) continue;
+                int ring = 0, hot = 0, stream = 0;
+                foreach (var d in w.RocheDisruptions)
+                {
+                    if (d.Formation == "disc") hot++; else if (d.Formation == "ring") ring++; else stream++;
+                }
+                double disc = 0, reservoir = 0, mass = w.EscapedMass; int stars = 0;
+                foreach (var d in w.Discs) disc += d.Total;
+                foreach (var r in w.RocheReservoirs) reservoir += r.Mass;
+                for (int i = 0; i < w.N; i++) if (w.Alive[i]) { mass += w.M[i]; if (w.KindOf(i) == Kind.Star) stars++; }
+                int heavy = w.Heaviest();
+                Console.WriteLine($"  step {step,5} yr {w.Year,7:F2}: live {w.Live,5} merges {w.Merges,4} stars {stars} heaviest {w.StarPhaseOf(heavy)} {w.M[heavy]:G6} | breaks to-disc {hot} ring {ring} stream {stream} | disc {disc / World.EarthMass:G4} swallowed {w.DiscAccretedMass / World.EarthMass:G4} reservoir {reservoir / World.EarthMass:G4} Earths | mass residual {(mass + disc + reservoir - startMass) / startMass:E2} | {watch.Elapsed.TotalMilliseconds / step:F2} ms/Advance");
+            }
+        }
+    }
+
     public static bool Run()
     {
         _ok = _failed = 0;

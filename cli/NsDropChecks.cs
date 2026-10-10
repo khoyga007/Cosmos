@@ -33,6 +33,13 @@ static class NsDropChecks
             a[0]+=r.Mass;a[1]+=r.Px;a[2]+=r.Py;
             for(int e=0;e<w.ElementCount;e++)a[e+3]+=r.Matter[e];
         }
+        // a disc rides on its host: same velocity, its matter per ring
+        foreach(var d in w.Discs)
+        {
+            if(d.Host<0)continue;
+            a[0]+=d.Total;a[1]+=d.Total*w.Vx[d.Host];a[2]+=d.Total*w.Vy[d.Host];
+            for(int k=0;k<d.Cells;k++)for(int e=0;e<w.ElementCount;e++)a[e+3]+=w.DiscCellMatter(d,k,e);
+        }
         return a;
     }
     public static bool Run(bool benchmark=true)
@@ -44,7 +51,8 @@ static class NsDropChecks
         bool stable=Enumerable.Range(0,w.N).Where(i=>w.Alive[i]&&w.Grp[i]>=4).All(i=>
             w.RocheLimit(i,w.Par[i]) < double.Hypot(w.X[i]-w.X[w.Par[i]],w.Y[i]-w.Y[w.Par[i]]));
         Check(stable,"every newborn debris object survives its own host's Roche limit");
-        Check(before.Zip(after).All(p=>Math.Abs(p.First-p.Second)<3e-12),"zero-time M/P/each Comp close with reservoirs and Escaped ledger");
+        Check(before.Zip(after).All(p=>Math.Abs(p.First-p.Second)<3e-12),"zero-time M/P/each Comp close with reservoirs, discs and Escaped ledger: deltas "
+            +string.Join(',',after.Zip(before,(x,y)=>(x-y).ToString("E2"))));
         int disruptions=w.RocheDisruptions.Count,reservoirs=w.RocheReservoirs.Count;w.Advance(0);
         Check(w.RocheDisruptions.Count==disruptions&&w.RocheReservoirs.Count==reservoirs,"repeated zero-time step adds no breakup/reservoir work");
         // Zero strength: no resolved size survives inside the fluid limit, but bound matter must remain.
