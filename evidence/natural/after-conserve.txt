@@ -1,0 +1,50 @@
+OK     conserve: keeps half a sun, fixed: the row fired — 25 of 50 left the star, 1 body(ies) still alive
+OK     conserve: keeps half a sun, fixed: mass flat — 50 → 50 (0.000E+000)
+OK     conserve: keeps half a sun, fixed: every element together flat — 0.000E+000 of 50
+OK     conserve: keeps half a sun, fixed: each element closes after subtracting signed nucleosynthesis delta
+OK     conserve: keeps half a sun, fixed: momentum flat — dP (0.000E+000, 0.000E+000) of (1, -1.5)
+OK     conserve: slope .2 of birth, never under half a sun: the row fired — 40 of 65 left the star, 1 body(ies) still alive
+OK     conserve: slope .2 of birth, never under half a sun: mass flat — 65 → 65 (0.000E+000)
+OK     conserve: slope .2 of birth, never under half a sun: every element together flat — 0.000E+000 of 65
+OK     conserve: slope .2 of birth, never under half a sun: each element closes after subtracting signed nucleosynthesis delta
+OK     conserve: slope .2 of birth, never under half a sun: momentum flat — dP (6.661E-016, 0.000E+000) of (1.3, 54.0997)
+OK     conserve: ejects half by fraction: the row fired — 25 of 50 left the star, 1 body(ies) still alive
+OK     conserve: ejects half by fraction: mass flat — 50 → 50 (0.000E+000)
+OK     conserve: ejects half by fraction: every element together flat — 0.000E+000 of 50
+OK     conserve: ejects half by fraction: each element closes after subtracting signed nucleosynthesis delta
+OK     conserve: ejects half by fraction: momentum flat — dP (0.000E+000, 0.000E+000) of (1, -1.5)
+OK     conserve: ejects everything by fraction: the row fired — 50 of 50 left the star, 0 body(ies) still alive
+OK     conserve: ejects everything by fraction: mass flat — 50 → 50 (0.000E+000)
+OK     conserve: ejects everything by fraction: every element together flat — 0.000E+000 of 50
+OK     conserve: ejects everything by fraction: each element closes after subtracting signed nucleosynthesis delta
+OK     conserve: ejects everything by fraction: momentum flat — dP (0.000E+000, 0.000E+000) of (1, -1.5)
+OK     conserve: ejects .03 suns fixed: the row fired — 1.5 of 50 left the star, 1 body(ies) still alive
+OK     conserve: ejects .03 suns fixed: mass flat — 50 → 50 (0.000E+000)
+OK     conserve: ejects .03 suns fixed: every element together flat — 0.000E+000 of 50
+OK     conserve: ejects .03 suns fixed: each element closes after subtracting signed nucleosynthesis delta
+OK     conserve: ejects .03 suns fixed: momentum flat — dP (0.000E+000, 2.220E-016) of (1, -1.5)
+OK     conserve: half out, split rock/metal: the row fired — 32.5 of 65 left the star, 1 body(ies) still alive
+OK     conserve: half out, split rock/metal: mass flat — 65 → 65 (0.000E+000)
+OK     conserve: half out, split rock/metal: every element together flat — 0.000E+000 of 65
+OK     conserve: half out, split rock/metal: each element closes after subtracting signed nucleosynthesis delta
+OK     conserve: half out, split rock/metal: momentum flat — dP (6.661E-016, 0.000E+000) of (1.3, 54.0997)
+OK     conserve: every shipped ejecta mix is a mix: 8 row(s), 4 carrying one
+OK     conserve: a mix summing to half is refused at construction, not absorbed as half the mass
+OK     conserve: the ledger has teeth: removing one body of 3 shows as exactly that — 14 → 11
+OK     conserve: sol, 0 rocks → giant: shared mass closes — 0.000E+000 of 50.06698844, tight band 5.01E-010 (ejecta 0, 0 ship(s) adding 0.00E+000, year 9.990000E+009)
+OK     conserve: sol, 0 rocks → giant: the elements follow the mass — 0.000E+000 against 0.00E+000 for ships
+OK     conserve: sol, 0 rocks → giant: momentum inside the same band — dP (6.283E-017, 2.011E-017), fastest body 1.415
+OK     conserve: sol, 0 rocks → past the death: shared mass closes — 2.132E-014 of 50.06698844, tight band 5.01E-010 (ejecta 24.85, 0 ship(s) adding 0.00E+000, year 1.060000E+010)
+OK     conserve: sol, 0 rocks → past the death: the elements follow the mass — -1.421E-014 against 0.00E+000 for ships
+OK     conserve: sol, 0 rocks → past the death: momentum inside the same band — dP (6.531E-017, 6.022E-017), fastest body 1.415
+OK     conserve: sol, 0 rocks → past the death: the scene reached the death and threw 24.85 out of the star
+OK     conserve: sol, 200 rocks → past the death: shared mass closes — -1.137E-013 of 50.06698945, tight band 5.01E-010 (ejecta 24.85, 0 ship(s) adding 0.00E+000, year 1.060000E+010)
+OK     conserve: sol, 200 rocks → past the death: the elements follow the mass — -3.197E-013 against 0.00E+000 for ships
+OK     conserve: sol, 200 rocks → past the death: momentum inside the same band — dP (-8.076E-009, -6.324E-008), fastest body 1.415
+OK     conserve: sol, 200 rocks → past the death: the scene reached the death and threw 24.85 out of the star
+OK     conserve: sol, 200 rocks, both volatile sinks at 0: the whole stock scene is closed — 50.0669894548 → 50.0669894548 (-1.066E-013) over 1.060000E+010 years, 309 body(ies)
+OK     conserve: sol, 200 rocks, both volatile sinks at 0: every element together closed — -1.705E-013
+OK     conserve: sol, 200 rocks, both volatile sinks at 0: momentum inside the same band — dP (-1.974E-008, -1.368E-008), fastest body 1.415, band 7.08E-005
+note: conserve: momentum is the one quantity the closed scene does not hold at rounding level: 2.402E-008 of 70.8401 (mass x fastest body) over 1.060000E+010 years, 1 merge(s), 309 body(ies) — momentum is conserved inside Merge itself (World.cs:188-190), so the path that drops this is not named here [chưa kiểm: chưa tách được Gone() khỏi sai số tích phân]
+note: conserve: sol, 200 rocks, gas loss off: -1.208E-013 of 50.06698945 left the ledger
+note: conserve: sol, 200 rocks, ice sublimation off: -9.948E-014 of 50.06698945 left the ledger

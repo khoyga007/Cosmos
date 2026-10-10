@@ -1,0 +1,10 @@
+OK     ns-drop: zero-time events 5: original sources only, no same-time child cascade
+OK     ns-drop: every newborn debris object survives its own host's Roche limit
+OK     ns-drop: zero-time M/P/each Comp close with reservoirs, discs and Escaped ledger: deltas 0.00E+000,-1.03E-017,6.27E-017,0.00E+000,0.00E+000,-5.64E-018,6.51E-018,1.30E-018,0.00E+000
+OK     ns-drop: repeated zero-time step adds no breakup/reservoir work
+OK     ns-drop: cohesionless inner cloud stays bound/accounted, no unstable resolved fragments
+OK     ns-drop: 200-step counts bounded/no late cap: live4640, disruptions585, reservoirs0, hash837217C5716FA034
+OK     ns-drop: NS-drop with zero-time steps and 200 Advances replays 837217C5716FA034/837217C5716FA034
+ns-drop natural ledger deltas: 9.094947017729282E-13,1.1347583495080471E-07,-7.460466603730208E-08,0,8.933825901280557E-17,0,0,0,0
+OK     ns-drop: natural NS/BH deaths +1e10yr: 206.204ms, phasesNeutronStar/BlackHole, ledgerClose=True, hash97950F09996305B3
+OK     ns-drop: natural-death jump journal replay 97950F09996305B3/97950F09996305B3

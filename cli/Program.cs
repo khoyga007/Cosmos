@@ -15,6 +15,8 @@ if (args.Length > 0 && args[0] == "human-probe")
     Console.WriteLine($"push20 hash={w.Hash():X16}, year={w.Year:R}, X={w.X[3]:R}, Y={w.Y[3]:R}");
     return 0;
 }
+if (args.Length > 0 && args[0] == "natural-check") return NaturalFillChecks.CheckPhysics() ? 0 : 1;
+if (args.Length > 0 && args[0] == "natural-fill") { NaturalFillChecks.Run(int.Parse(args[1]), int.Parse(args[2]), args.Length > 3 && args[3] == "detail"); return 0; }
 if (args.Length > 0 && args[0] == "elements-probe") { ElementChecks.PrintProbe(); return 0; }
 if (args.Length > 0 && args[0] == "elements-bench") { ElementChecks.Bench(); return 0; }
 if (args.Length > 0 && args[0] == "audit-tables") return Audit.RunTables() ? 0 : 1;
