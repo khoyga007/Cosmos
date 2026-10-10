@@ -373,8 +373,25 @@ public sealed partial class World
         // wherever that orbit lies (inside the host = straight in; outside the Roche limit = a wide disc). A returning
         // stream crosses itself at its closest point and settles there; the settling itself is not followed.
         if (C.DiscOn != 0 && captured > 0 && circular > 0 && beforeEnergy - circularEnergy >= C.DiscVaporEnergy * captured) ring = true;
-        double fragmentMass = StableRocheFragmentMass(i, p, ring ? circular : capturedRadius,
+        double boundRadius = kinetic > 0 ? mu / kinetic : double.PositiveInfinity;
+        double streamWidth = Math.Min(bodyRadius * C.RocheStreamWidth,
+            .5 * Math.Sqrt(Math.Max(0, (boundRadius - capturedRadius) * (boundRadius + capturedRadius))));
+        // A stream keeps falling after birth. Resolve pieces that withstand its deepest approach,
+        // not just the entry surface; otherwise each piece crosses its own limit a few steps later.
+        // Worst-case angular momentum and energy bound every transverse offset we emit below.
+        double minAngular = Math.Max(0, Math.Abs(capturedAngular) - streamWidth * Math.Sqrt(2 * kinetic));
+        double maxEnergy = kinetic - mu / Math.Sqrt(capturedRadius * capturedRadius + streamWidth * streamWidth);
+        double maxEccentric = Math.Sqrt(Math.Max(0, 1 + 2 * maxEnergy * minAngular * minAngular / (mu * mu)));
+        double streamPeriapsis = minAngular * minAngular / (mu * (1 + maxEccentric));
+        double fragmentMass = StableRocheFragmentMass(i, p, ring ? circular : streamPeriapsis,
             Math.Min(C.RocheFragmentMass, C.AttractMass * .5));
+        if (!ring && fragmentMass > 0)
+        {
+            // Use the largest surviving pieces rather than always making 64 unnecessarily small ones.
+            // Opposite pairs preserve COM/P; excess matter still goes to the existing bound reservoir.
+            double needed = 2 * Math.Ceiling(captured / fragmentMass / 2);
+            count = (int)Math.Min(count, needed);
+        }
         double represented = Math.Min(captured, count * fragmentMass);
         if (!(represented > 0) || !(represented/count > 0)) { count = 0; represented = 0; }
         double unresolved = captured - represented;
@@ -395,9 +412,6 @@ public sealed partial class World
         int group = Groups.Count; Groups.Add($"roche.{i}.{generation}");
         var remaining = original.Select(cell => cell * (captured / mass)).ToArray();
         double speed = ring ? Math.CopySign(Math.Sqrt(C.G * pm / circular), h) : 0;
-        double boundRadius = kinetic > 0 ? mu / kinetic : double.PositiveInfinity;
-        double streamWidth = Math.Min(bodyRadius * C.RocheStreamWidth,
-            .5 * Math.Sqrt(Math.Max(0, (boundRadius - capturedRadius) * (boundRadius + capturedRadius))));
         // Opposite pairs keep net momentum and COM. Zero-width circular ring adds no velocity noise/energy.
         for (int n = 0; n < count; n++)
         {

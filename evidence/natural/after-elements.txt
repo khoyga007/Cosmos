@@ -1,0 +1,11 @@
+OK     elements: eleven C6 default-table regression hashes match the recorded capture
+OK     elements: seventh group sizes matter, density and stellar ledger; World snapshots its table
+OK     elements: old six-cell Create/CreateOrbiting mixes zero-fill the seventh group
+OK     elements: Density[k] edits the corresponding row of this World's table
+OK     elements: seventh-group AddMatter, merge and jump preserve the added matter and total mass
+OK     elements: seventh-group replay 3852CB9292296F81/3852CB9292296F81
+OK     elements: appending an unused group leaves the belts, ring and physical motion identical; it cannot become the 70% main group
+OK     elements: rules and scene mixes follow ids/roles even when table rows are reordered
+OK     elements: invalid sums, NaN and oversized mixes are refused without normalization or state changes
+OK     elements: custom roles participate in the state hash
+OK     elements: a role reads all groups tagged with it, including the added row

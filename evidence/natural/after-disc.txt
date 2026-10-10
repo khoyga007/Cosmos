@@ -1,0 +1,19 @@
+OK     disc hot ring makes no fragments: live 2 -> 1, discs 1
+OK     disc mass closes at formation: 0.050001000000000004 -> 0.050001000000000004
+OK     disc ice closes at formation: 1E-06 -> 1.0000000000000002E-06
+OK     disc angular momentum closes at formation: 0.005000793030514579 -> 0.00500079303051456
+OK     disc host mass never falls
+OK     disc radiated energy never falls: 7.002239952402808E-09
+OK     disc numbers stay finite
+OK     disc mass closes after 4000 steps: 0.050001000000000004 -> 0.050001000000000205
+OK     disc ice closes after 4000 steps: 1E-06 -> 9.999999999999983E-07
+OK     disc angular momentum closes after 4000 steps: 0.005000793030514579 -> 0.005000793030756428
+      year 7.45804: swallowed 46.34% of the debris, disc holds 53.66%, rings 60
+OK     disc mass closes after a 1000 year jump: 0.050001000000000004 -> 0.050001000000000205
+OK     disc angular momentum closes after the jump: 0.005000793030514579 -> 0.005000793032784712
+OK     disc most of the debris is swallowed after 1000 years: 88.65%
+      year 1007.46: swallowed 88.65%, disc holds 11.35%, radiated 1.75419E-08, grid residual E -3.29898E-10
+OK     disc cold ring stays fragments: live 65, discs 0
+OK     disc cold ring runs as with the law off
+OK     disc stock scene repeats: 3EC8933C94BF05EB
+disc: 16 OK, 0 FAILED

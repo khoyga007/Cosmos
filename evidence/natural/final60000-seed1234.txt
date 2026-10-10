@@ -1,0 +1,81 @@
+natural seed=1234 step=1000 year=1.864044892758757 live=5250 max=5250 full=-1 events=0 hash=83AF94B5B97902B8
+natural seed=1234 step=2000 year=3.7280897855174664 live=5250 max=5250 full=-1 events=0 hash=8B8D765284EC2461
+natural seed=1234 step=3000 year=5.5921346782765555 live=5250 max=5250 full=-1 events=0 hash=5EB33C9F20B35CD3
+event seed=1234 step=3680 year=6.85968520535278 source=4184/1 host=8 name=Sao Hải Vương mass=4.206990872182518E-09 formation=disc live=5249
+  before massEarth=2.8046605814550122E-05 radiusM=305304.1486422513 strengthPa=2206000 separation=0.48710925136522754 mix=gas:0.009,ice:0.9159999999999998,rock:0.045,metal:0.006,carbon:0.024,radio:0
+natural seed=1234 step=4000 year=7.456179571035709 live=5249 max=5250 full=-1 events=1 hash=4EFD83E9D447B4EE
+natural seed=1234 step=5000 year=9.320224463794862 live=5249 max=5250 full=-1 events=1 hash=3477F6CF7AB50549
+event seed=1234 step=5158 year=9.614510551239213 source=4481/1 host=8 name=Sao Hải Vương mass=9.928843434736446E-09 formation=stream live=5312
+  before massEarth=6.619228956490964E-05 radiusM=406482.3911690819 strengthPa=2206000 separation=0.488385197830677 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+natural seed=1234 step=6000 year=11.184269356554015 live=5312 max=5312 full=-1 events=2 hash=94F6150176A46C4E
+natural seed=1234 step=7000 year=13.048314249313169 live=5312 max=5312 full=-1 events=2 hash=00849FDF85040F35
+natural seed=1234 step=8000 year=14.912359142072322 live=5312 max=5312 full=-1 events=2 hash=CA2B0EACF50E295E
+natural seed=1234 step=9000 year=16.776404034831476 live=5312 max=5312 full=-1 events=2 hash=C9D088A4A5A44092
+natural seed=1234 step=10000 year=18.64044892759063 live=5312 max=5312 full=-1 events=2 hash=05C57AE19DAD6CC6
+natural seed=1234 step=11000 year=20.504493820349783 live=5312 max=5312 full=-1 events=2 hash=EBFA6EF91FE7C16E
+natural seed=1234 step=12000 year=22.368538713108936 live=5312 max=5312 full=-1 events=2 hash=C33FCCE492C7733A
+natural seed=1234 step=13000 year=24.23258360586809 live=5312 max=5312 full=-1 events=2 hash=3E81BE077FCFB017
+natural seed=1234 step=14000 year=26.096628498627243 live=5312 max=5312 full=-1 events=2 hash=4296BCA906FBCD04
+natural seed=1234 step=15000 year=27.960673391386397 live=5312 max=5312 full=-1 events=2 hash=21D0A9F03BC6DC6A
+natural seed=1234 step=16000 year=29.82471828414555 live=5312 max=5312 full=-1 events=2 hash=77D3E46CF1AD2DE4
+natural seed=1234 step=17000 year=31.688763176904704 live=5311 max=5312 full=-1 events=2 hash=0F36CA147C1CA5D9
+event seed=1234 step=17984 year=33.52205132893043 source=2177/1 host=8 name=Sao Hải Vương mass=8.166298559073895E-09 formation=ring live=5374
+natural seed=1234 step=18000 year=33.5528080696609 live=5374 max=5374 full=-1 events=3 hash=9D0676D139CAD549
+natural seed=1234 step=19000 year=35.4168529624165 live=5374 max=5374 full=-1 events=3 hash=20E96FB025E8AE75
+event seed=1234 step=19160 year=35.714867139645804 source=2695/1 host=8 name=Sao Hải Vương mass=1.00193202247532E-10 formation=stream live=5373
+natural seed=1234 step=20000 year=37.2808978551721 live=5373 max=5374 full=-1 events=4 hash=DDA9EBAA3FB6F34E
+natural seed=1234 step=21000 year=39.1449427479277 live=5373 max=5374 full=-1 events=4 hash=5C3024A66A808B4B
+natural seed=1234 step=22000 year=41.0089876406833 live=5373 max=5374 full=-1 events=4 hash=7C7188600CF22719
+natural seed=1234 step=23000 year=42.8730325334389 live=5373 max=5374 full=-1 events=4 hash=7D6F7596A9FBAAEB
+natural seed=1234 step=24000 year=44.7370774261945 live=5373 max=5374 full=-1 events=4 hash=46571D40F3E1CBD7
+event seed=1234 step=24605 year=45.86435857508845 source=3239/1 host=8 name=Sao Hải Vương mass=4.1309128536736017E-10 formation=ring live=5436
+natural seed=1234 step=25000 year=46.601122318950104 live=5436 max=5436 full=-1 events=5 hash=140CAAA8DCCA60D2
+natural seed=1234 step=26000 year=48.465167211705705 live=5436 max=5436 full=-1 events=5 hash=D21D5BDE9152C1F0
+event seed=1234 step=26220 year=48.87362604883078 source=4780/1 host=8 name=Sao Hải Vương mass=1.8223337306217244E-09 formation=ring live=5499
+natural seed=1234 step=27000 year=50.329212104461305 live=5499 max=5499 full=-1 events=6 hash=B10FC795E72A1E68
+event seed=1234 step=27814 year=51.84561262471799 source=2991/1 host=8 name=Sao Hải Vương mass=6.294202325780795E-09 formation=ring live=5512
+natural seed=1234 step=28000 year=52.193256997216906 live=5512 max=5512 full=27814 events=7 hash=544B47601B1793A8
+natural seed=1234 step=29000 year=54.05730188997251 live=5512 max=5512 full=27814 events=7 hash=9E86D14B9C74356B
+natural seed=1234 step=30000 year=55.92134678272811 live=5512 max=5512 full=27814 events=7 hash=225ED863BD7FC3A4
+natural seed=1234 step=31000 year=57.78539167548371 live=5512 max=5512 full=27814 events=7 hash=71F4640122C890F6
+natural seed=1234 step=32000 year=59.64943656823931 live=5512 max=5512 full=27814 events=7 hash=C4A6862262FE6DDB
+event seed=1234 step=32005 year=59.6582907814799 source=4303/1 host=8 name=Sao Hải Vương mass=3.43370012149288E-09 formation=disc live=5511
+natural seed=1234 step=33000 year=61.51348146099491 live=5511 max=5512 full=27814 events=8 hash=0FBF482A92D29637
+event seed=1234 step=33366 year=62.19502287490868 source=2405/1 host=8 name=Sao Hải Vương mass=2.031908974021751E-09 formation=ring live=5512
+natural seed=1234 step=34000 year=63.37752635375051 live=5512 max=5512 full=27814 events=9 hash=51C31E9E6E785830
+natural seed=1234 step=35000 year=65.24157124650611 live=5512 max=5512 full=27814 events=9 hash=40423A413305D200
+natural seed=1234 step=36000 year=67.10561613926171 live=5512 max=5512 full=27814 events=9 hash=62907F46D946456F
+natural seed=1234 step=37000 year=68.96966103201731 live=5512 max=5512 full=27814 events=9 hash=DF93ED89A5FAFDD9
+natural seed=1234 step=38000 year=70.83370592477291 live=5512 max=5512 full=27814 events=9 hash=C6A6EC435FD26ECA
+natural seed=1234 step=39000 year=72.69775081752852 live=5512 max=5512 full=27814 events=9 hash=EA25372CAEC1751B
+natural seed=1234 step=40000 year=74.56179571028412 live=5512 max=5512 full=27814 events=9 hash=44853E02E5044C88
+natural seed=1234 step=41000 year=76.42584060303972 live=5512 max=5512 full=27814 events=9 hash=A0DA326EB3491EAE
+natural seed=1234 step=42000 year=78.28988549579532 live=5512 max=5512 full=27814 events=9 hash=55BDAD4037C7D041
+event seed=1234 step=42721 year=79.63339585224892 source=4220/1 host=8 name=Sao Hải Vương mass=1.9095440986837688E-09 formation=disc live=5511
+event seed=1234 step=42854 year=79.88108081737381 source=4151/1 host=8 name=Sao Hải Vương mass=3.170557052577409E-10 formation=stream live=5512
+natural seed=1234 step=43000 year=80.15393038855092 live=5512 max=5512 full=27814 events=11 hash=2B2A6B715073489B
+natural seed=1234 step=44000 year=82.01797528130652 live=5512 max=5512 full=27814 events=11 hash=C3EE312A6C64B611
+natural seed=1234 step=45000 year=83.88202017406212 live=5512 max=5512 full=27814 events=11 hash=8ABC32EEB3866A28
+natural seed=1234 step=46000 year=85.74606506681772 live=5512 max=5512 full=27814 events=11 hash=7E8BBBFD07AD1741
+natural seed=1234 step=47000 year=87.61010995957332 live=5511 max=5512 full=27814 events=11 hash=8E8AC80F5308F6E0
+natural seed=1234 step=48000 year=89.47415485232892 live=5511 max=5512 full=27814 events=11 hash=25E96EEA20FF111F
+natural seed=1234 step=49000 year=91.33819974508452 live=5511 max=5512 full=27814 events=11 hash=AA0B9C83D491C2B2
+natural seed=1234 step=50000 year=93.20224463784012 live=5510 max=5512 full=27814 events=11 hash=F08589A1540D7ACD
+natural seed=1234 step=51000 year=95.06628953059572 live=5510 max=5512 full=27814 events=11 hash=2396F321ADD13379
+event seed=1234 step=51546 year=96.08242700275912 source=2709/1 host=8 name=Sao Hải Vương mass=9.343766714385292E-09 formation=stream live=5509
+natural seed=1234 step=52000 year=96.93033442335133 live=5509 max=5512 full=27814 events=12 hash=4F84221E1CB7215B
+natural seed=1234 step=53000 year=98.79437931610693 live=5509 max=5512 full=27814 events=12 hash=3912729472BCFC30
+natural seed=1234 step=54000 year=100.65842420886253 live=5509 max=5512 full=27814 events=12 hash=6D5244ACCDA10A6A
+natural seed=1234 step=55000 year=102.52246910161813 live=5509 max=5512 full=27814 events=12 hash=D02C79BFD824C70B
+event seed=1234 step=55748 year=103.91630867017614 source=4731/1 host=8 name=Sao Hải Vương mass=8.015840675090218E-09 formation=stream live=5512
+natural seed=1234 step=56000 year=104.38651399437373 live=5512 max=5512 full=27814 events=13 hash=1842C7481726A7FF
+natural seed=1234 step=57000 year=106.25055888712933 live=5512 max=5512 full=27814 events=13 hash=907A88CC75D39C57
+natural seed=1234 step=58000 year=108.11460377988493 live=5512 max=5512 full=27814 events=13 hash=0868282AED3A577B
+event seed=1234 step=58597 year=109.22604054719046 source=3886/1 host=8 name=Sao Hải Vương mass=1.5280792012709233E-08 formation=stream live=5511
+event seed=1234 step=58865 year=109.72700261211853 source=2579/2 host=8 name=Sao Hải Vương mass=8.416832554954445E-10 formation=stream live=5509
+event seed=1234 step=58865 year=109.72700261211853 source=4731/2 host=8 name=Sao Hải Vương mass=8.416832554954445E-10 formation=stream live=5509
+event seed=1234 step=58866 year=109.72746862334172 source=2709/2 host=8 name=Sao Hải Vương mass=8.416832554954445E-10 formation=stream live=5507
+event seed=1234 step=58866 year=109.72746862334172 source=3911/2 host=8 name=Sao Hải Vương mass=8.416832554954445E-10 formation=stream live=5507
+natural seed=1234 step=59000 year=109.97864867264053 live=5507 max=5512 full=27814 events=18 hash=3A9489F3022D8B4E
+natural seed=1234 step=60000 year=111.84269356539613 live=5507 max=5512 full=27814 events=18 hash=CE444EB00568A1FF
+natural FINAL seed=1234 steps=60000 live=5507 max=5512 full=27814 events=18 hash=CE444EB00568A1FF

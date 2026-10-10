@@ -1,0 +1,195 @@
+natural seed=1234 step=1000 year=1.864044892758757 live=5250 max=5250 full=-1 events=0 hash=83AF94B5B97902B8
+natural seed=1234 step=2000 year=3.7280897855174664 live=5250 max=5250 full=-1 events=0 hash=8B8D765284EC2461
+natural seed=1234 step=3000 year=5.5921346782765555 live=5250 max=5250 full=-1 events=0 hash=5EB33C9F20B35CD3
+event seed=1234 step=3680 year=6.85968520535278 source=4184/1 host=8 name=Sao Hải Vương mass=4.206990872182518E-09 formation=disc live=5249
+  before massEarth=2.8046605814550122E-05 radiusM=305304.1486422513 strengthPa=2206000 separation=0.48710925136522754 mix=gas:0.009,ice:0.9159999999999998,rock:0.045,metal:0.006,carbon:0.024,radio:0
+natural seed=1234 step=4000 year=7.456179571035709 live=5249 max=5250 full=-1 events=1 hash=4EFD83E9D447B4EE
+natural seed=1234 step=5000 year=9.320224463794862 live=5249 max=5250 full=-1 events=1 hash=3477F6CF7AB50549
+event seed=1234 step=5158 year=9.614510551239213 source=4481/1 host=8 name=Sao Hải Vương mass=9.928843434736446E-09 formation=stream live=5312
+  before massEarth=6.619228956490964E-05 radiusM=406482.3911690819 strengthPa=2206000 separation=0.488385197830677 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5163 year=9.62383077570301 source=4184/2 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.3195602136557574 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5163 year=9.62383077570301 source=4481/2 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.3195286359153815 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5163 year=9.62383077570301 source=5250/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.3195286359153815 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5163 year=9.62383077570301 source=5251/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.3195602136557574 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5163 year=9.62383077570301 source=5252/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.3195286359153815 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5163 year=9.62383077570301 source=5253/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.3195602136557574 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5163 year=9.62383077570301 source=5254/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.3195286359153815 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5163 year=9.62383077570301 source=5255/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.3195602136557574 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5163 year=9.62383077570301 source=5256/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.3195286359153815 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5163 year=9.62383077570301 source=5257/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.3195602136557574 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5163 year=9.62383077570301 source=5258/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.3195286359153815 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5163 year=9.62383077570301 source=5259/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.3195602136557574 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5163 year=9.62383077570301 source=5260/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.3195286359153815 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5163 year=9.62383077570301 source=5261/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.3195602136557574 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5163 year=9.62383077570301 source=5262/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.3195286359153815 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5163 year=9.62383077570301 source=5263/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.3195602136557574 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5164 year=9.624063781314604 source=5264/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.2914446176551382 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5164 year=9.624063781314604 source=5265/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.29148648006240246 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5164 year=9.624063781314604 source=5266/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.2914446176551382 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5164 year=9.624063781314604 source=5267/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.29148648006240246 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5164 year=9.624063781314604 source=5268/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.2914446176551382 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5164 year=9.624063781314604 source=5269/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.29148648006240246 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5164 year=9.624063781314604 source=5270/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.2914446176551382 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5164 year=9.624063781314604 source=5271/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.29148648006240246 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5164 year=9.624063781314604 source=5272/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.2914446176551382 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5164 year=9.624063781314604 source=5273/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.29148648006240246 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5164 year=9.624063781314604 source=5274/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.2914446176551382 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5164 year=9.624063781314604 source=5275/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.29148648006240246 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5164 year=9.624063781314604 source=5276/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.2914446176551382 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5164 year=9.624063781314604 source=5277/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.29148648006240246 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5164 year=9.624063781314604 source=5278/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.2914446176551382 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5164 year=9.624063781314604 source=5279/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.29148648006240246 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5165 year=9.625927826207363 source=5280/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.2682829416068064 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5165 year=9.625927826207363 source=5281/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.26833508855680294 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5165 year=9.625927826207363 source=5282/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.2682829416068064 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5165 year=9.625927826207363 source=5283/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.26833508855680294 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5165 year=9.625927826207363 source=5284/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.2682829416068064 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5165 year=9.625927826207363 source=5285/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.26833508855680294 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5165 year=9.625927826207363 source=5286/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.2682829416068064 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5165 year=9.625927826207363 source=5287/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.26833508855680294 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5165 year=9.625927826207363 source=5288/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.2682829416068064 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5165 year=9.625927826207363 source=5289/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.26833508855680294 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5165 year=9.625927826207363 source=5290/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.2682829416068064 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5165 year=9.625927826207363 source=5291/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.26833508855680294 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5165 year=9.625927826207363 source=5292/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.2682829416068064 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5165 year=9.625927826207363 source=5293/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.26833508855680294 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5165 year=9.625927826207363 source=5294/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.2682829416068064 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5165 year=9.625927826207363 source=5295/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.26833508855680294 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5166 year=9.627791871100122 source=5252/2 host=8 name=Sao Hải Vương mass=7.68019076502015E-11 formation=stream live=5512
+  before massEarth=5.1201271766801E-07 radiusM=80389.53532761554 strengthPa=2206000 separation=0.2522156904420136 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006000000000000001,carbon:0.024000000000000004,radio:0
+event seed=1234 step=5166 year=9.627791871100122 source=5253/2 host=8 name=Sao Hải Vương mass=7.68019076502015E-11 formation=stream live=5512
+  before massEarth=5.1201271766801E-07 radiusM=80389.53532761554 strengthPa=2206000 separation=0.2522076374806445 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006000000000000001,carbon:0.024000000000000004,radio:0
+event seed=1234 step=5166 year=9.627791871100122 source=5254/2 host=8 name=Sao Hải Vương mass=7.68019076502015E-11 formation=stream live=5512
+  before massEarth=5.1201271766801E-07 radiusM=80389.53532761554 strengthPa=2206000 separation=0.2522156904420136 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006000000000000001,carbon:0.024000000000000004,radio:0
+event seed=1234 step=5166 year=9.627791871100122 source=5255/2 host=8 name=Sao Hải Vương mass=7.68019076502015E-11 formation=stream live=5512
+  before massEarth=5.1201271766801E-07 radiusM=80389.53532761554 strengthPa=2206000 separation=0.2522076374806445 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006000000000000001,carbon:0.024000000000000004,radio:0
+event seed=1234 step=5166 year=9.627791871100122 source=5256/2 host=8 name=Sao Hải Vương mass=7.68019076502015E-11 formation=stream live=5512
+  before massEarth=5.1201271766801E-07 radiusM=80389.53532761554 strengthPa=2206000 separation=0.2522156904420136 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006000000000000001,carbon:0.024000000000000004,radio:0
+event seed=1234 step=5166 year=9.627791871100122 source=5257/2 host=8 name=Sao Hải Vương mass=7.68019076502015E-11 formation=stream live=5512
+  before massEarth=5.1201271766801E-07 radiusM=80389.53532761554 strengthPa=2206000 separation=0.2522076374806445 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006000000000000001,carbon:0.024000000000000004,radio:0
+event seed=1234 step=5166 year=9.627791871100122 source=5258/2 host=8 name=Sao Hải Vương mass=7.68019076502015E-11 formation=stream live=5512
+  before massEarth=5.1201271766801E-07 radiusM=80389.53532761554 strengthPa=2206000 separation=0.2522156904420136 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006000000000000001,carbon:0.024000000000000004,radio:0
+event seed=1234 step=5166 year=9.627791871100122 source=5259/2 host=8 name=Sao Hải Vương mass=7.68019076502015E-11 formation=stream live=5512
+  before massEarth=5.1201271766801E-07 radiusM=80389.53532761554 strengthPa=2206000 separation=0.2522076374806445 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006000000000000001,carbon:0.024000000000000004,radio:0
+event seed=1234 step=5166 year=9.627791871100122 source=5260/2 host=8 name=Sao Hải Vương mass=7.68019076502015E-11 formation=stream live=5512
+  before massEarth=5.1201271766801E-07 radiusM=80389.53532761554 strengthPa=2206000 separation=0.2522156904420136 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006000000000000001,carbon:0.024000000000000004,radio:0
+event seed=1234 step=5166 year=9.627791871100122 source=5261/2 host=8 name=Sao Hải Vương mass=7.68019076502015E-11 formation=stream live=5512
+  before massEarth=5.1201271766801E-07 radiusM=80389.53532761554 strengthPa=2206000 separation=0.2522076374806445 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006000000000000001,carbon:0.024000000000000004,radio:0
+event seed=1234 step=5166 year=9.627791871100122 source=5262/2 host=8 name=Sao Hải Vương mass=7.68019076502015E-11 formation=stream live=5512
+  before massEarth=5.1201271766801E-07 radiusM=80389.53532761554 strengthPa=2206000 separation=0.2522156904420136 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006000000000000001,carbon:0.024000000000000004,radio:0
+event seed=1234 step=5166 year=9.627791871100122 source=5263/2 host=8 name=Sao Hải Vương mass=7.68019076502015E-11 formation=stream live=5512
+  before massEarth=5.1201271766801E-07 radiusM=80389.53532761554 strengthPa=2206000 separation=0.2522076374806445 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006000000000000001,carbon:0.024000000000000004,radio:0
+event seed=1234 step=5166 year=9.627791871100122 source=5264/2 host=8 name=Sao Hải Vương mass=7.20706282235194E-11 formation=stream live=5512
+  before massEarth=4.804708548234627E-07 radiusM=78703.66411412798 strengthPa=2206000 separation=0.2522155062881264 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5166 year=9.627791871100122 source=5265/2 host=8 name=Sao Hải Vương mass=7.20706282235194E-11 formation=stream live=5512
+  before massEarth=4.804708548234627E-07 radiusM=78703.66411412798 strengthPa=2206000 separation=0.25220782163914074 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5166 year=9.627791871100122 source=5266/2 host=8 name=Sao Hải Vương mass=7.20706282235194E-11 formation=stream live=5512
+  before massEarth=4.804708548234627E-07 radiusM=78703.66411412798 strengthPa=2206000 separation=0.2522155062881264 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5166 year=9.627791871100122 source=5267/2 host=8 name=Sao Hải Vương mass=7.20706282235194E-11 formation=stream live=5512
+  before massEarth=4.804708548234627E-07 radiusM=78703.66411412798 strengthPa=2206000 separation=0.25220782163914074 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5167 year=9.629655915992881 source=5268/2 host=8 name=Sao Hải Vương mass=7.20706282235194E-11 formation=stream live=5512
+  before massEarth=4.804708548234627E-07 radiusM=78703.66411412798 strengthPa=2206000 separation=0.24512530497896165 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5167 year=9.629655915992881 source=5269/2 host=8 name=Sao Hải Vương mass=7.20706282235194E-11 formation=stream live=5512
+  before massEarth=4.804708548234627E-07 radiusM=78703.66411412798 strengthPa=2206000 separation=0.24511384937491276 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5167 year=9.629655915992881 source=5270/2 host=8 name=Sao Hải Vương mass=7.20706282235194E-11 formation=stream live=5512
+  before massEarth=4.804708548234627E-07 radiusM=78703.66411412798 strengthPa=2206000 separation=0.24512530497896165 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5167 year=9.629655915992881 source=5271/2 host=8 name=Sao Hải Vương mass=7.20706282235194E-11 formation=stream live=5512
+  before massEarth=4.804708548234627E-07 radiusM=78703.66411412798 strengthPa=2206000 separation=0.24511384937491276 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5167 year=9.629655915992881 source=5272/2 host=8 name=Sao Hải Vương mass=7.20706282235194E-11 formation=stream live=5512
+  before massEarth=4.804708548234627E-07 radiusM=78703.66411412798 strengthPa=2206000 separation=0.24512530497896165 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5167 year=9.629655915992881 source=5273/2 host=8 name=Sao Hải Vương mass=7.20706282235194E-11 formation=stream live=5512
+  before massEarth=4.804708548234627E-07 radiusM=78703.66411412798 strengthPa=2206000 separation=0.24511384937491276 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5167 year=9.629655915992881 source=5274/2 host=8 name=Sao Hải Vương mass=7.20706282235194E-11 formation=stream live=5512
+  before massEarth=4.804708548234627E-07 radiusM=78703.66411412798 strengthPa=2206000 separation=0.24512530497896165 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5167 year=9.629655915992881 source=5275/2 host=8 name=Sao Hải Vương mass=7.20706282235194E-11 formation=stream live=5512
+  before massEarth=4.804708548234627E-07 radiusM=78703.66411412798 strengthPa=2206000 separation=0.24511384937491276 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5167 year=9.629655915992881 source=5276/2 host=8 name=Sao Hải Vương mass=7.20706282235194E-11 formation=stream live=5512
+  before massEarth=4.804708548234627E-07 radiusM=78703.66411412798 strengthPa=2206000 separation=0.24512530497896165 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5167 year=9.629655915992881 source=5277/2 host=8 name=Sao Hải Vương mass=7.20706282235194E-11 formation=stream live=5512
+  before massEarth=4.804708548234627E-07 radiusM=78703.66411412798 strengthPa=2206000 separation=0.24511384937491276 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5167 year=9.629655915992881 source=5278/2 host=8 name=Sao Hải Vương mass=7.20706282235194E-11 formation=stream live=5512
+  before massEarth=4.804708548234627E-07 radiusM=78703.66411412798 strengthPa=2206000 separation=0.24512530497896165 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5167 year=9.629655915992881 source=5279/2 host=8 name=Sao Hải Vương mass=7.20706282235194E-11 formation=stream live=5512
+  before massEarth=4.804708548234627E-07 radiusM=78703.66411412798 strengthPa=2206000 separation=0.24511384937491276 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5167 year=9.629655915992881 source=5296/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.24505417805975693 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5167 year=9.629655915992881 source=5297/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.24511957708761725 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5167 year=9.629655915992881 source=5298/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.24505417805975693 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5167 year=9.629655915992881 source=5299/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.24511957708761725 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5168 year=9.63151996088564 source=5300/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.2480580102911644 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5168 year=9.63151996088564 source=5301/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.24812270950163792 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5168 year=9.63151996088564 source=5302/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.2480580102911644 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5168 year=9.63151996088564 source=5303/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.24812270950163792 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5168 year=9.63151996088564 source=5304/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.2480580102911644 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5168 year=9.63151996088564 source=5305/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.24812270950163792 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5168 year=9.63151996088564 source=5306/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.2480580102911644 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5168 year=9.63151996088564 source=5307/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.24812270950163792 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5168 year=9.63151996088564 source=5308/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.2480580102911644 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5168 year=9.63151996088564 source=5309/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.24812270950163792 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5168 year=9.63151996088564 source=5310/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.2480580102911644 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+event seed=1234 step=5168 year=9.63151996088564 source=5311/1 host=8 name=Sao Hải Vương mass=1.5513817866775697E-10 formation=stream live=5512
+  before massEarth=1.0342545244517131E-06 radiusM=101620.59779227048 strengthPa=2206000 separation=0.24812270950163792 mix=gas:0.009,ice:0.9159999999999999,rock:0.045,metal:0.006,carbon:0.024,radio:0
+natural seed=1234 step=6000 year=11.184269356554015 live=5512 max=5512 full=5163 events=94 hash=0E14BDDC9EADC3D0
+natural FINAL seed=1234 steps=6000 live=5512 max=5512 full=5163 events=94 hash=0E14BDDC9EADC3D0

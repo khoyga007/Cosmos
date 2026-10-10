@@ -1,0 +1,41 @@
+OK     roche: same density fluid/rigid ratio 2.44/1.26
+OK     roche: equal-density mixed matter interpolates rigid/fluid coefficients by mass
+OK     roche: small cohesive ice fragment survives outside host surface
+OK     roche: capacity128/budget10000: ring 1.0000E-006+bound reservoir 0.0000E+000=parent; no false escape
+OK     roche: mass, each material, both momentum components close
+OK     roche: COM/L close: dL=-3.469E-018; energy dissipated 3.5899E-013
+OK     roche: source retired, identity not inherited; no circularization energy creation
+OK     roche: journal+Advance replay 8F6588481E5513A1/8F6588481E5513A1
+OK     roche: capacity2/budget10000: ring 0.0000E+000+bound reservoir 1.0000E-006=parent; no false escape
+OK     roche: mass, each material, both momentum components close
+OK     roche: COM/L close: dL=8.674E-019; energy dissipated 3.5899E-013
+OK     roche: source retired, identity not inherited; no circularization energy creation
+OK     roche: journal+Advance replay F6913778EE440C48/F6913778EE440C48
+OK     roche: capacity128/budget0: ring 0.0000E+000+bound reservoir 1.0000E-006=parent; no false escape
+OK     roche: mass, each material, both momentum components close
+OK     roche: COM/L close: dL=8.674E-019; energy dissipated 3.5899E-013
+OK     roche: source retired, identity not inherited; no circularization energy creation
+OK     roche: journal+Advance replay 9473757B1905B353/9473757B1905B353
+OK     roche: capacity4/budget10000: ring 8.0000E-008+bound reservoir 9.2000E-007=parent; no false escape
+OK     roche: mass, each material, both momentum components close
+OK     roche: COM/L close: dL=8.674E-019; energy dissipated 3.5899E-013
+OK     roche: source retired, identity not inherited; no circularization energy creation
+OK     roche: journal+Advance replay 183537C7A0C9C607/183537C7A0C9C607
+OK     roche: 1e6yr circular ring: live=65, breakups=1, mass=0.05000100000000014
+OK     roche: long-jump fragments remain outside surface and inside cohesionless Roche
+OK     roche: hyperbolic speed1.415: captured=4.436582191845402E-07, escaped=5.563417808154598E-07, stream
+OK     roche: hyperbolic transfer M/P/COM/L closes
+OK     roche: captured stream fragments are physically bound, not only labeled captured
+OK     roche: hyperbolic speed3: captured=0, escaped=1E-06, stream
+OK     roche: hyperbolic transfer M/P/COM/L closes
+OK     roche: captured stream fragments are physically bound, not only labeled captured
+OK     roche: first-entry 1/200 cuts: events=1/1
+OK     roche: jump replay 34A1ABAA9B7ABA76/34A1ABAA9B7ABA76
+OK     roche: positive-Gyr clock makes progress across rounded first-entry dates
+OK     roche: compact primary uses physical stellar density, not its gas composition density
+OK     roche: impact source retires even when tidal debris later reuses its slot
+OK     roche: invalid physical conversion and numerical budget dials are refused
+OK     roche: god rhythm dial changes actual housekeeping cadence
+OK     roche: leaving planet while star-bound retains material in root reservoir, not Escaped
+OK     roche: Roche material roles follow reordered element ids
+OK     roche: fast pass enters/exits inside one substep: swept chord catches it, date at substep boundary

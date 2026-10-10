@@ -1,0 +1,22 @@
+disc-p0 law ON: start live 5251, capacity 5512
+  step   100 yr    0.37: live  4867 merges    0 stars 2 heaviest NeutronStar 70.005 | breaks to-disc 384 ring 0 stream 0 | disc 317.5 swallowed 0.3279 reservoir 0 Earths | mass residual -2.60E-015 | 9.01 ms/Advance
+  step   200 yr    0.55: live  4640 merges   26 stars 2 heaviest NeutronStar 70.0056 | breaks to-disc 552 ring 0 stream 33 | disc 313.8 swallowed 4.01 reservoir 0 Earths | mass residual -2.37E-015 | 8.42 ms/Advance
+  step   300 yr    0.74: live  4611 merges   28 stars 1 heaviest BlackHole 120.009 | breaks to-disc 579 ring 0 stream 33 | disc 290.1 swallowed 27.73 reservoir 0 Earths | mass residual -3.08E-015 | 7.22 ms/Advance
+  step   400 yr    0.92: live  4610 merges   28 stars 1 heaviest BlackHole 120.013 | breaks to-disc 580 ring 0 stream 33 | disc 267.7 swallowed 50.11 reservoir 0 Earths | mass residual -2.13E-015 | 6.67 ms/Advance
+  step   500 yr    1.11: live  4608 merges   30 stars 1 heaviest BlackHole 120.015 | breaks to-disc 580 ring 0 stream 33 | disc 250.1 swallowed 67.76 reservoir 0 Earths | mass residual -1.42E-015 | 6.14 ms/Advance
+  step   600 yr    1.30: live  4607 merges   31 stars 1 heaviest BlackHole 120.017 | breaks to-disc 580 ring 0 stream 33 | disc 236 swallowed 81.8 reservoir 0 Earths | mass residual -1.54E-015 | 5.72 ms/Advance
+  step   700 yr    1.48: live  4606 merges   32 stars 1 heaviest BlackHole 120.019 | breaks to-disc 580 ring 0 stream 33 | disc 224.6 swallowed 93.25 reservoir 0 Earths | mass residual -1.42E-015 | 5.39 ms/Advance
+  step   800 yr    1.67: live  4604 merges   33 stars 1 heaviest BlackHole 120.02 | breaks to-disc 581 ring 0 stream 33 | disc 310.2 swallowed 102.8 reservoir 0 Earths | mass residual -1.54E-015 | 5.15 ms/Advance
+  step   900 yr    1.86: live  4604 merges   33 stars 1 heaviest BlackHole 120.022 | breaks to-disc 581 ring 0 stream 33 | disc 302 swallowed 111 reservoir 0 Earths | mass residual -1.89E-015 | 4.94 ms/Advance
+  step  1000 yr    2.04: live  4604 merges   33 stars 1 heaviest BlackHole 120.023 | breaks to-disc 581 ring 0 stream 33 | disc 295 swallowed 118 reservoir 0 Earths | mass residual -2.60E-015 | 4.78 ms/Advance
+disc-p0 law OFF: start live 5251, capacity 5512
+  step   100 yr    0.37: live  5510 merges   71 stars 2 heaviest NeutronStar 70.005 | breaks to-disc 0 ring 371 stream 353 | disc 0 swallowed 0 reservoir 317.8 Earths | mass residual 5.92E-016 | 6.24 ms/Advance
+  step   200 yr    0.55: live  5368 merges  270 stars 2 heaviest NeutronStar 70.005 | breaks to-disc 0 ring 516 stream 527 | disc 0 swallowed 0 reservoir 317.8 Earths | mass residual -2.01E-015 | 6.57 ms/Advance
+  step   300 yr    0.74: live  5511 merges  392 stars 1 heaviest BlackHole 120.005 | breaks to-disc 0 ring 605 stream 633 | disc 0 swallowed 0 reservoir 317.8 Earths | mass residual -3.91E-015 | 5.99 ms/Advance
+  step   400 yr    0.92: live  5511 merges  392 stars 1 heaviest BlackHole 120.005 | breaks to-disc 0 ring 605 stream 637 | disc 0 swallowed 0 reservoir 317.8 Earths | mass residual -3.79E-015 | 5.60 ms/Advance
+  step   500 yr    1.11: live  5512 merges  395 stars 1 heaviest BlackHole 120.005 | breaks to-disc 0 ring 605 stream 643 | disc 0 swallowed 0 reservoir 317.8 Earths | mass residual -3.91E-015 | 5.35 ms/Advance
+  step   600 yr    1.30: live  5511 merges  396 stars 1 heaviest BlackHole 120.005 | breaks to-disc 0 ring 605 stream 643 | disc 0 swallowed 0 reservoir 317.8 Earths | mass residual -3.91E-015 | 5.14 ms/Advance
+  step   700 yr    1.48: live  5511 merges  397 stars 1 heaviest BlackHole 120.005 | breaks to-disc 0 ring 605 stream 644 | disc 0 swallowed 0 reservoir 317.8 Earths | mass residual -3.79E-015 | 5.01 ms/Advance
+  step   800 yr    1.67: live  5512 merges  398 stars 1 heaviest BlackHole 120.005 | breaks to-disc 0 ring 605 stream 646 | disc 0 swallowed 0 reservoir 413 Earths | mass residual -3.79E-015 | 4.90 ms/Advance
+  step   900 yr    1.86: live  5512 merges  398 stars 1 heaviest BlackHole 120.005 | breaks to-disc 0 ring 605 stream 646 | disc 0 swallowed 0 reservoir 413 Earths | mass residual -3.79E-015 | 4.85 ms/Advance
+  step  1000 yr    2.04: live  5512 merges  398 stars 1 heaviest BlackHole 120.005 | breaks to-disc 0 ring 605 stream 646 | disc 0 swallowed 0 reservoir 413 Earths | mass residual -3.79E-015 | 4.79 ms/Advance

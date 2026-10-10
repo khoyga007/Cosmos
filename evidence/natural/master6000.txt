@@ -1,0 +1,7 @@
+natural seed=1234 step=1000 year=1.864044892758757 live=5250 max=5250 full=-1 events=0 hash=83AF94B5B97902B8
+natural seed=1234 step=2000 year=3.7280897855174664 live=5250 max=5250 full=-1 events=0 hash=8B8D765284EC2461
+natural seed=1234 step=3000 year=5.5921346782765555 live=5250 max=5250 full=-1 events=0 hash=5EB33C9F20B35CD3
+natural seed=1234 step=4000 year=7.456179571035709 live=5249 max=5313 full=-1 events=17 hash=8CD36BEBFA26C0CB
+natural seed=1234 step=5000 year=9.320224463794862 live=5249 max=5313 full=-1 events=17 hash=AE4BF818DE8BC213
+natural seed=1234 step=6000 year=11.184269356554015 live=5512 max=5512 full=5163 events=110 hash=5103AB9EBECF0E0B
+natural FINAL seed=1234 steps=6000 live=5512 max=5512 full=5163 events=110 hash=5103AB9EBECF0E0B

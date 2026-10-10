@@ -1,0 +1,4 @@
+OK natural eccentric source disrupts events=1 live=65
+OK natural emitted stream survives at its OWN periapsis children=64 stable=True
+OK natural no descendant reshred through first inward passage events=1->1 live=65
+OK natural e Earth-mass planet disrupted by NS RocheLimit=8.54367426510364 separation=8.458237522452603 events=1
