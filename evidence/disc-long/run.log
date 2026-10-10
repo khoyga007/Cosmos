@@ -1,0 +1,26 @@
+disc-long: det-1234a xong — steps=5000, live=4561, discs=2, swallowed=201.0 Earths, hash=7742FD98C274E6EC, wall=30s
+disc-long: det-1234b xong — steps=5000, live=4561, discs=2, swallowed=201.0 Earths, hash=7742FD98C274E6EC, wall=30s
+OK     disc-long: determinism seed1234 2x5000 buoc khop hash 7742FD98C274E6EC
+REDFLAG C-1234 stepDrop=300 wstep=396: Live cham tran 5512
+REDFLAG C-1234 stepDrop=400 wstep=496: Live cham tran 5512
+REDFLAG C-1234 stepDrop=800 wstep=896: Live cham tran 5512
+REDFLAG C-1234 stepDrop=900 wstep=996: Live cham tran 5512
+REDFLAG C-1234 stepDrop=1000 wstep=1096: Live cham tran 5512
+REDFLAG C-1234 stepDrop=1100 wstep=1196: Live cham tran 5512
+REDFLAG C-1234 stepDrop=1200 wstep=1296: Live cham tran 5512
+disc-long: C-1234 xong — steps=5000, live=5482, discs=0, swallowed=0.0 Earths, hash=CBC666FD3A9C8233, wall=38s
+disc-long: A-1234 xong — steps=50000, live=4244, discs=2, swallowed=282.1 Earths, hash=F4AF4952BF014364, wall=274s
+disc-long: A-1002 xong — steps=50000, live=4011, discs=2, swallowed=0.0 Earths, hash=246A1AC6F9A3C1CA, wall=302s
+disc-long: A-1011 xong — steps=50000, live=3883, discs=2, swallowed=0.0 Earths, hash=E6EA8F4A92DC048E, wall=365s
+disc-long: A-2001 xong — steps=50000, live=4043, discs=3, swallowed=0.0 Earths, hash=EFFA20463F3B83C5, wall=322s
+disc-long: A-2002 xong — steps=50000, live=3635, discs=3, swallowed=0.1 Earths, hash=1BEC5CCBC6E364CC, wall=296s
+disc-long: B-1234-jump1e2 xong — steps=700, live=4605, discs=2, swallowed=266.0 Earths, hash=A32C3567E4EEC7D5, wall=5s
+disc-long: B-1234-jump1e4 xong — steps=700, live=4606, discs=2, swallowed=373.6 Earths, hash=1CE3F35E60BD8554, wall=5s
+disc-long: B-1234-jump1e6 xong — steps=700, live=4606, discs=2, swallowed=404.4 Earths, hash=3DD489CBB163C425, wall=5s
+disc-long: B-1234-jump1e8 xong — steps=700, live=4604, discs=2, swallowed=411.2 Earths, hash=9ACC80DA375DC37A, wall=5s
+disc-long: B-1002-jump1e2 xong — steps=700, live=4658, discs=2, swallowed=0.0 Earths, hash=D8F6D22BCB8F027B, wall=6s
+disc-long: B-1002-jump1e4 xong — steps=700, live=4681, discs=2, swallowed=95.2 Earths, hash=18C28F2D278BBD3C, wall=6s
+disc-long: B-1002-jump1e6 xong — steps=700, live=4683, discs=2, swallowed=0.0 Earths, hash=3949C86513E7124B, wall=6s
+disc-long: B-1002-jump1e8 xong — steps=700, live=4680, discs=2, swallowed=0.0 Earths, hash=F68A9920CC4D1445, wall=6s
+OK     disc-long: tat ca cac canh hoan tat
+EXIT=0
